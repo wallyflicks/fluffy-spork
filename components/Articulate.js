@@ -79,9 +79,15 @@ const G = () => (
       font-family:'Fredoka',sans-serif;
       border:2px solid var(--border);color:var(--muted);background:var(--card);
       cursor:pointer;transition:all .18s;box-shadow:2px 2px 0 var(--border);
+      white-space:nowrap;
     }
     .chip:hover{border-color:var(--orange);color:var(--orange);box-shadow:2px 2px 0 var(--orange)}
     .chip.active{background:var(--orange);border-color:var(--orange);color:#fff;box-shadow:2px 2px 0 rgba(255,107,43,.4)}
+
+    @media(max-width:480px){
+      .chip{font-size:13px;padding:6px 13px;}
+      .card{border-radius:14px;}
+    }
   `}</style>
 );
 
@@ -473,7 +479,7 @@ export default function Articulate(){
               </div>
 
               {/* Setup card */}
-              <div className="card fadeUp d1" style={{padding:32,marginBottom:16}}>
+              <div className="card fadeUp d1" style={{padding:"clamp(16px, 4vw, 32px)",marginBottom:16}}>
                 {/* Category */}
                 <div style={{marginBottom:28}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
@@ -491,7 +497,7 @@ export default function Articulate(){
                     <span className="fredoka" style={{fontSize:18}}>Difficulty</span>
                     <Sparkle size={18} color="var(--orange)"/>
                   </div>
-                  <div style={{display:"flex",gap:8}}>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
                     {DIFFS.map(d=><button key={d} className={`chip ${diff===d?"active":""}`} onClick={()=>setDiff(d)}>{d}</button>)}
                     <button className={`chip ${diff==="Random"?"active":""}`} onClick={()=>setDiff("Random")}>Random</button>
                   </div>
