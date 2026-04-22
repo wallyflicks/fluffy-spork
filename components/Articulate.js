@@ -583,7 +583,8 @@ export default function Articulate(){
 
               <div className="card fadeUp d1" style={{textAlign:"left",padding:24,marginBottom:20}}>
                 <p style={{fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Your prompt</p>
-                <p className="fredoka" style={{fontSize:20,lineHeight:1.5}}>"{topic}"</p>
+                <p className="fredoka" style={{fontSize:20,lineHeight:1.5,marginBottom:recording?0:14}}>"{topic}"</p>
+                {!recording&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={pickTopic}>↻ New topic</button>}
               </div>
 
               <div className="card fadeUp d2" style={{padding:"48px 32px",marginBottom:20,border:recording?"2.5px solid var(--red)":"2.5px solid var(--border)",transition:"border-color .3s",position:"relative",overflow:"hidden"}}>
