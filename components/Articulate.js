@@ -1,5 +1,4 @@
 "use client";
-import { useSession, signIn } from 'next-auth/react';
 import { useState, useEffect, useRef, useCallback } from "react";
 
 const G = () => (
@@ -300,7 +299,6 @@ function SubBar({label,val,color,bg}){
 
 // ── App ──────────────────────────────────────────────────────────────────────
 export default function Articulate(){
-  const session = useSession();
   const [screen,setScreen]=useState("home");
   const [cat,setCat]=useState("General");
   const [diff,setDiff]=useState("Medium");
@@ -472,7 +470,6 @@ export default function Articulate(){
                 </div>
                 <h1 className="fredoka" style={{fontSize:"clamp(54px,9vw,90px)",lineHeight:1.1,color:"var(--orange)",letterSpacing:"-0.02em",display:"block",marginBottom:28}}>Level up.</h1>
                 <p style={{color:"var(--muted)",fontSize:18,maxWidth:460,margin:"0 auto",lineHeight:1.7}}>Practice any speaking scenario and get instant AI feedback on clarity, structure, and filler words.</p>
-                {!session.data && <div style={{marginTop:24}}><button className="btn btn-orange" onClick={() => signIn('google')}>Sign in with Google</button></div>}
               </div>
 
               {/* Setup card */}
