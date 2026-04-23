@@ -2,6 +2,12 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic();
 
+const THRESHOLDS = {
+  Easy:   { filler: '10%', structure: 1, words: 60  },
+  Medium: { filler: '6%',  structure: 2, words: 100 },
+  Hard:   { filler: '3%',  structure: 3, words: 150 },
+};
+
 export async function POST(req) {
   try {
     const { transcript, topic, category, difficulty } = await req.json();
@@ -13,30 +19,39 @@ export async function POST(req) {
       );
     }
 
+    const t = THRESHOLDS[difficulty] || THRESHOLDS.Medium;
+
     const message = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
+      max_tokens: 2048,
       messages: [{
         role: 'user',
-        content: `You are an expert public speaking coach. Analyze this speech transcript and return ONLY a valid JSON object with no markdown, no code blocks, no extra text — just the raw JSON.
+        content: `You are a professional public speaking coach giving calibrated feedback based on difficulty level. Return ONLY valid JSON with no markdown.
 
 Topic: "${topic}"
 Category: "${category}"
 Difficulty: "${difficulty}"
+Difficulty expectations: filler rate under ${t.filler}, at least ${t.structure} signpost word(s), at least ${t.words} words spoken.
 Transcript: "${transcript}"
 
-Return exactly this JSON structure with values based strictly on the actual transcript:
+Score everything RELATIVE to the difficulty level — the same speech should score higher on Easy than on Hard.
+
+Return exactly this JSON:
 {
-  "score": <overall score 0-100>,
-  "clarity": <clarity score 0-100>,
-  "structure": <structure score 0-100>,
-  "confidence": <confidence score 0-100>,
-  "filler_count": <total count of filler word occurrences>,
-  "filler_words": [<unique filler words actually found, e.g. "um", "uh", "like", "you know", "basically", "I mean", "sort of", "kind of">],
-  "strengths": [<2-3 specific strengths from this transcript>],
-  "improvements": [<2-3 specific improvements for this transcript>],
-  "overall_feedback": "<2-3 sentences of honest feedback about the actual content>",
-  "one_tip": "<one specific actionable tip for this speaker>"
+  "score": <overall 0-100, difficulty-calibrated>,
+  "clarity": <0-100>,
+  "structure": <0-100>,
+  "confidence": <0-100>,
+  "filler_count": <exact total>,
+  "filler_words": ["each unique filler word found"],
+  "strengths": [
+    "<5-6 items — each must quote specific words from transcript as evidence, mention exact counts or metrics, and reference the difficulty level where relevant>"
+  ],
+  "improvements": [
+    "<5-6 items — each must include: exact filler word counts like 'actually ×4', quote specific unclear sentences, name missing structural elements, count hedges, note vocabulary weaknesses with specific replacement suggestions>"
+  ],
+  "overall_feedback": "<Explain the score: 'Score of X breaks down as: Clarity Y (reason), Structure Y (reason), Confidence Y (reason). One sentence on overall impression referencing the difficulty level.'>",
+  "one_tip": "<A specific step-by-step drill referencing their actual words and topic. Never generic. Include numbered steps.>"
 }`
       }]
     });
