@@ -36,57 +36,73 @@ const G = () => (
     ::-webkit-scrollbar{width:6px}
     ::-webkit-scrollbar-thumb{background:var(--orange-border);border-radius:3px}
 
-    @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes slideLeft{from{opacity:0;transform:translateX(-48px)}to{opacity:1;transform:translateX(0)}}
+    @keyframes slideRight{from{opacity:0;transform:translateX(48px)}to{opacity:1;transform:translateX(0)}}
+    @keyframes screenEnter{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
     @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
     @keyframes spin{to{transform:rotate(360deg)}}
     @keyframes wobble{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
     @keyframes pulseRing{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.6);opacity:0}}
     @keyframes waveBar{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}
-    @keyframes float{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-10px) rotate(3deg)}}
+    @keyframes float{0%,100%{transform:translateY(0) rotate(-5deg)}50%{transform:translateY(-22px) rotate(5deg)}}
+    @keyframes bounceBtn{0%,100%{transform:translate(0,0);box-shadow:4px 4px 0 var(--text)}45%{transform:translate(-2px,-4px);box-shadow:6px 8px 0 var(--text)}}
 
-    .fadeUp{animation:fadeUp .42s ease both}
-    .d1{animation-delay:.07s}.d2{animation-delay:.14s}.d3{animation-delay:.21s}
-    .d4{animation-delay:.28s}.d5{animation-delay:.35s}
+    .fadeUp{animation:fadeUp .5s cubic-bezier(.22,.68,0,1.2) both}
+    .slideLeft{animation:slideLeft .6s cubic-bezier(.22,.68,0,1.2) both}
+    .slideRight{animation:slideRight .6s cubic-bezier(.22,.68,0,1.2) both}
+    .screenEnter{animation:screenEnter .45s cubic-bezier(.22,.68,0,1.2) both}
+    .d1{animation-delay:.08s}.d2{animation-delay:.18s}.d3{animation-delay:.28s}
+    .d4{animation-delay:.38s}.d5{animation-delay:.48s}.d6{animation-delay:.58s}
+    .fb1{animation:fadeUp .55s cubic-bezier(.22,.68,0,1.2) both;animation-delay:.05s}
+    .fb2{animation:fadeUp .55s cubic-bezier(.22,.68,0,1.2) both;animation-delay:.2s}
+    .fb3{animation:fadeUp .55s cubic-bezier(.22,.68,0,1.2) both;animation-delay:.35s}
+    .fb4{animation:fadeUp .55s cubic-bezier(.22,.68,0,1.2) both;animation-delay:.5s}
+    .fb5{animation:fadeUp .55s cubic-bezier(.22,.68,0,1.2) both;animation-delay:.65s}
+    .fb6{animation:fadeUp .55s cubic-bezier(.22,.68,0,1.2) both;animation-delay:.8s}
+    .fb7{animation:fadeUp .55s cubic-bezier(.22,.68,0,1.2) both;animation-delay:.95s}
 
     .card{
       background:var(--card);border:2.5px solid var(--border);
-      border-radius:20px;box-shadow:var(--shadow);
-      transition:box-shadow .18s,transform .18s;
+      border-radius:22px;box-shadow:var(--shadow);
+      transition:box-shadow .22s,transform .22s;
     }
+    .card:hover{box-shadow:8px 8px 0 rgba(0,0,0,0.14);transform:translateY(-3px)}
 
     .btn{
       display:inline-flex;align-items:center;gap:8px;
       padding:12px 24px;border-radius:50px;
-      font-family:'Fredoka',sans-serif;font-size:17px;font-weight:600;
+      font-family:'Fredoka',sans-serif;font-size:18px;font-weight:600;
       cursor:pointer;border:2.5px solid var(--text);
       transition:all .15s ease;white-space:nowrap;
-      box-shadow:3px 3px 0 var(--text);
+      box-shadow:4px 4px 0 var(--text);
     }
-    .btn:hover{transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--text)}
+    .btn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--text)}
     .btn:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--text)}
     .btn-orange{background:var(--orange);color:#fff}
     .btn-orange:hover{background:var(--orange-light)}
     .btn-cream{background:var(--cream);color:var(--text)}
-    .btn-green{background:var(--green);color:#fff;border-color:var(--green);box-shadow:3px 3px 0 var(--green)}
-    .btn-green:hover{box-shadow:5px 5px 0 var(--green)}
-    .btn-red{background:var(--red-dim);color:var(--red);border-color:var(--red);box-shadow:3px 3px 0 var(--red)}
-    .btn-red:hover{background:var(--red);color:#fff;box-shadow:5px 5px 0 var(--red)}
+    .btn-green{background:var(--green);color:#fff;border-color:var(--green);box-shadow:4px 4px 0 var(--green)}
+    .btn-green:hover{box-shadow:6px 6px 0 var(--green)}
+    .btn-red{background:var(--red-dim);color:var(--red);border-color:var(--red);box-shadow:4px 4px 0 var(--red)}
+    .btn-red:hover{background:var(--red);color:#fff;box-shadow:6px 6px 0 var(--red)}
     .btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
+    .btn-bounce{animation:bounceBtn 2.4s ease-in-out infinite}
 
     .chip{
       display:inline-flex;align-items:center;gap:6px;
-      padding:8px 18px;border-radius:50px;font-size:15px;font-weight:600;
+      padding:9px 20px;border-radius:50px;font-size:15px;font-weight:600;
       font-family:'Fredoka',sans-serif;
       border:2px solid var(--border);color:var(--muted);background:var(--card);
-      cursor:pointer;transition:all .18s;box-shadow:2px 2px 0 var(--border);
+      cursor:pointer;transition:all .2s;box-shadow:2px 2px 0 var(--border);
       white-space:nowrap;
     }
-    .chip:hover{border-color:var(--orange);color:var(--orange);box-shadow:2px 2px 0 var(--orange)}
-    .chip.active{background:var(--orange);border-color:var(--orange);color:#fff;box-shadow:2px 2px 0 rgba(255,107,43,.4)}
+    .chip:hover{border-color:var(--orange);color:var(--orange);box-shadow:3px 3px 0 var(--orange);transform:translateY(-1px)}
+    .chip.active{background:var(--orange);border-color:var(--orange);color:#fff;box-shadow:3px 3px 0 rgba(255,107,43,.5)}
 
     @media(max-width:480px){
-      .chip{font-size:13px;padding:6px 13px;}
-      .card{border-radius:14px;}
+      .chip{font-size:13px;padding:7px 14px;}
+      .card{border-radius:16px;}
     }
   `}</style>
 );
@@ -325,16 +341,18 @@ function analyzeTranscript(text, topic, difficulty) {
 }
 
 // ── Score Ring ───────────────────────────────────────────────────────────────
-function ScoreRing({score,size=140}){
+function ScoreRing({score,size=150}){
+  const [shown,setShown]=useState(0);
+  useEffect(()=>{const t=setTimeout(()=>setShown(score),120);return()=>clearTimeout(t);},[score]);
   const r=(size-16)/2, circ=2*Math.PI*r;
   const color=score>=80?"#2D7A4F":score>=60?"#CC6600":"#E84040";
   return(
     <svg width={size} height={size} style={{transform:"rotate(-90deg)"}}>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#F0E8E0" strokeWidth={10}/>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={10}
-        strokeDasharray={circ} strokeDashoffset={circ*(1-score/100)}
-        strokeLinecap="round" style={{transition:"stroke-dashoffset 1.3s cubic-bezier(.22,.68,0,1.2)"}}/>
-      <text x={size/2} y={size/2} fill={color} fontSize={30} fontWeight="700"
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#F0E8E0" strokeWidth={12}/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={12}
+        strokeDasharray={circ} strokeDashoffset={circ*(1-shown/100)}
+        strokeLinecap="round" style={{transition:"stroke-dashoffset 1.5s cubic-bezier(.22,.68,0,1.2)"}}/>
+      <text x={size/2} y={size/2} fill={color} fontSize={34} fontWeight="700"
         fontFamily="Fredoka, sans-serif" textAnchor="middle" dominantBaseline="middle"
         style={{transform:`rotate(90deg)`,transformOrigin:`${size/2}px ${size/2}px`}}>
         {score}
@@ -512,12 +530,17 @@ export default function Articulate(){
 
   const FloatDeco=()=>(
     <>
-      <Star size={30} color="#F5C842" style={{position:"absolute",top:72,left:"6%",animation:"float 4s ease-in-out infinite"}}/>
-      <Star size={18} color="#FF6B2B" style={{position:"absolute",top:180,right:"5%",animation:"float 3.5s ease-in-out infinite",animationDelay:"1s"}}/>
-      <Sparkle size={24} color="#2D7A4F" style={{position:"absolute",top:130,right:"17%",animation:"float 5s ease-in-out infinite",animationDelay:"0.5s"}}/>
-      <Star size={14} color="#F5C842" style={{position:"absolute",top:290,left:"13%",animation:"float 4.5s ease-in-out infinite",animationDelay:"2s"}}/>
-      <Sparkle size={20} color="#FF6B2B" style={{position:"absolute",bottom:220,left:"8%",animation:"float 3.8s ease-in-out infinite",animationDelay:"1.5s"}}/>
-      <Star size={22} color="#2D7A4F" style={{position:"absolute",bottom:260,right:"7%",animation:"float 4.2s ease-in-out infinite",animationDelay:"0.8s"}}/>
+      <Star size={48} color="#F5C842" style={{position:"absolute",top:60,left:"4%",animation:"float 4s ease-in-out infinite",opacity:.95}}/>
+      <Star size={28} color="#FF6B2B" style={{position:"absolute",top:170,right:"4%",animation:"float 3.5s ease-in-out infinite",animationDelay:"1s"}}/>
+      <Sparkle size={36} color="#2D7A4F" style={{position:"absolute",top:110,right:"16%",animation:"float 5s ease-in-out infinite",animationDelay:"0.5s"}}/>
+      <Star size={20} color="#F5C842" style={{position:"absolute",top:300,left:"10%",animation:"float 4.5s ease-in-out infinite",animationDelay:"2s"}}/>
+      <Sparkle size={30} color="#FF6B2B" style={{position:"absolute",bottom:210,left:"6%",animation:"float 3.8s ease-in-out infinite",animationDelay:"1.5s"}}/>
+      <Star size={38} color="#2D7A4F" style={{position:"absolute",bottom:250,right:"5%",animation:"float 4.2s ease-in-out infinite",animationDelay:"0.8s"}}/>
+      <Sparkle size={22} color="#F5C842" style={{position:"absolute",top:380,right:"19%",animation:"float 5.5s ease-in-out infinite",animationDelay:"3s"}}/>
+      <Star size={16} color="#FF6B2B" style={{position:"absolute",top:450,left:"18%",animation:"float 4s ease-in-out infinite",animationDelay:"1.2s"}}/>
+      <Sparkle size={26} color="#3B82F6" style={{position:"absolute",bottom:360,right:"11%",animation:"float 6s ease-in-out infinite",animationDelay:"2.5s"}}/>
+      <Star size={42} color="#F5C842" style={{position:"absolute",bottom:130,left:"2%",animation:"float 3.5s ease-in-out infinite",animationDelay:"0.3s",opacity:.7}}/>
+      <Sparkle size={18} color="#2D7A4F" style={{position:"absolute",top:230,left:"24%",animation:"float 4.8s ease-in-out infinite",animationDelay:"1.8s"}}/>
     </>
   );
 
@@ -549,67 +572,68 @@ export default function Articulate(){
           {screen==="home"&&(
             <div>
               <FloatDeco/>
-              <div className="fadeUp" style={{textAlign:"center",padding:"64px 0 48px"}}>
-                <div style={{display:"inline-flex",alignItems:"center",gap:8,marginBottom:22,padding:"8px 22px",borderRadius:50,background:"var(--orange-dim)",border:"2px solid var(--orange-border)"}}>
-                  <span style={{width:8,height:8,borderRadius:"50%",background:"var(--orange)",animation:"blink 2s infinite"}}/>
-                  <span style={{fontSize:13,fontWeight:700,color:"var(--orange)",fontFamily:"Fredoka",letterSpacing:"0.06em",textTransform:"uppercase"}}>AI Speaking Coach</span>
+              <div style={{textAlign:"center",padding:"80px 0 60px"}}>
+                <div className="fadeUp" style={{display:"inline-flex",alignItems:"center",gap:8,marginBottom:32,padding:"10px 26px",borderRadius:50,background:"var(--orange-dim)",border:"2px solid var(--orange-border)"}}>
+                  <span style={{width:9,height:9,borderRadius:"50%",background:"var(--orange)",animation:"blink 2s infinite"}}/>
+                  <span style={{fontSize:14,fontWeight:700,color:"var(--orange)",fontFamily:"Fredoka",letterSpacing:"0.06em",textTransform:"uppercase"}}>AI Speaking Coach</span>
                 </div>
-                <div style={{position:"relative",display:"inline-block",marginBottom:10}}>
-                  <h1 className="fredoka" style={{fontSize:"clamp(54px,9vw,90px)",lineHeight:1,color:"var(--text)",letterSpacing:"-0.02em"}}>Speak up.</h1>
-                  <div style={{position:"absolute",bottom:-6,left:0,right:0}}><Squiggle width={360} color="var(--orange)"/></div>
+                <div style={{position:"relative",display:"block",marginBottom:12}}>
+                  <h1 className="fredoka slideLeft" style={{fontSize:"clamp(62px,10vw,100px)",lineHeight:1,color:"var(--text)",letterSpacing:"-0.02em",animationDelay:".1s"}}>Speak up.</h1>
+                  <div style={{display:"flex",justifyContent:"center",marginTop:-4,marginBottom:4}}><Squiggle width={340} color="var(--orange)"/></div>
                 </div>
-                <h1 className="fredoka" style={{fontSize:"clamp(54px,9vw,90px)",lineHeight:1.1,color:"var(--orange)",letterSpacing:"-0.02em",display:"block",marginBottom:28}}>Level up.</h1>
-                <p style={{color:"var(--muted)",fontSize:18,maxWidth:460,margin:"0 auto",lineHeight:1.7}}>Practice any speaking scenario and get instant AI feedback on clarity, structure, and filler words.</p>
+                <h1 className="fredoka slideRight" style={{fontSize:"clamp(62px,10vw,100px)",lineHeight:1.1,color:"var(--orange)",letterSpacing:"-0.02em",display:"block",marginBottom:36,animationDelay:".2s"}}>Level up.</h1>
+                <p className="fadeUp" style={{color:"var(--muted)",fontSize:19,maxWidth:480,margin:"0 auto",lineHeight:1.8,animationDelay:".35s"}}>Practice any speaking scenario and get instant AI feedback on clarity, structure, and filler words.</p>
               </div>
 
               {/* Setup card */}
-              <div className="card fadeUp d1" style={{padding:"clamp(16px, 4vw, 32px)",marginBottom:16}}>
+              <div className="card fadeUp d3" style={{padding:"clamp(20px,5vw,40px)",marginBottom:20}}>
                 {/* Category */}
-                <div style={{marginBottom:28}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
-                    <span className="fredoka" style={{fontSize:18}}>Pick a category</span>
-                    <Star size={18} color="#F5C842"/>
+                <div style={{marginBottom:36}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
+                    <span className="fredoka" style={{fontSize:20}}>Pick a category</span>
+                    <Star size={20} color="#F5C842"/>
                   </div>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
                     {CATS.map(c=><button key={c} className={`chip ${cat===c?"active":""}`} onClick={()=>setCat(c)}>{c}</button>)}
                     <button className={`chip ${cat==="Random"?"active":""}`} onClick={()=>setCat("Random")}>Random</button>
                   </div>
                 </div>
                 {/* Difficulty */}
-                <div style={{marginBottom:28}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
-                    <span className="fredoka" style={{fontSize:18}}>Difficulty</span>
-                    <Sparkle size={18} color="var(--orange)"/>
+                <div style={{marginBottom:36}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
+                    <span className="fredoka" style={{fontSize:20}}>Difficulty</span>
+                    <Sparkle size={20} color="var(--orange)"/>
                   </div>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
                     {DIFFS.map(d=><button key={d} className={`chip ${diff===d?"active":""}`} onClick={()=>setDiff(d)}>{d}</button>)}
                     <button className={`chip ${diff==="Random"?"active":""}`} onClick={()=>setDiff("Random")}>Random</button>
                   </div>
                 </div>
                 {/* Timers */}
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,marginBottom:32}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:28,marginBottom:40}}>
                   <div>
-                    <span className="fredoka" style={{fontSize:16,display:"block",marginBottom:12}}>Prep Time</span>
-                    <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
+                    <span className="fredoka" style={{fontSize:17,display:"block",marginBottom:14}}>Prep Time</span>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
                       {PREP_TIMES.map(t=><button key={t} className={`chip ${prepTime===t?"active":""}`} style={{fontSize:14,padding:"6px 14px"}} onClick={()=>setPrepTime(t)}>{t===0?"None":fmt(t)}</button>)}
                     </div>
                   </div>
                   <div>
-                    <span className="fredoka" style={{fontSize:16,display:"block",marginBottom:12}}>Speak Time</span>
-                    <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
+                    <span className="fredoka" style={{fontSize:17,display:"block",marginBottom:14}}>Speak Time</span>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
                       {SPEAK_TIMES.map(t=><button key={t} className={`chip ${speakTime===t?"active":""}`} style={{fontSize:14,padding:"6px 14px"}} onClick={()=>setSpeakTime(t)}>{fmt(t)}</button>)}
                     </div>
                   </div>
                 </div>
-                <button className="btn btn-orange" style={{width:"100%",justifyContent:"center",padding:"16px",fontSize:20}} onClick={startSession}>Let's Go!</button>
+                <button className="btn btn-orange btn-bounce" style={{width:"100%",justifyContent:"center",padding:"18px",fontSize:22}} onClick={startSession}>Let's Go!</button>
               </div>
 
               {/* Feature strip */}
-              <div className="fadeUp d2" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
-                {[["Record","Mic-based practice"],["AI Feedback","GPT-4 powered"],["Score","Instant analysis"]].map(([t,s])=>(
-                  <div key={t} className="card" style={{padding:"18px 16px",textAlign:"center"}}>
-                    <div className="fredoka" style={{fontSize:17,marginBottom:2}}>{t}</div>
-                    <div style={{fontSize:13,color:"var(--muted)"}}>{s}</div>
+              <div className="fadeUp d4" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:20}}>
+                {[["🎙️","Record","Mic-based practice"],["🤖","AI Feedback","Real-time analysis"],["⭐","Score","Detailed breakdown"]].map(([e,t,s])=>(
+                  <div key={t} className="card" style={{padding:"24px 16px",textAlign:"center"}}>
+                    <div style={{fontSize:28,marginBottom:8}}>{e}</div>
+                    <div className="fredoka" style={{fontSize:17,marginBottom:4}}>{t}</div>
+                    <div style={{fontSize:13,color:"var(--muted)",lineHeight:1.4}}>{s}</div>
                   </div>
                 ))}
               </div>
@@ -618,7 +642,7 @@ export default function Articulate(){
 
           {/* ── PREP ── */}
           {screen==="prep"&&(
-            <div style={{paddingTop:48}}>
+            <div className="screenEnter" style={{paddingTop:56}}>
               <div className="fadeUp" style={{display:"flex",alignItems:"center",gap:16,marginBottom:32}}>
                 <TimerDoodle size={68}/>
                 <div>
@@ -655,7 +679,7 @@ export default function Articulate(){
 
           {/* ── SPEAK ── */}
           {screen==="speak"&&(
-            <div style={{paddingTop:48,textAlign:"center"}}>
+            <div className="screenEnter" style={{paddingTop:56,textAlign:"center"}}>
               <div className="fadeUp" style={{marginBottom:24,display:"flex",justifyContent:"center"}}>
                 {recording
                   ?<div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"9px 22px",borderRadius:50,background:"var(--red-dim)",border:"2px solid var(--red)",fontFamily:"Fredoka",fontSize:17,color:"var(--red)",fontWeight:600}}>
@@ -701,7 +725,7 @@ export default function Articulate(){
 
           {/* ── FEEDBACK ── */}
           {screen==="feedback"&&(
-            <div style={{paddingTop:48}}>
+            <div className="screenEnter" style={{paddingTop:56}}>
               {loading&&(
                 <div className="fadeUp" style={{textAlign:"center",padding:"80px 24px"}}>
                   <div style={{display:"flex",justifyContent:"center",marginBottom:20}}>
@@ -715,23 +739,23 @@ export default function Articulate(){
               {!loading&&feedback&&!feedback.error&&(
                 <div>
                   {/* Score hero */}
-                  <div className="card fadeUp" style={{textAlign:"center",padding:"44px 32px",marginBottom:16,position:"relative",overflow:"hidden",borderTop:`6px solid ${feedback.score>=80?"var(--green)":feedback.score>=60?"var(--yellow)":"var(--red)"}`}}>
-                    <div style={{position:"absolute",top:16,right:16}}><Star size={28} color="#F5C842"/></div>
-                    <div style={{position:"absolute",top:20,left:20}}><Sparkle size={22} color="var(--orange)"/></div>
-                    <h3 className="fredoka" style={{fontSize:18,color:"var(--muted)",marginBottom:16}}>Overall Score</h3>
-                    <div style={{display:"flex",justifyContent:"center",marginBottom:16}}><ScoreRing score={feedback.score} size={150}/></div>
-                    <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 20px",borderRadius:50,
+                  <div className="card fb1" style={{textAlign:"center",padding:"52px 32px",marginBottom:20,position:"relative",overflow:"hidden",borderTop:`6px solid ${feedback.score>=80?"var(--green)":feedback.score>=60?"var(--yellow)":"var(--red)"}`}}>
+                    <div style={{position:"absolute",top:16,right:16}}><Star size={32} color="#F5C842"/></div>
+                    <div style={{position:"absolute",top:20,left:20}}><Sparkle size={26} color="var(--orange)"/></div>
+                    <h3 className="fredoka" style={{fontSize:19,color:"var(--muted)",marginBottom:20}}>Overall Score</h3>
+                    <div style={{display:"flex",justifyContent:"center",marginBottom:20}}><ScoreRing score={feedback.score} size={160}/></div>
+                    <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:"10px 24px",borderRadius:50,
                       background:feedback.score>=80?"var(--green)":feedback.score>=60?"var(--yellow-dim)":"var(--red-dim)",
                       border:`2px solid ${feedback.score>=80?"var(--green)":feedback.score>=60?"var(--yellow)":"var(--red)"}`,
                       color:feedback.score>=80?"white":feedback.score>=60?"#7A5500":"var(--red)",
-                      fontFamily:"Fredoka",fontSize:17,fontWeight:600,marginBottom:18}}>
+                      fontFamily:"Fredoka",fontSize:18,fontWeight:600,marginBottom:20}}>
                       {feedback.score>=80?"🏆 Excellent!":feedback.score>=60?"👍 Good Job!":"💪 Keep Practicing!"}
                     </div>
-                    <p style={{color:"var(--muted)",fontSize:15,maxWidth:460,margin:"0 auto",lineHeight:1.7}}>{feedback.overall_feedback}</p>
+                    <p style={{color:"var(--muted)",fontSize:16,maxWidth:460,margin:"0 auto",lineHeight:1.8}}>{feedback.overall_feedback}</p>
                   </div>
 
                   {/* Sub scores */}
-                  <div className="fadeUp d1" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
+                  <div className="fb2" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:20}}>
                     <SubBar label="Clarity" val={feedback.clarity} color="#3B82F6" bg="#EFF6FF"/>
                     <SubBar label="Structure" val={feedback.structure} color="var(--orange)" bg="var(--orange-dim)"/>
                     <SubBar label="Confidence" val={feedback.confidence} color="var(--green)" bg="#E8F7EE"/>
@@ -739,73 +763,73 @@ export default function Articulate(){
 
                   {/* Fillers */}
                   {feedback.filler_count>0&&(
-                    <div className="card fadeUp d2" style={{padding:24,marginBottom:16,borderLeft:"5px solid var(--red)"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-                        <span className="fredoka" style={{fontSize:18}}>😬 Filler Words</span>
+                    <div className="card fb3" style={{padding:28,marginBottom:20,borderLeft:"5px solid var(--red)"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+                        <span className="fredoka" style={{fontSize:19}}>😬 Filler Words</span>
                         <span style={{background:"var(--red-dim)",color:"var(--red)",border:"2px solid rgba(232,64,64,.2)",borderRadius:50,padding:"3px 14px",fontFamily:"Fredoka",fontSize:14}}>{feedback.filler_count} detected</span>
                       </div>
                       <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-                        {feedback.filler_words.map(w=><span key={w} style={{padding:"5px 16px",borderRadius:50,background:"var(--red-dim)",color:"var(--red)",border:"2px solid rgba(232,64,64,.2)",fontFamily:"Fredoka",fontSize:15}}>{w}</span>)}
+                        {feedback.filler_words.map(w=><span key={w} style={{padding:"6px 18px",borderRadius:50,background:"var(--red-dim)",color:"var(--red)",border:"2px solid rgba(232,64,64,.2)",fontFamily:"Fredoka",fontSize:15}}>{w}</span>)}
                       </div>
                     </div>
                   )}
 
                   {/* Strengths + Improvements */}
-                  <div className="fadeUp d3" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
-                    <div className="card" style={{padding:24,borderTop:"5px solid var(--green)"}}>
-                      <p className="fredoka" style={{fontSize:17,color:"var(--green)",marginBottom:14}}>✓ What's working</p>
+                  <div className="fb4" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:20}}>
+                    <div className="card" style={{padding:28,borderTop:"5px solid var(--green)"}}>
+                      <p className="fredoka" style={{fontSize:18,color:"var(--green)",marginBottom:16}}>✓ What's working</p>
                       {feedback.strengths.map((s,i)=>(
-                        <div key={i} style={{display:"flex",gap:10,marginBottom:10,alignItems:"flex-start"}}>
-                          <div style={{width:22,height:22,borderRadius:"50%",background:"#E8F7EE",border:"2px solid var(--green)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1}}>
+                        <div key={i} style={{display:"flex",gap:10,marginBottom:12,alignItems:"flex-start"}}>
+                          <div style={{width:22,height:22,borderRadius:"50%",background:"#E8F7EE",border:"2px solid var(--green)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:2}}>
                             <svg width="10" height="10" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="var(--green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
                           </div>
-                          <span style={{fontSize:14,lineHeight:1.5}}>{s}</span>
+                          <span style={{fontSize:15,lineHeight:1.6}}>{s}</span>
                         </div>
                       ))}
                     </div>
-                    <div className="card" style={{padding:24,borderTop:"5px solid var(--orange)"}}>
-                      <p className="fredoka" style={{fontSize:17,color:"var(--orange)",marginBottom:14}}>↑ To improve</p>
+                    <div className="card" style={{padding:28,borderTop:"5px solid var(--orange)"}}>
+                      <p className="fredoka" style={{fontSize:18,color:"var(--orange)",marginBottom:16}}>↑ To improve</p>
                       {feedback.improvements.map((s,i)=>(
-                        <div key={i} style={{display:"flex",gap:10,marginBottom:10,alignItems:"flex-start"}}>
-                          <div style={{width:22,height:22,borderRadius:"50%",background:"var(--orange-dim)",border:"2px solid var(--orange-border)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1}}>
+                        <div key={i} style={{display:"flex",gap:10,marginBottom:12,alignItems:"flex-start"}}>
+                          <div style={{width:22,height:22,borderRadius:"50%",background:"var(--orange-dim)",border:"2px solid var(--orange-border)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:2}}>
                             <svg width="10" height="10" viewBox="0 0 12 12"><path d="M6 9V3M3 6l3-3 3 3" stroke="var(--orange)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
                           </div>
-                          <span style={{fontSize:14,lineHeight:1.5}}>{s}</span>
+                          <span style={{fontSize:15,lineHeight:1.6}}>{s}</span>
                         </div>
                       ))}
                     </div>
                   </div>
 
                   {/* Coach tip */}
-                  <div className="card fadeUp d4" style={{padding:24,marginBottom:16,background:"var(--yellow-dim)",border:"2.5px solid var(--yellow)",borderRadius:20}}>
-                    <div style={{display:"flex",gap:14,alignItems:"flex-start"}}>
-                      <div style={{fontSize:34,flexShrink:0}}>💡</div>
+                  <div className="card fb5" style={{padding:28,marginBottom:20,background:"var(--yellow-dim)",border:"2.5px solid var(--yellow)",borderRadius:22}}>
+                    <div style={{display:"flex",gap:16,alignItems:"flex-start"}}>
+                      <div style={{fontSize:36,flexShrink:0}}>💡</div>
                       <div>
-                        <p className="fredoka" style={{fontSize:17,color:"#7A5500",marginBottom:6}}>Coach's Tip</p>
-                        <p style={{fontSize:15,lineHeight:1.7}}>{feedback.one_tip}</p>
+                        <p className="fredoka" style={{fontSize:18,color:"#7A5500",marginBottom:8}}>Coach's Tip</p>
+                        <p style={{fontSize:15,lineHeight:1.8}}>{feedback.one_tip}</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Transcript */}
                   {transcript&&(
-                    <details className="card fadeUp d5" style={{marginBottom:16,padding:24,cursor:"pointer"}}>
+                    <details className="card fb6" style={{marginBottom:20,padding:28,cursor:"pointer"}}>
                       <summary className="fredoka" style={{fontSize:16,color:"var(--muted)",userSelect:"none"}}>📝 View transcript ▾</summary>
-                      <p style={{marginTop:14,fontSize:14,lineHeight:1.8,opacity:.85}}>{transcript}</p>
+                      <p style={{marginTop:16,fontSize:14,lineHeight:1.9,opacity:.85}}>{transcript}</p>
                     </details>
                   )}
 
                   {/* Audio */}
                   {audioUrl&&(
-                    <div className="card fadeUp" style={{padding:24,marginBottom:16}}>
-                      <p className="fredoka" style={{fontSize:16,marginBottom:12,color:"var(--muted)"}}>🎧 Your Recording</p>
-                      <audio controls src={audioUrl} style={{width:"100%",borderRadius:10}}/>
+                    <div className="card fb7" style={{padding:28,marginBottom:20}}>
+                      <p className="fredoka" style={{fontSize:17,marginBottom:14,color:"var(--muted)"}}>🎧 Your Recording</p>
+                      <audio controls src={audioUrl} style={{width:"100%",borderRadius:12}}/>
                     </div>
                   )}
 
                   {/* Actions */}
-                  <div className="fadeUp" style={{display:"flex",gap:12,marginBottom:40}}>
-                    <button className="btn btn-orange" style={{flex:1,justifyContent:"center",padding:"15px",fontSize:17}} onClick={()=>{setFeedback(null);setAudioBlob(null);setTranscript("");startSession();}}>Try Again 🔄</button>
+                  <div className="fb7" style={{display:"flex",gap:14,marginBottom:48}}>
+                    <button className="btn btn-orange" style={{flex:1,justifyContent:"center",padding:"16px",fontSize:18}} onClick={()=>{setFeedback(null);setAudioBlob(null);setTranscript("");startSession();}}>Try Again 🔄</button>
                     <button className="btn btn-cream" style={{flex:1,justifyContent:"center"}} onClick={reset}>Change Topic</button>
                   </div>
                 </div>
