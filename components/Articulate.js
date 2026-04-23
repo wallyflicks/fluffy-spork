@@ -168,6 +168,22 @@ const SPEAK_TIMES = [30,60,120,180,300];
 const fmt = s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
 const rand = arr=>arr[Math.floor(Math.random()*arr.length)];
 
+const playChime = () => {
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    [[0, 880, 0.3], [0.25, 660, 0.25], [0.5, 880, 0.35]].forEach(([t, freq, vol]) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = "sine"; osc.frequency.value = freq;
+      gain.gain.setValueAtTime(vol, ctx.currentTime + t);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.4);
+      osc.start(ctx.currentTime + t);
+      osc.stop(ctx.currentTime + t + 0.4);
+    });
+  } catch(e) {}
+};
+
 // ── Speech Analysis ──────────────────────────────────────────────────────────
 function analyzeTranscript(text, topic, difficulty) {
   const lower = text.toLowerCase();
@@ -398,7 +414,7 @@ export default function Articulate(){
         if(remaining === 0){
           clearInterval(ivRef.current);
           setRunning(false);
-          if(phase==="prep") goSpeak(); else doStop();
+          if(phase==="prep") goSpeak(); else { playChime(); doStop(); }
         }
       },100);
     }
@@ -622,7 +638,7 @@ export default function Articulate(){
               </div>
 
               <div className="card fadeUp d2" style={{textAlign:"center",padding:"44px 32px",marginBottom:20}}>
-                <div style={{fontSize:90,fontWeight:700,fontFamily:"Fredoka",lineHeight:1,letterSpacing:"-0.03em",color:timer<10?"var(--red)":"var(--text)",animation:timer<10&&running?"blink 1s infinite":"none"}}>{fmt(timer)}</div>
+                <div style={{fontSize:90,fontWeight:700,fontFamily:"Fredoka",lineHeight:1,letterSpacing:"-0.03em",color:timer<10?"var(--red)":"var(--text)"}}>{fmt(timer)}</div>
                 <div style={{color:"var(--muted)",fontSize:16,marginTop:8,fontFamily:"Fredoka"}}>prep time remaining</div>
               </div>
 
@@ -668,7 +684,7 @@ export default function Articulate(){
                     </div>
                   </div>
                 )}
-                <div style={{fontSize:96,fontWeight:700,fontFamily:"Fredoka",lineHeight:1,letterSpacing:"-0.03em",color:timer<10?"var(--red)":timer<30?"#CC6600":"var(--text)",animation:timer<10?"blink 1s infinite":"none"}}>{fmt(timer)}</div>
+                <div style={{fontSize:96,fontWeight:700,fontFamily:"Fredoka",lineHeight:1,letterSpacing:"-0.03em",color:timer<10?"var(--red)":timer<30?"#CC6600":"var(--text)"}}>{fmt(timer)}</div>
                 <div style={{color:"var(--muted)",fontFamily:"Fredoka",fontSize:17,margin:"10px 0 22px"}}>speaking time remaining</div>
                 <div style={{display:"flex",justifyContent:"center"}}><WaveViz active={recording}/></div>
               </div>
