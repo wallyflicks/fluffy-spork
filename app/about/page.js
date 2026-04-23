@@ -85,7 +85,9 @@ export default function About() {
                   width:'100%',
                   height:'100%',
                   objectFit:'cover',
-                  objectPosition:'center 28%',
+                  objectPosition:'center 30%',
+                  transform:'scale(2.4)',
+                  transformOrigin:'center 36%',
                   display:'block',
                 }}
               />
