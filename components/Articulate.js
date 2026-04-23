@@ -437,7 +437,7 @@ export default function Articulate(){
     else setScreen("prep");
   };
 
-  const goSpeak=()=>{setPhase("speak");setTimer(speakTime);initialTimeRef.current = speakTime;startTimeRef.current = Date.now();setScreen("speak");startMic();};
+  const goSpeak=()=>{setPhase("speak");setTimer(speakTime);initialTimeRef.current = speakTime;setScreen("speak");};
 
   const startMic=async()=>{
     setMicErr("");setTranscript("");transcriptRef.current="";
@@ -452,7 +452,7 @@ export default function Articulate(){
         setAudioUrl(URL.createObjectURL(blob));
         stream.getTracks().forEach(t=>t.stop());
       };
-      mr.start(1000);setRecording(true);setRunning(true);
+      mr.start(1000);startTimeRef.current=Date.now();setRecording(true);setRunning(true);
 
       const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
       if(SR){
