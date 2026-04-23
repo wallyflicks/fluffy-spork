@@ -481,45 +481,78 @@ function lerpColor(a, b, t){
   return `rgb(${Math.round(r1+(r2-r1)*t)},${Math.round(g1+(g2-g1)*t)},${Math.round(b1+(b2-b1)*t)})`;
 }
 
-function BorderTimer({containerRef, timer, speakTime, active}){
+function BorderTimer({containerRef, startTimeRef, durationSecs, active}){
   const [dims,setDims]=useState({w:0,h:0});
+  const trackRef=useRef(null);
+  const glowRef=useRef(null);
+  const rafRef=useRef(null);
+
+  // Measure card using offsetWidth/offsetHeight (includes border) on resize
   useEffect(()=>{
     const el=containerRef?.current;
     if(!el) return;
-    setDims({w:el.offsetWidth,h:el.offsetHeight});
-    const ro=new ResizeObserver(([e])=>setDims({w:Math.round(e.contentRect.width),h:Math.round(e.contentRect.height)}));
+    const measure=()=>setDims({w:el.offsetWidth,h:el.offsetHeight});
+    measure();
+    const ro=new ResizeObserver(measure);
     ro.observe(el);
     return()=>ro.disconnect();
   },[containerRef]);
 
+  // RAF loop — directly mutates SVG attrs, zero React re-renders per frame
+  useEffect(()=>{
+    cancelAnimationFrame(rafRef.current);
+    if(!active||!dims.w) return;
+
+    const rx=20, sw=5;
+    const rw=dims.w-sw, rh=dims.h-sw;
+    const perim=2*(rw+rh)-8*rx+2*Math.PI*rx;
+
+    const tick=()=>{
+      const start=startTimeRef?.current;
+      if(!start){rafRef.current=requestAnimationFrame(tick);return;}
+      const elapsed=(Date.now()-start)/1000;
+      const rem=Math.max(0,durationSecs-elapsed);
+      const frac=durationSecs>0?rem/durationSecs:0;
+      const offset=perim*(1-frac);
+
+      const color=rem>=30?'#FF6B2B'
+        :rem>=10?lerpColor('#F5C842','#FF6B2B',(rem-10)/20)
+        :lerpColor('#E84040','#F5C842',rem/10);
+
+      if(trackRef.current){
+        trackRef.current.setAttribute('stroke-dashoffset',offset.toFixed(2));
+        trackRef.current.setAttribute('stroke',color);
+        const urgent=rem<10&&rem>0;
+        trackRef.current.style.filter=urgent?`drop-shadow(0 0 8px ${color}) drop-shadow(0 0 3px ${color})`:'none';
+        if(glowRef.current) glowRef.current.style.opacity=urgent?(0.15+0.15*Math.sin(Date.now()/200)).toFixed(3):'0';
+      }
+      if(rem>0) rafRef.current=requestAnimationFrame(tick);
+    };
+    rafRef.current=requestAnimationFrame(tick);
+    return()=>cancelAnimationFrame(rafRef.current);
+  },[active,dims,durationSecs]);
+
   if(!dims.w||!dims.h||!active) return null;
 
-  const rx=20, sw=5, pad=sw/2+2;
-  const iw=dims.w-pad*2, ih=dims.h-pad*2;
-  const perimeter=2*(iw+ih)-8*rx+2*Math.PI*rx;
-  const frac=speakTime>0?Math.max(0,timer/speakTime):0;
-  const dashOffset=perimeter*(1-frac);
-
-  const color = timer>=30 ? '#FF6B2B'
-    : timer>=10 ? lerpColor('#F5C842','#FF6B2B',(timer-10)/20)
-    : lerpColor('#E84040','#F5C842',timer/10);
-
-  const urgent=timer<10&&timer>0;
+  const rx=20, sw=5, half=sw/2;
+  const rw=dims.w-sw, rh=dims.h-sw;
+  const perim=2*(rw+rh)-8*rx+2*Math.PI*rx;
 
   return(
-    <svg style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none',zIndex:4,overflow:'visible'}}
+    // Positioned so stroke centre sits exactly on the card's outer border edge
+    <svg style={{position:'absolute',top:`-${half}px`,left:`-${half}px`,
+      width:`calc(100% + ${sw}px)`,height:`calc(100% + ${sw}px)`,
+      pointerEvents:'none',zIndex:4,overflow:'visible'}}
       viewBox={`0 0 ${dims.w} ${dims.h}`}>
-      {urgent&&(
-        <rect x={pad} y={pad} width={iw} height={ih} rx={rx} fill="none"
-          stroke="#E84040" strokeWidth={sw+4} opacity={0.25}
-          style={{animation:'urgentPulse .7s ease-in-out infinite alternate'}}/>
-      )}
-      <rect x={pad} y={pad} width={iw} height={ih} rx={rx} fill="none"
-        stroke={color} strokeWidth={sw}
-        strokeDasharray={`${perimeter} ${perimeter}`}
-        strokeDashoffset={dashOffset}
-        strokeLinecap="butt"
-        style={{transition:'stroke 0.7s ease',filter:urgent?`drop-shadow(0 0 7px ${color}) drop-shadow(0 0 3px ${color})`:'none'}}/>
+      {/* Glow halo for urgency — opacity driven by RAF */}
+      <rect ref={glowRef} x={half} y={half} width={rw} height={rh} rx={rx}
+        fill="none" stroke="#E84040" strokeWidth={sw+8} opacity={0}/>
+      {/* Main countdown stroke */}
+      <rect ref={trackRef} x={half} y={half} width={rw} height={rh} rx={rx}
+        fill="none" stroke="#FF6B2B" strokeWidth={sw}
+        strokeDasharray={`${perim.toFixed(2)} ${perim.toFixed(2)}`}
+        strokeDashoffset={0}
+        strokeLinecap="butt"/>
     </svg>
   );
 }
@@ -836,7 +869,7 @@ export default function Articulate(){
               </div>
 
               <div ref={timerCardRef} className="card fadeUp d2" style={{padding:"48px 32px",marginBottom:20,border:recording?"2.5px solid transparent":"2.5px solid var(--border)",transition:"border-color .3s",position:"relative",overflow:"visible"}}>
-                <BorderTimer containerRef={timerCardRef} timer={timer} speakTime={speakTime} active={recording}/>
+                <BorderTimer containerRef={timerCardRef} startTimeRef={startTimeRef} durationSecs={speakTime} active={recording}/>
                 {recording&&(
                   <div style={{display:"flex",justifyContent:"center",marginBottom:24}}>
                     <div style={{position:"relative",width:64,height:64}}>
