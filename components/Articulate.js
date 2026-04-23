@@ -175,79 +175,137 @@ function analyzeTranscript(text, topic, difficulty) {
   const wordCount = words.length;
   const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 3);
 
-  const FILLERS = ["um","uh","er","ah","like","you know","basically","literally",
-    "actually","honestly","sort of","kind of","right","so","well","i mean",
-    "you see","anyway","whatever","and uh","and um"];
-  let fillerCount = 0;
-  const foundFillers = [];
-  for (const f of FILLERS) {
-    const re = new RegExp(`\\b${f.replace(/\s+/g,"\\s+")}\\b`,"gi");
-    const m = text.match(re)||[];
-    if(m.length){ foundFillers.push(f); fillerCount+=m.length; }
+  // Exact per-word filler counts
+  const FILLER_DEFS = [
+    {word:"um",     re:/\bum\b/gi},
+    {word:"uh",     re:/\buh\b/gi},
+    {word:"like",   re:/\blike\b/gi},
+    {word:"you know",re:/\byou\s+know\b/gi},
+    {word:"basically",re:/\bbasically\b/gi},
+    {word:"literally",re:/\bliterally\b/gi},
+    {word:"actually", re:/\bactually\b/gi},
+    {word:"right",  re:/\bright\b/gi},
+    {word:"so",     re:/\bso\b/gi},
+    {word:"I mean", re:/\bi\s+mean\b/gi},
+    {word:"kind of",re:/\bkind\s+of\b/gi},
+    {word:"sort of",re:/\bsort\s+of\b/gi},
+    {word:"honestly",re:/\bhonestly\b/gi},
+    {word:"well",   re:/\bwell\b/gi},
+  ];
+  const fillerBreakdown=[];
+  let totalFillers=0;
+  for(const {word,re} of FILLER_DEFS){
+    const n=(text.match(re)||[]).length;
+    if(n>0){fillerBreakdown.push({word,count:n});totalFillers+=n;}
+  }
+  fillerBreakdown.sort((a,b)=>b.count-a.count);
+  const foundFillers=fillerBreakdown.map(f=>f.word);
+  const fillerRate=wordCount>0?totalFillers/wordCount:0;
+
+  const STRUCTURE_WORDS=["first","second","third","finally","in conclusion","to summarize",
+    "furthermore","however","therefore","additionally","for example","for instance",
+    "in contrast","on the other hand","to begin","lastly","next","importantly"];
+  const usedStructure=STRUCTURE_WORDS.filter(w=>lower.includes(w));
+  const structureCount=usedStructure.length;
+
+  const HEDGES=["maybe","perhaps","i'm not sure","i think","i guess","might be",
+    "could be","possibly","probably","i feel like","kinda","not sure"];
+  const usedHedges=HEDGES.filter(w=>lower.includes(w));
+  const hedgeCount=usedHedges.length;
+
+  const avgWPS=sentences.length>0?wordCount/sentences.length:0;
+  const firstSentence=sentences[0]?.trim()||"";
+  const lastSentence=sentences[sentences.length-1]?.trim()||"";
+
+  // Scores
+  const clarity=Math.min(98,Math.max(25,
+    90-Math.round(fillerRate*170)-(avgWPS>28?10:0)+(wordCount>100?4:0)
+  ));
+  const structure=Math.min(98,Math.max(25,
+    40+structureCount*10+(sentences.length>3?10:0)+(wordCount>80?8:0)
+  ));
+  const confidence=Math.min(98,Math.max(25,
+    90-hedgeCount*9-Math.round(fillerRate*120)+(wordCount>60?4:0)
+  ));
+  const diffPenalty=difficulty==="Hard"?3:difficulty==="Medium"?1:0;
+  const score=Math.max(20,Math.round((clarity+structure+confidence)/3)-diffPenalty);
+
+  // Strengths — always reference actual transcript data
+  const strengths=[];
+  if(fillerRate<0.04)
+    strengths.push(`Exceptionally clean delivery — only ${totalFillers} filler word${totalFillers!==1?"s":""} across ${wordCount} words`);
+  else if(fillerRate<0.09)
+    strengths.push(`Decent filler control — ${totalFillers} filler${totalFillers!==1?"s":""} in ${wordCount} words is manageable`);
+
+  if(structureCount>=2)
+    strengths.push(`Good use of structure markers (${usedStructure.slice(0,3).map(w=>`"${w}"`).join(", ")}) that help the listener follow along`);
+  else if(structureCount===1)
+    strengths.push(`Used "${usedStructure[0]}" to organize — good instinct, now build on it`);
+
+  if(firstSentence.split(/\s+/).length>8)
+    strengths.push(`Strong opener: "${firstSentence.slice(0,70)}${firstSentence.length>70?"...":""}"`);
+
+  if(wordCount>150)
+    strengths.push(`Great depth — ${wordCount} words shows you developed the idea fully`);
+  else if(wordCount>100)
+    strengths.push(`Solid length at ${wordCount} words — enough to make a real argument`);
+
+  if(hedgeCount===0)
+    strengths.push("Spoke with conviction — no hedging language found in the transcript");
+
+  if(strengths.length<2) strengths.push("Completed the full exercise without stopping — consistency is the skill");
+
+  // Improvements — always specific to what was actually said
+  const improvements=[];
+  if(fillerBreakdown.length>0){
+    const top=fillerBreakdown[0];
+    const breakdown=fillerBreakdown.slice(0,3).map(f=>`"${f.word}" ×${f.count}`).join(", ");
+    improvements.push(`Top fillers: ${breakdown} — "${top.word}" is your biggest habit to break`);
+  }
+  if(structureCount<2)
+    improvements.push(`No clear structure detected — try: "I'll cover three things: first... second... finally..." before diving in`);
+  if(wordCount<60)
+    improvements.push(`Only ${wordCount} words spoken — aim for 100+ to fully develop your point on this topic`);
+  if(hedgeCount>1)
+    improvements.push(`Hedges like "${usedHedges.slice(0,2).map(w=>`"${w}"`).join(" and ")}" undermine your authority — replace with direct statements`);
+  if(lastSentence&&lastSentence.split(/\s+/).length<5&&sentences.length>1)
+    improvements.push(`Weak closing: "${lastSentence}" — end with a clear takeaway or bold final statement`);
+  if(avgWPS>28)
+    improvements.push(`Long sentences (avg ${Math.round(avgWPS)} words) — break them up for more punch and easier listening`);
+  if(improvements.length<2)
+    improvements.push("Try recording the same prompt again right now — compare the two and spot what changed");
+
+  // Overall feedback referencing real transcript details
+  let overall="";
+  if(score>=80) overall=`Strong response on "${topic}". `;
+  else if(score>=60) overall=`Solid attempt on "${topic}". `;
+  else overall=`"${topic}" is a tough prompt — keep at it. `;
+  if(fillerBreakdown.length>0)
+    overall+=`Your most frequent filler was "${fillerBreakdown[0].word}" (×${fillerBreakdown[0].count}). `;
+  if(structureCount>=2)
+    overall+=`The signpost words you used ("${usedStructure[0]}", "${usedStructure[1]}") made the response easier to follow.`;
+  else
+    overall+=`Adding signpost words would make this response much easier to follow.`;
+
+  // Tip specific to dominant issue
+  let tip="";
+  if(fillerBreakdown.length>0&&fillerRate>0.08){
+    const top=fillerBreakdown[0];
+    tip=`"${top.word}" appeared ${top.count} times. Before your next attempt, say it out loud deliberately — making it conscious is the first step to cutting it.`;
+  } else if(structureCount<1){
+    tip=`Take 3 seconds before speaking to think: opening claim → one example → closing takeaway. Even a rough mental skeleton transforms how organized you sound on "${topic}".`;
+  } else if(hedgeCount>2){
+    tip=`Replace "${usedHedges[0]}" with a direct statement. Instead of "${usedHedges[0]} X is true", just say "X is true." — the listener doesn't need your permission to believe you.`;
+  } else if(wordCount<60){
+    tip=`You stopped at ${wordCount} words. Next time, when you run out of points, give a specific real-world example — that alone adds 30-50 words and makes the argument stick.`;
+  } else {
+    tip=`Record this same prompt again right now and try to beat your score of ${score}. Immediate repetition is the fastest way to improve.`;
   }
 
-  const STRUCTURE = ["first","second","third","finally","in conclusion","to summarize",
-    "furthermore","however","therefore","additionally","in addition","for example",
-    "for instance","in contrast","on the other hand","to begin","lastly","next"];
-  const structureCount = STRUCTURE.filter(w=>lower.includes(w)).length;
-
-  const HEDGES = ["maybe","perhaps","i'm not sure","i think","i guess","might be",
-    "could be","possibly","probably","i feel like","not really sure","kinda"];
-  const hedgeCount = HEDGES.filter(w=>lower.includes(w)).length;
-
-  const fillerRate = wordCount > 0 ? fillerCount/wordCount : 0;
-  const avgWPS = sentences.length > 0 ? wordCount/sentences.length : 0;
-
-  const clarity = Math.min(98, Math.max(25,
-    88 - Math.round(fillerRate*160) - (avgWPS>28?10:0) + (wordCount>100?4:0)
-  ));
-  const structure = Math.min(98, Math.max(25,
-    42 + structureCount*9 + (sentences.length>3?10:0) + (wordCount>80?8:0)
-  ));
-  const confidence = Math.min(98, Math.max(25,
-    88 - hedgeCount*8 - Math.round(fillerRate*110) + (wordCount>60?4:0)
-  ));
-  const diffPenalty = difficulty==="Hard"?3:difficulty==="Medium"?1:0;
-  const score = Math.max(20, Math.round((clarity+structure+confidence)/3) - diffPenalty);
-
-  const strengths = [];
-  if(fillerRate<0.05) strengths.push("Very clean delivery — minimal filler words throughout");
-  else if(fillerRate<0.1) strengths.push("Solid filler word control for most of the speech");
-  if(structureCount>=2) strengths.push("Good use of transition words to guide the listener");
-  if(wordCount>120) strengths.push("Strong speech length with plenty of developed content");
-  if(sentences.length>4) strengths.push("Nice sentence variety that keeps the pace moving");
-  if(hedgeCount===0) strengths.push("Confident, declarative delivery with no hedging");
-  if(strengths.length<2) strengths.push("You got through the full exercise — that consistency builds real skill");
-  if(strengths.length<2) strengths.push("Clear effort to address the topic directly");
-
-  const improvements = [];
-  if(fillerRate>0.1) improvements.push(`Cut filler words — "${foundFillers.slice(0,2).join('", "')}" appeared ${fillerCount} time${fillerCount!==1?"s":""}`);
-  if(structureCount<2) improvements.push("Use signpost words like 'first', 'however', 'in conclusion' to organize your points");
-  if(wordCount<60) improvements.push("Expand your answer — aim for at least 100 words to fully develop the idea");
-  if(hedgeCount>1) improvements.push("Sound more certain: replace 'I think' or 'maybe' with direct statements");
-  if(avgWPS>28) improvements.push("Break up long sentences — shorter ones land harder and are easier to follow");
-  if(improvements.length<2) improvements.push("Vary your pacing: slow down on key points, speed up during examples");
-
-  let overall = "";
-  if(score>=80) overall = `Strong performance on "${topic}". `;
-  else if(score>=60) overall = `Good effort on "${topic}". `;
-  else overall = `Keep working on "${topic}" — this is a tough prompt. `;
-  if(fillerCount>5) overall += `Reducing filler words (detected ${fillerCount}) is your biggest lever for improvement. `;
-  if(structureCount>=2) overall += "Your use of structure markers helps the listener follow your logic.";
-  else overall += "Adding clearer structure would make your arguments much easier to follow.";
-
-  const tip = fillerRate>0.1
-    ? "Pause instead of filling silence — every time you feel an 'um' coming, just stop for a beat. Silence sounds confident."
-    : structureCount<2
-    ? "Before you speak, mentally say '3 points: first... second... finally...' — even a rough outline makes you sound far more organized."
-    : hedgeCount>1
-    ? "Drop 'I think' from your openings. Instead of 'I think remote work is good', say 'Remote work is good because...' — instant authority."
-    : "Record yourself once a week and watch it back at 1.5x speed — patterns you never notice while speaking become obvious.";
-
-  return { score, clarity, structure, confidence,
-    filler_count: fillerCount, filler_words: foundFillers,
-    strengths: strengths.slice(0,3), improvements: improvements.slice(0,3),
-    overall_feedback: overall.trim(), one_tip: tip };
+  return {score,clarity,structure,confidence,
+    filler_count:totalFillers, filler_words:foundFillers,
+    strengths:strengths.slice(0,3), improvements:improvements.slice(0,3),
+    overall_feedback:overall.trim(), one_tip:tip};
 }
 
 // ── Score Ring ───────────────────────────────────────────────────────────────
@@ -331,19 +389,20 @@ export default function Articulate(){
   const recognitionRef=useRef(null);
   const transcriptRef=useRef("");
 
-  useEffect(()=>{ 
-    if(running){ 
-      ivRef.current=setInterval(()=>{ 
-        const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000); 
-        const remaining = Math.max(0, initialTimeRef.current - elapsed); 
-        setTimer(remaining); 
-        if(remaining === 0){ 
-          setRunning(false); 
-          if(phase==="prep") goSpeak(); else { doStop(); playChime(); }
-        } 
-      },100); 
-    } 
-    return()=>clearInterval(ivRef.current); 
+  useEffect(()=>{
+    if(running){
+      ivRef.current=setInterval(()=>{
+        const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+        const remaining = Math.max(0, initialTimeRef.current - elapsed);
+        setTimer(remaining);
+        if(remaining === 0){
+          clearInterval(ivRef.current);
+          setRunning(false);
+          if(phase==="prep") goSpeak(); else doStop();
+        }
+      },100);
+    }
+    return()=>clearInterval(ivRef.current);
   },[running,phase]);
 
   const pickTopic=useCallback(()=>setTopic(rand(TOPICS[activeCat])),[activeCat]);
@@ -377,25 +436,34 @@ export default function Articulate(){
         setAudioUrl(URL.createObjectURL(blob));
         stream.getTracks().forEach(t=>t.stop());
       };
-      mr.start();setRecording(true);setRunning(true);
+      mr.start(1000);setRecording(true);setRunning(true);
 
       const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
       if(SR){
-        const rec=new SR();
-        rec.continuous=true;rec.interimResults=true;rec.lang="en-US";
         let final="";
-        rec.onresult=e=>{
-          let interim="";
-          for(let i=e.resultIndex;i<e.results.length;i++){
-            if(e.results[i].isFinal) final+=e.results[i][0].transcript+" ";
-            else interim+=e.results[i][0].transcript;
-          }
-          const val=(final+interim).trim();
-          transcriptRef.current=val;
-          setTranscript(val);
+        const startRec=()=>{
+          const rec=new SR();
+          rec.continuous=true;rec.interimResults=true;rec.lang="en-US";
+          rec.onresult=e=>{
+            let interim="";
+            for(let i=e.resultIndex;i<e.results.length;i++){
+              if(e.results[i].isFinal) final+=e.results[i][0].transcript+" ";
+              else interim+=e.results[i][0].transcript;
+            }
+            const val=(final+interim).trim();
+            transcriptRef.current=val;
+            setTranscript(val);
+          };
+          rec.onend=()=>{
+            if(mediaRef.current?.state==="recording") startRec();
+          };
+          rec.onerror=()=>{
+            if(mediaRef.current?.state==="recording") startRec();
+          };
+          rec.start();
+          recognitionRef.current=rec;
         };
-        rec.start();
-        recognitionRef.current=rec;
+        startRec();
       }
     }catch{setMicErr("Mic access denied — please allow microphone permissions.");}
   };
