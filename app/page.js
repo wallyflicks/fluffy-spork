@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
-import Articulate from '../components/Articulate'
+import Orivox from '../components/Orivox'
 
 export default function Home() {
-  return <Articulate />
+  return <Orivox />
 }

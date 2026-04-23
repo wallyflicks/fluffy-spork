@@ -218,23 +218,17 @@ function analyzeTranscript(text, topic, difficulty) {
   const words = text.trim().split(/\s+/).filter(Boolean);
   const wordCount = words.length;
   const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 3);
+  const sentenceCount = sentences.length;
 
-  // Exact per-word filler counts
   const FILLER_DEFS = [
-    {word:"um",     re:/\bum\b/gi},
-    {word:"uh",     re:/\buh\b/gi},
-    {word:"like",   re:/\blike\b/gi},
-    {word:"you know",re:/\byou\s+know\b/gi},
-    {word:"basically",re:/\bbasically\b/gi},
-    {word:"literally",re:/\bliterally\b/gi},
-    {word:"actually", re:/\bactually\b/gi},
-    {word:"right",  re:/\bright\b/gi},
-    {word:"so",     re:/\bso\b/gi},
-    {word:"I mean", re:/\bi\s+mean\b/gi},
-    {word:"kind of",re:/\bkind\s+of\b/gi},
-    {word:"sort of",re:/\bsort\s+of\b/gi},
-    {word:"honestly",re:/\bhonestly\b/gi},
-    {word:"well",   re:/\bwell\b/gi},
+    {word:"um",re:/\bum\b/gi},{word:"uh",re:/\buh\b/gi},
+    {word:"like",re:/\blike\b/gi},{word:"you know",re:/\byou\s+know\b/gi},
+    {word:"basically",re:/\bbasically\b/gi},{word:"literally",re:/\bliterally\b/gi},
+    {word:"actually",re:/\bactually\b/gi},{word:"right",re:/\bright\b/gi},
+    {word:"so",re:/\bso\b/gi},{word:"I mean",re:/\bi\s+mean\b/gi},
+    {word:"kind of",re:/\bkind\s+of\b/gi},{word:"sort of",re:/\bsort\s+of\b/gi},
+    {word:"honestly",re:/\bhonestly\b/gi},{word:"well",re:/\bwell\b/gi},
+    {word:"just",re:/\bjust\b/gi},
   ];
   const fillerBreakdown=[];
   let totalFillers=0;
@@ -252,98 +246,97 @@ function analyzeTranscript(text, topic, difficulty) {
   const usedStructure=STRUCTURE_WORDS.filter(w=>lower.includes(w));
   const structureCount=usedStructure.length;
 
-  const HEDGES=["maybe","perhaps","i'm not sure","i think","i guess","might be",
-    "could be","possibly","probably","i feel like","kinda","not sure"];
-  const usedHedges=HEDGES.filter(w=>lower.includes(w));
-  const hedgeCount=usedHedges.length;
+  const HEDGE_DEFS=[
+    {word:"I think",re:/\bi\s+think\b/gi},{word:"maybe",re:/\bmaybe\b/gi},
+    {word:"perhaps",re:/\bperhaps\b/gi},{word:"I guess",re:/\bi\s+guess\b/gi},
+    {word:"probably",re:/\bprobably\b/gi},{word:"I feel like",re:/\bi\s+feel\s+like\b/gi},
+    {word:"I'm not sure",re:/\bi'?m\s+not\s+sure\b/gi},{word:"kind of",re:/\bkind\s+of\b/gi},
+  ];
+  const hedgeBreakdown=[];
+  let totalHedges=0;
+  for(const {word,re} of HEDGE_DEFS){
+    const n=(text.match(re)||[]).length;
+    if(n>0){hedgeBreakdown.push({word,count:n});totalHedges+=n;}
+  }
 
-  const avgWPS=sentences.length>0?wordCount/sentences.length:0;
+  const avgWPS=sentenceCount>0?wordCount/sentenceCount:0;
   const firstSentence=sentences[0]?.trim()||"";
-  const lastSentence=sentences[sentences.length-1]?.trim()||"";
+  const lastSentence=sentences[sentenceCount-1]?.trim()||"";
+  const longestSentence=sentences.reduce((a,b)=>b.split(/\s+/).length>a.split(/\s+/).length?b:a,'');
+  const uniqueWords=new Set(words.map(w=>w.toLowerCase().replace(/[^a-z]/g,'')).filter(w=>w.length>3));
+  const vocabDiversity=wordCount>0?uniqueWords.size/wordCount:0;
+  const hasContrast=/\bbut\b|\bhowever\b|\balthough\b|\byet\b|\bon the other hand\b/i.test(text);
+  const hasThreePartList=/\bfirst\b.*\bsecond\b.*\bthird\b/is.test(text)||/\bfirst\b.*\bsecond\b.*\bfinally\b/is.test(text);
+  const hasPersonalExample=/\bi remember\b|\bfor example\b|\bfor instance\b|\bwhen i\b/i.test(text);
+  const hasQuestion=text.includes('?');
 
-  // Scores
-  const clarity=Math.min(98,Math.max(25,
-    90-Math.round(fillerRate*170)-(avgWPS>28?10:0)+(wordCount>100?4:0)
-  ));
-  const structure=Math.min(98,Math.max(25,
-    40+structureCount*10+(sentences.length>3?10:0)+(wordCount>80?8:0)
-  ));
-  const confidence=Math.min(98,Math.max(25,
-    90-hedgeCount*9-Math.round(fillerRate*120)+(wordCount>60?4:0)
-  ));
+  const clarity=Math.min(98,Math.max(25,90-Math.round(fillerRate*170)-(avgWPS>28?10:0)+(wordCount>100?4:0)+(vocabDiversity>0.7?4:0)));
+  const structure=Math.min(98,Math.max(25,40+structureCount*10+(sentenceCount>3?10:0)+(wordCount>80?8:0)+(hasThreePartList?8:0)));
+  const confidence=Math.min(98,Math.max(25,90-totalHedges*7-Math.round(fillerRate*120)+(wordCount>60?4:0)));
   const diffPenalty=difficulty==="Hard"?3:difficulty==="Medium"?1:0;
   const score=Math.max(20,Math.round((clarity+structure+confidence)/3)-diffPenalty);
 
-  // Strengths — always reference actual transcript data
+  // 5-6 specific strengths
   const strengths=[];
-  if(fillerRate<0.04)
-    strengths.push(`Exceptionally clean delivery — only ${totalFillers} filler word${totalFillers!==1?"s":""} across ${wordCount} words`);
-  else if(fillerRate<0.09)
-    strengths.push(`Decent filler control — ${totalFillers} filler${totalFillers!==1?"s":""} in ${wordCount} words is manageable`);
+  if(wordCount>150) strengths.push(`Strong depth — ${wordCount} words across ${sentenceCount} sentences. You fully developed the idea rather than giving a surface-level answer`);
+  else if(wordCount>80) strengths.push(`Solid content length — ${wordCount} words in ${sentenceCount} sentences gives you enough substance to make a real argument`);
+  if(fillerRate<0.04) strengths.push(`Exceptionally clean delivery — only ${totalFillers} filler word${totalFillers!==1?"s":""} in ${wordCount} words (${(fillerRate*100).toFixed(1)}% filler rate). Professional level`);
+  else if(fillerRate<0.08) strengths.push(`Good filler control — ${totalFillers} fillers across ${wordCount} words (${(fillerRate*100).toFixed(1)}%) is better than most speakers at this stage`);
+  if(firstSentence.split(/\s+/).length>8) strengths.push(`Strong opener — you launched straight into the topic: "${firstSentence.slice(0,75)}${firstSentence.length>75?"...":""}"`);
+  if(structureCount>=3) strengths.push(`Excellent structure — used ${structureCount} signpost words (${usedStructure.slice(0,4).map(w=>`"${w}"`).join(', ')}) that make your argument easy to follow`);
+  else if(structureCount>=1) strengths.push(`Used "${usedStructure[0]}" to signal organization — a strong structural instinct. Build on this by adding more signposts`);
+  if(totalHedges===0) strengths.push(`Spoke with full conviction — zero hedging language detected. Every statement was direct and authoritative`);
+  if(hasThreePartList) strengths.push(`Used a classic three-part structure (first/second/finally) — this framework makes speeches immediately more persuasive and memorable`);
+  if(hasContrast) strengths.push(`Used contrast effectively (but/however/although) — acknowledging opposing views and pivoting strengthens rather than weakens your argument`);
+  if(hasPersonalExample) strengths.push(`Grounded your argument in concrete examples — abstract points need real evidence and you provided it`);
+  if(hasQuestion) strengths.push(`Used a question to engage the listener — rhetorical questions create mental participation and signal confident delivery`);
+  if(vocabDiversity>0.72&&wordCount>60) strengths.push(`High vocabulary variety — ${Math.round(vocabDiversity*100)}% unique words shows strong command of language for this topic`);
+  if(strengths.length<3) strengths.push(`Completed the full exercise without stopping — the discipline to speak to the end builds skill that practice drills cannot replace`);
+  if(strengths.length<3) strengths.push(`Addressed the prompt directly — staying on-topic is harder than it sounds under pressure`);
 
-  if(structureCount>=2)
-    strengths.push(`Good use of structure markers (${usedStructure.slice(0,3).map(w=>`"${w}"`).join(", ")}) that help the listener follow along`);
-  else if(structureCount===1)
-    strengths.push(`Used "${usedStructure[0]}" to organize — good instinct, now build on it`);
-
-  if(firstSentence.split(/\s+/).length>8)
-    strengths.push(`Strong opener: "${firstSentence.slice(0,70)}${firstSentence.length>70?"...":""}"`);
-
-  if(wordCount>150)
-    strengths.push(`Great depth — ${wordCount} words shows you developed the idea fully`);
-  else if(wordCount>100)
-    strengths.push(`Solid length at ${wordCount} words — enough to make a real argument`);
-
-  if(hedgeCount===0)
-    strengths.push("Spoke with conviction — no hedging language found in the transcript");
-
-  if(strengths.length<2) strengths.push("Completed the full exercise without stopping — consistency is the skill");
-
-  // Improvements — always specific to what was actually said
+  // 5-6 specific improvements
   const improvements=[];
   if(fillerBreakdown.length>0){
-    const top=fillerBreakdown[0];
-    const breakdown=fillerBreakdown.slice(0,3).map(f=>`"${f.word}" ×${f.count}`).join(", ");
-    improvements.push(`Top fillers: ${breakdown} — "${top.word}" is your biggest habit to break`);
+    const bd=fillerBreakdown.slice(0,5).map(f=>`"${f.word}" ×${f.count}`).join(', ');
+    improvements.push(`Filler words: ${bd} — total ${totalFillers} in ${wordCount} words. That's one filler every ${Math.round(wordCount/totalFillers)} words. Target: under one every 30`);
   }
-  if(structureCount<2)
-    improvements.push(`No clear structure detected — try: "I'll cover three things: first... second... finally..." before diving in`);
-  if(wordCount<60)
-    improvements.push(`Only ${wordCount} words spoken — aim for 100+ to fully develop your point on this topic`);
-  if(hedgeCount>1)
-    improvements.push(`Hedges like "${usedHedges.slice(0,2).map(w=>`"${w}"`).join(" and ")}" undermine your authority — replace with direct statements`);
-  if(lastSentence&&lastSentence.split(/\s+/).length<5&&sentences.length>1)
-    improvements.push(`Weak closing: "${lastSentence}" — end with a clear takeaway or bold final statement`);
-  if(avgWPS>28)
-    improvements.push(`Long sentences (avg ${Math.round(avgWPS)} words) — break them up for more punch and easier listening`);
-  if(improvements.length<2)
-    improvements.push("Try recording the same prompt again right now — compare the two and spot what changed");
+  if(structureCount<2) improvements.push(`No clear structure — the listener cannot tell how many points you are making. Fix: open with "I will cover three things — first... second... finally..." then stick to that framework`);
+  if(totalHedges>0){
+    const hd=hedgeBreakdown.slice(0,3).map(h=>`"${h.word}" ×${h.count}`).join(', ');
+    improvements.push(`Hedging language undermines authority: ${hd}. Replace "I think X is true" with "X is true" — the listener does not need your permission to believe you`);
+  }
+  if(avgWPS>25){
+    const ex=longestSentence.trim();
+    improvements.push(`Sentences average ${Math.round(avgWPS)} words — too long for spoken delivery. Longest sentence: "${ex.slice(0,80)}${ex.length>80?'...':''}". Break this into two`);
+  }
+  if(wordCount<80) improvements.push(`Only ${wordCount} words — "${topic}" deserves more depth. Add one specific real-world example and explain why it matters. That alone adds 40-60 words`);
+  if(lastSentence&&lastSentence.split(/\s+/).length<6&&sentenceCount>2) improvements.push(`Weak closing: "${lastSentence}" — this trails off rather than landing. End with a bold statement or circle back to your opening claim`);
+  if(!hasContrast&&wordCount>80&&difficulty!=="Easy") improvements.push(`No counter-argument — for "${topic}", briefly acknowledging the opposing view before refuting it makes your position significantly stronger`);
+  if(!hasPersonalExample&&wordCount>60) improvements.push(`No concrete examples — abstract claims without evidence are forgettable. One specific story, statistic, or scenario would double the impact of this response`);
+  if(improvements.length<3) improvements.push(`Vocabulary is functional but generic — replace vague words like "good", "bad", "things" with precise alternatives specific to this topic`);
 
-  // Overall feedback referencing real transcript details
   let overall="";
   if(score>=80) overall=`Strong response on "${topic}". `;
   else if(score>=60) overall=`Solid attempt on "${topic}". `;
-  else overall=`"${topic}" is a tough prompt — keep at it. `;
-  if(fillerBreakdown.length>0)
-    overall+=`Your most frequent filler was "${fillerBreakdown[0].word}" (×${fillerBreakdown[0].count}). `;
-  if(structureCount>=2)
-    overall+=`The signpost words you used ("${usedStructure[0]}", "${usedStructure[1]}") made the response easier to follow.`;
-  else
-    overall+=`Adding signpost words would make this response much easier to follow.`;
+  else overall=`"${topic}" is a tough prompt — keep building. `;
+  if(fillerBreakdown.length>0) overall+=`Top filler was "${fillerBreakdown[0].word}" (×${fillerBreakdown[0].count}). `;
+  overall+=structureCount>=2?`Your signpost words ("${usedStructure[0]}", "${usedStructure[1]}") made the argument easy to track.`:`Adding clear signpost words would significantly improve how organized this sounds.`;
 
-  // Tip specific to dominant issue
   let tip="";
-  if(fillerBreakdown.length>0&&fillerRate>0.08){
+  if(fillerBreakdown.length>0&&fillerRate>0.06){
     const top=fillerBreakdown[0];
-    tip=`"${top.word}" appeared ${top.count} times. Before your next attempt, say it out loud deliberately — making it conscious is the first step to cutting it.`;
-  } else if(structureCount<1){
-    tip=`Take 3 seconds before speaking to think: opening claim → one example → closing takeaway. Even a rough mental skeleton transforms how organized you sound on "${topic}".`;
-  } else if(hedgeCount>2){
-    tip=`Replace "${usedHedges[0]}" with a direct statement. Instead of "${usedHedges[0]} X is true", just say "X is true." — the listener doesn't need your permission to believe you.`;
-  } else if(wordCount<60){
-    tip=`You stopped at ${wordCount} words. Next time, when you run out of points, give a specific real-world example — that alone adds 30-50 words and makes the argument stick.`;
+    tip=`Your #1 habit is "${top.word}" (×${top.count}). Drill: Record a 30-second response on "${topic}" with one rule — every time you say "${top.word}", immediately stop, back up one sentence, and restart it. Do 5 rounds. By round 5, your brain will have built a new pause reflex.`;
+  } else if(structureCount<2){
+    tip=`Structure drill: write "FIRST... SECOND... FINALLY..." on paper before every practice session this week. Start each attempt by saying those three words aloud, then fill them in. After 10 sessions this scaffold will be automatic and you will never sound disorganized on "${topic}" again.`;
+  } else if(totalHedges>2){
+    const top=hedgeBreakdown[0];
+    tip=`Record 60 seconds on "${topic}" with a zero-tolerance rule for "${top.word}". Every time you catch yourself saying it, pause, then restate the sentence without it. Play back and count occurrences. Your target is zero in three consecutive takes.`;
+  } else if(wordCount<80){
+    tip=`You cut yourself short at ${wordCount} words. Drill: set a 90-second timer on "${topic}" and commit to filling ALL of it. When you run out of points, say "for example..." and give a specific scenario. Then say "this matters because..." and explain the impact. These two phrases add 50+ words and substance every time.`;
+  } else if(avgWPS>28){
+    tip=`The "full stop pause" drill: after every sentence in your next attempt, pause for a full second before continuing. Record it and play it back — the pauses that feel uncomfortably long to you will sound like confidence and authority to your listener. Do this 3 times on "${topic}".`;
   } else {
-    tip=`Record this same prompt again right now and try to beat your score of ${score}. Immediate repetition is the fastest way to improve.`;
+    tip=`Precision drill on "${topic}": record again but this time ban the words "this", "that", "it", "thing", and "stuff". Every time you want to use one, force yourself to say the exact noun you mean. This single constraint dramatically increases perceived intelligence and specificity.`;
   }
 
   return {score,clarity,structure,confidence,
@@ -558,7 +551,7 @@ function BorderTimer({containerRef, startTimeRef, durationSecs, active}){
 }
 
 // ── App ──────────────────────────────────────────────────────────────────────
-export default function Articulate(){
+export default function Orivox(){
   const [screen,setScreen]=useState("home");
   const [cat,setCat]=useState("General");
   const [diff,setDiff]=useState("Medium");
@@ -681,17 +674,24 @@ export default function Articulate(){
     setRecording(false);setRunning(false);setScreen("feedback");analyze();
   };
 
-  const analyze=()=>{
+  const analyze=async()=>{
     setLoading(true);
-    setTimeout(()=>{
-      const text=transcriptRef.current;
-      if(!text.trim()){
-        setFeedback({error:"No speech detected. Make sure your microphone is working and try again."});
-        setLoading(false);return;
+    const text=transcriptRef.current;
+    if(!text.trim()){
+      setFeedback({error:"No speech detected. Make sure your microphone is working and try again."});
+      setLoading(false);return;
+    }
+    try{
+      const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({transcript:text,topic,category:activeCat,difficulty:activeDiff})});
+      if(res.ok){
+        const data=await res.json();
+        if(!data.error){setFeedback(data);setLoading(false);return;}
       }
-      setFeedback(analyzeTranscript(text,topic,activeDiff));
-      setLoading(false);
-    },1200);
+    }catch{}
+    await new Promise(r=>setTimeout(r,800));
+    setFeedback(analyzeTranscript(text,topic,activeDiff));
+    setLoading(false);
   };
 
   const reset=()=>{
@@ -730,7 +730,7 @@ export default function Articulate(){
             <div style={{width:42,height:42,borderRadius:13,background:"var(--orange)",border:"2.5px solid var(--text)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"3px 3px 0 var(--text)"}}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
             </div>
-            <span className="fredoka" style={{fontSize:26,fontWeight:700,color:"var(--text)"}}>Articulate</span>
+            <span className="fredoka" style={{fontSize:26,fontWeight:700,color:"var(--text)"}}>Orivox</span>
           </div>
           <div style={{display:"flex",gap:10,alignItems:"center"}}>
             {screen!=="home"&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={reset}>← Home</button>}
@@ -802,9 +802,8 @@ export default function Articulate(){
 
               {/* Feature strip */}
               <div className="fadeUp d4" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:20}}>
-                {[["🎙️","Record","Mic-based practice"],["🤖","AI Feedback","Real-time analysis"],["⭐","Score","Detailed breakdown"]].map(([e,t,s])=>(
+                {[["Record","Mic-based practice"],["AI Feedback","Real-time analysis"],["Score","Detailed breakdown"]].map(([t,s])=>(
                   <div key={t} className="card" style={{padding:"24px 16px",textAlign:"center"}}>
-                    <div style={{fontSize:28,marginBottom:8}}>{e}</div>
                     <div className="fredoka" style={{fontSize:17,marginBottom:4}}>{t}</div>
                     <div style={{fontSize:13,color:"var(--muted)",lineHeight:1.4}}>{s}</div>
                   </div>
@@ -924,7 +923,7 @@ export default function Articulate(){
                       border:`2px solid ${feedback.score>=80?"var(--green)":feedback.score>=60?"var(--yellow)":"var(--red)"}`,
                       color:feedback.score>=80?"white":feedback.score>=60?"#7A5500":"var(--red)",
                       fontFamily:"Fredoka",fontSize:18,fontWeight:600,marginBottom:20}}>
-                      {feedback.score>=80?"🏆 Excellent!":feedback.score>=60?"👍 Good Job!":"💪 Keep Practicing!"}
+                      {feedback.score>=80?"Excellent":feedback.score>=60?"Good Job":"Keep Practicing"}
                     </div>
                     <p style={{color:"var(--muted)",fontSize:16,maxWidth:460,margin:"0 auto",lineHeight:1.8}}>{feedback.overall_feedback}</p>
                   </div>
@@ -940,7 +939,7 @@ export default function Articulate(){
                   {feedback.filler_count>0&&(
                     <div className="card fb3" style={{padding:28,marginBottom:20,borderLeft:"5px solid var(--red)"}}>
                       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
-                        <span className="fredoka" style={{fontSize:19}}>😬 Filler Words</span>
+                        <span className="fredoka" style={{fontSize:19}}>Filler Words</span>
                         <span style={{background:"var(--red-dim)",color:"var(--red)",border:"2px solid rgba(232,64,64,.2)",borderRadius:50,padding:"3px 14px",fontFamily:"Fredoka",fontSize:14}}>{feedback.filler_count} detected</span>
                       </div>
                       <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
@@ -978,7 +977,6 @@ export default function Articulate(){
                   {/* Coach tip */}
                   <div className="card fb5" style={{padding:28,marginBottom:20,background:"var(--yellow-dim)",border:"2.5px solid var(--yellow)",borderRadius:22}}>
                     <div style={{display:"flex",gap:16,alignItems:"flex-start"}}>
-                      <div style={{fontSize:36,flexShrink:0}}>💡</div>
                       <div>
                         <p className="fredoka" style={{fontSize:18,color:"#7A5500",marginBottom:8}}>Coach's Tip</p>
                         <p style={{fontSize:15,lineHeight:1.8}}>{feedback.one_tip}</p>

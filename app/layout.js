@@ -1,7 +1,7 @@
 import { Providers } from './providers'
 
 export const metadata = {
-  title: 'Articulate - AI Speaking Coach',
+  title: 'Orivox - AI Speaking Coach',
   description: 'Practice speaking and get AI feedback',
 }
 
