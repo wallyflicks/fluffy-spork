@@ -52,6 +52,7 @@ const G = () => (
     @keyframes confettiFall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(600px) rotate(720deg);opacity:0}}
     @keyframes celebBounce{0%{transform:scale(0) rotate(-20deg);opacity:0}60%{transform:scale(1.3) rotate(10deg);opacity:1}100%{transform:scale(1) rotate(0deg);opacity:1}}
     @keyframes typewriter{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes urgentPulse{from{opacity:.15}to{opacity:.4}}
 
     .fadeUp{animation:fadeUp .5s cubic-bezier(.22,.68,0,1.2) both}
     .slideLeft{animation:slideLeft .6s cubic-bezier(.22,.68,0,1.2) both}
@@ -473,6 +474,56 @@ function SubBar({label,val,color,bg}){
   );
 }
 
+// ── Border Timer ─────────────────────────────────────────────────────────────
+function lerpColor(a, b, t){
+  const h=s=>[parseInt(s.slice(1,3),16),parseInt(s.slice(3,5),16),parseInt(s.slice(5,7),16)];
+  const [r1,g1,b1]=h(a), [r2,g2,b2]=h(b);
+  return `rgb(${Math.round(r1+(r2-r1)*t)},${Math.round(g1+(g2-g1)*t)},${Math.round(b1+(b2-b1)*t)})`;
+}
+
+function BorderTimer({containerRef, timer, speakTime, active}){
+  const [dims,setDims]=useState({w:0,h:0});
+  useEffect(()=>{
+    const el=containerRef?.current;
+    if(!el) return;
+    setDims({w:el.offsetWidth,h:el.offsetHeight});
+    const ro=new ResizeObserver(([e])=>setDims({w:Math.round(e.contentRect.width),h:Math.round(e.contentRect.height)}));
+    ro.observe(el);
+    return()=>ro.disconnect();
+  },[containerRef]);
+
+  if(!dims.w||!dims.h||!active) return null;
+
+  const rx=20, sw=5, pad=sw/2+2;
+  const iw=dims.w-pad*2, ih=dims.h-pad*2;
+  const perimeter=2*(iw+ih)-8*rx+2*Math.PI*rx;
+  const frac=speakTime>0?Math.max(0,timer/speakTime):0;
+  const dashOffset=perimeter*(1-frac);
+
+  const color = timer>=30 ? '#FF6B2B'
+    : timer>=10 ? lerpColor('#F5C842','#FF6B2B',(timer-10)/20)
+    : lerpColor('#E84040','#F5C842',timer/10);
+
+  const urgent=timer<10&&timer>0;
+
+  return(
+    <svg style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none',zIndex:4,overflow:'visible'}}
+      viewBox={`0 0 ${dims.w} ${dims.h}`}>
+      {urgent&&(
+        <rect x={pad} y={pad} width={iw} height={ih} rx={rx} fill="none"
+          stroke="#E84040" strokeWidth={sw+4} opacity={0.25}
+          style={{animation:'urgentPulse .7s ease-in-out infinite alternate'}}/>
+      )}
+      <rect x={pad} y={pad} width={iw} height={ih} rx={rx} fill="none"
+        stroke={color} strokeWidth={sw}
+        strokeDasharray={`${perimeter} ${perimeter}`}
+        strokeDashoffset={dashOffset}
+        strokeLinecap="butt"
+        style={{transition:'stroke 0.7s ease',filter:urgent?`drop-shadow(0 0 7px ${color}) drop-shadow(0 0 3px ${color})`:'none'}}/>
+    </svg>
+  );
+}
+
 // ── App ──────────────────────────────────────────────────────────────────────
 export default function Articulate(){
   const [screen,setScreen]=useState("home");
@@ -495,6 +546,7 @@ export default function Articulate(){
   const [micErr,setMicErr]=useState("");
   const [audioUrl,setAudioUrl]=useState(null);
   const typingRef=useRef(null);
+  const timerCardRef=useRef(null);
   const mediaRef=useRef(null);
   const chunksRef=useRef([]);
   const ivRef=useRef(null);
@@ -783,8 +835,8 @@ export default function Articulate(){
                 {!recording&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={pickTopic}>↻ New topic</button>}
               </div>
 
-              <div className="card fadeUp d2" style={{padding:"48px 32px",marginBottom:20,border:recording?"2.5px solid var(--red)":"2.5px solid var(--border)",transition:"border-color .3s",position:"relative",overflow:"hidden"}}>
-                {recording&&<div style={{position:"absolute",top:0,left:0,right:0,height:5,background:"var(--red)"}}/>}
+              <div ref={timerCardRef} className="card fadeUp d2" style={{padding:"48px 32px",marginBottom:20,border:recording?"2.5px solid transparent":"2.5px solid var(--border)",transition:"border-color .3s",position:"relative",overflow:"visible"}}>
+                <BorderTimer containerRef={timerCardRef} timer={timer} speakTime={speakTime} active={recording}/>
                 {recording&&(
                   <div style={{display:"flex",justifyContent:"center",marginBottom:24}}>
                     <div style={{position:"relative",width:64,height:64}}>
