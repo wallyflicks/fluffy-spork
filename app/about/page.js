@@ -83,9 +83,9 @@ export default function About() {
                 alt="Wallace Cheng"
                 style={{
                   width:'100%',
-                  height:'200%',
+                  height:'100%',
                   objectFit:'cover',
-                  objectPosition:'center 18%',
+                  objectPosition:'center 28%',
                   display:'block',
                 }}
               />
