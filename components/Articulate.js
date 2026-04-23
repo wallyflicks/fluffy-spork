@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
 const G = () => (
   <style>{`
@@ -37,21 +37,26 @@ const G = () => (
     ::-webkit-scrollbar-thumb{background:var(--orange-border);border-radius:3px}
 
     @keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
-    @keyframes slideLeft{from{opacity:0;transform:translateX(-48px)}to{opacity:1;transform:translateX(0)}}
-    @keyframes slideRight{from{opacity:0;transform:translateX(48px)}to{opacity:1;transform:translateX(0)}}
-    @keyframes screenEnter{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes slideLeft{from{opacity:0;transform:translateX(-52px)}to{opacity:1;transform:translateX(0)}}
+    @keyframes slideRight{from{opacity:0;transform:translateX(52px)}to{opacity:1;transform:translateX(0)}}
+    @keyframes screenEnter{from{opacity:0;transform:translateY(32px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
     @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
     @keyframes spin{to{transform:rotate(360deg)}}
     @keyframes wobble{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
-    @keyframes pulseRing{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.6);opacity:0}}
-    @keyframes waveBar{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}
+    @keyframes pulseRing{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.8);opacity:0}}
+    @keyframes waveBar{0%,100%{transform:scaleY(.15)}50%{transform:scaleY(1)}}
     @keyframes float{0%,100%{transform:translateY(0) rotate(-5deg)}50%{transform:translateY(-22px) rotate(5deg)}}
-    @keyframes bounceBtn{0%,100%{transform:translate(0,0);box-shadow:4px 4px 0 var(--text)}45%{transform:translate(-2px,-4px);box-shadow:6px 8px 0 var(--text)}}
+    @keyframes bounceBtn{0%,100%{transform:translate(0,0);box-shadow:4px 4px 0 var(--text)}45%{transform:translate(-2px,-5px);box-shadow:6px 9px 0 var(--text)}}
+    @keyframes chipPop{0%{transform:scale(1)}40%{transform:scale(1.18)}70%{transform:scale(.96)}100%{transform:scale(1)}}
+    @keyframes ripple{0%{transform:scale(0);opacity:.5}100%{transform:scale(4);opacity:0}}
+    @keyframes confettiFall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(600px) rotate(720deg);opacity:0}}
+    @keyframes celebBounce{0%{transform:scale(0) rotate(-20deg);opacity:0}60%{transform:scale(1.3) rotate(10deg);opacity:1}100%{transform:scale(1) rotate(0deg);opacity:1}}
+    @keyframes typewriter{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 
     .fadeUp{animation:fadeUp .5s cubic-bezier(.22,.68,0,1.2) both}
     .slideLeft{animation:slideLeft .6s cubic-bezier(.22,.68,0,1.2) both}
     .slideRight{animation:slideRight .6s cubic-bezier(.22,.68,0,1.2) both}
-    .screenEnter{animation:screenEnter .45s cubic-bezier(.22,.68,0,1.2) both}
+    .screenEnter{animation:screenEnter .5s cubic-bezier(.22,.68,0,1.2) both}
     .d1{animation-delay:.08s}.d2{animation-delay:.18s}.d3{animation-delay:.28s}
     .d4{animation-delay:.38s}.d5{animation-delay:.48s}.d6{animation-delay:.58s}
     .fb1{animation:fadeUp .55s cubic-bezier(.22,.68,0,1.2) both;animation-delay:.05s}
@@ -71,12 +76,16 @@ const G = () => (
 
     .btn{
       display:inline-flex;align-items:center;gap:8px;
-      padding:12px 24px;border-radius:50px;
+      padding:12px 24px;border-radius:50px;overflow:hidden;position:relative;
       font-family:'Fredoka',sans-serif;font-size:18px;font-weight:600;
       cursor:pointer;border:2.5px solid var(--text);
       transition:all .15s ease;white-space:nowrap;
       box-shadow:4px 4px 0 var(--text);
     }
+    .btn::after{content:'';position:absolute;width:60px;height:60px;border-radius:50%;
+      background:rgba(255,255,255,0.3);transform:scale(0);pointer-events:none;
+      top:50%;left:50%;margin:-30px 0 0 -30px;}
+    .btn:active::after{animation:ripple .4s ease-out}
     .btn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--text)}
     .btn:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--text)}
     .btn-orange{background:var(--orange);color:#fff}
@@ -97,8 +106,10 @@ const G = () => (
       cursor:pointer;transition:all .2s;box-shadow:2px 2px 0 var(--border);
       white-space:nowrap;
     }
-    .chip:hover{border-color:var(--orange);color:var(--orange);box-shadow:3px 3px 0 var(--orange);transform:translateY(-1px)}
-    .chip.active{background:var(--orange);border-color:var(--orange);color:#fff;box-shadow:3px 3px 0 rgba(255,107,43,.5)}
+    .chip:hover{border-color:var(--orange);color:var(--orange);box-shadow:3px 3px 0 var(--orange);transform:translateY(-2px)}
+    .chip:active{transform:scale(.93)!important;transition:transform .08s}
+    .chip.active{background:var(--orange);border-color:var(--orange);color:#fff;
+      box-shadow:3px 3px 0 rgba(255,107,43,.5);animation:chipPop .3s cubic-bezier(.22,.68,0,1.4)}
 
     @media(max-width:480px){
       .chip{font-size:13px;padding:7px 14px;}
@@ -341,40 +352,94 @@ function analyzeTranscript(text, topic, difficulty) {
 }
 
 // ── Score Ring ───────────────────────────────────────────────────────────────
-function ScoreRing({score,size=150}){
+function ScoreRing({score,size=160}){
   const [shown,setShown]=useState(0);
-  useEffect(()=>{const t=setTimeout(()=>setShown(score),120);return()=>clearTimeout(t);},[score]);
+  useEffect(()=>{
+    let raf;
+    const dur=1600,start=Date.now();
+    const tick=()=>{
+      const p=Math.min((Date.now()-start)/dur,1);
+      const e=1-Math.pow(1-p,3);
+      setShown(Math.round(score*e));
+      if(p<1) raf=requestAnimationFrame(tick);
+    };
+    const t=setTimeout(()=>{raf=requestAnimationFrame(tick);},150);
+    return()=>{clearTimeout(t);cancelAnimationFrame(raf);};
+  },[score]);
   const r=(size-16)/2, circ=2*Math.PI*r;
   const color=score>=80?"#2D7A4F":score>=60?"#CC6600":"#E84040";
   return(
     <svg width={size} height={size} style={{transform:"rotate(-90deg)"}}>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#F0E8E0" strokeWidth={12}/>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={12}
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#F0E8E0" strokeWidth={13}/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={13}
         strokeDasharray={circ} strokeDashoffset={circ*(1-shown/100)}
-        strokeLinecap="round" style={{transition:"stroke-dashoffset 1.5s cubic-bezier(.22,.68,0,1.2)"}}/>
-      <text x={size/2} y={size/2} fill={color} fontSize={34} fontWeight="700"
+        strokeLinecap="round"/>
+      <text x={size/2} y={size/2} fill={color} fontSize={36} fontWeight="700"
         fontFamily="Fredoka, sans-serif" textAnchor="middle" dominantBaseline="middle"
         style={{transform:`rotate(90deg)`,transformOrigin:`${size/2}px ${size/2}px`}}>
-        {score}
+        {shown}
       </text>
     </svg>
   );
 }
 
+function Confetti({active}){
+  const pieces=useMemo(()=>Array.from({length:32},(_,i)=>({
+    id:i, left:5+(i*2.9)%90,
+    color:['#FF6B2B','#F5C842','#2D7A4F','#3B82F6','#E84040','#FF8F5E'][i%6],
+    delay:(i*0.04)%1.1, size:6+(i%5)*3,
+    rot:(i*53)%360, dur:1.1+(i%4)*0.25,
+    shape:i%3===0?'50%':'3px',
+  })),[]);
+  if(!active) return null;
+  return(
+    <div style={{position:'absolute',inset:0,overflow:'hidden',pointerEvents:'none',zIndex:6}}>
+      {pieces.map(p=>(
+        <div key={p.id} style={{position:'absolute',top:'-5%',left:`${p.left}%`,
+          width:p.size,height:p.size,borderRadius:p.shape,background:p.color,
+          transform:`rotate(${p.rot}deg)`,
+          animation:`confettiFall ${p.dur}s ease-in ${p.delay}s both`}}/>
+      ))}
+    </div>
+  );
+}
+
+function CelebStars({show}){
+  if(!show) return null;
+  const items=[
+    {size:36,color:'#F5C842',top:'10%',left:'8%',delay:'0s'},
+    {size:24,color:'#FF6B2B',top:'5%',left:'82%',delay:'.1s'},
+    {size:40,color:'#2D7A4F',top:'18%',right:'6%',delay:'.05s'},
+    {size:20,color:'#F5C842',top:'25%',left:'3%',delay:'.15s'},
+    {size:28,color:'#3B82F6',top:'8%',left:'50%',delay:'.08s'},
+    {size:22,color:'#FF6B2B',top:'30%',right:'10%',delay:'.12s'},
+  ];
+  return(
+    <div style={{position:'absolute',inset:0,pointerEvents:'none',overflow:'visible',zIndex:4}}>
+      {items.map((s,i)=>(
+        <div key={i} style={{position:'absolute',...s,animation:`celebBounce .6s cubic-bezier(.22,.68,0,1.4) ${s.delay} both`}}>
+          <Star size={s.size} color={s.color}/>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const WAVE_HEIGHTS=[55,80,40,95,60,100,45,85,55,75,35,90,65,50];
 function WaveViz({active}){
   return(
-    <div style={{display:"flex",gap:5,alignItems:"center",height:36}}>
-      {Array.from({length:10}).map((_,i)=>(
+    <div style={{display:"flex",gap:4,alignItems:"center",height:48}}>
+      {WAVE_HEIGHTS.map((h,i)=>(
         <div key={i} style={{
-          width:5,height:"100%",borderRadius:3,
+          width:5,height:`${h}%`,borderRadius:3,
           background:active?"var(--orange)":"var(--orange-border)",
-          transformOrigin:"center bottom",
+          transformOrigin:"center",
           animationName:active?"waveBar":"none",
-          animationDuration:`${0.55+(i%4)*0.12}s`,
+          animationDuration:`${0.4+(i%5)*0.11}s`,
           animationTimingFunction:"ease-in-out",
           animationIterationCount:"infinite",
-          animationDelay:`${(i*0.08).toFixed(2)}s`,
-          opacity:active?1:0.5,transition:"background .3s",
+          animationDelay:`${(i*0.06).toFixed(2)}s`,
+          opacity:active?1:0.4,transition:"background .3s,opacity .3s",
         }}/>
       ))}
     </div>
@@ -382,14 +447,27 @@ function WaveViz({active}){
 }
 
 function SubBar({label,val,color,bg}){
+  const [shown,setShown]=useState(0);
+  useEffect(()=>{
+    let raf;
+    const dur=1300,start=Date.now();
+    const tick=()=>{
+      const p=Math.min((Date.now()-start)/dur,1);
+      const e=1-Math.pow(1-p,3);
+      setShown(Math.round(val*e));
+      if(p<1) raf=requestAnimationFrame(tick);
+    };
+    const t=setTimeout(()=>{raf=requestAnimationFrame(tick);},200);
+    return()=>{clearTimeout(t);cancelAnimationFrame(raf);};
+  },[val]);
   return(
     <div style={{background:bg||"var(--orange-dim)",borderRadius:16,padding:"16px 18px",border:`2px solid ${color}30`}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
         <span style={{fontFamily:"Fredoka",fontSize:16,color:"var(--text)"}}>{label}</span>
-        <span style={{fontFamily:"Fredoka",fontSize:22,fontWeight:700,color}}>{val}</span>
+        <span style={{fontFamily:"Fredoka",fontSize:22,fontWeight:700,color}}>{shown}</span>
       </div>
       <div style={{height:8,borderRadius:4,background:"rgba(0,0,0,0.08)",overflow:"hidden"}}>
-        <div style={{height:"100%",width:`${val}%`,background:color,borderRadius:4,transition:"width 1.2s cubic-bezier(.22,.68,0,1.2)"}}/>
+        <div style={{height:"100%",width:`${shown}%`,background:color,borderRadius:4}}/>
       </div>
     </div>
   );
@@ -405,6 +483,7 @@ export default function Articulate(){
   const [prepTime,setPrepTime]=useState(60);
   const [speakTime,setSpeakTime]=useState(120);
   const [topic,setTopic]=useState("");
+  const [displayedTopic,setDisplayedTopic]=useState("");
   const [timer,setTimer]=useState(0);
   const [running,setRunning]=useState(false);
   const [phase,setPhase]=useState("prep");
@@ -415,6 +494,7 @@ export default function Articulate(){
   const [loading,setLoading]=useState(false);
   const [micErr,setMicErr]=useState("");
   const [audioUrl,setAudioUrl]=useState(null);
+  const typingRef=useRef(null);
   const mediaRef=useRef(null);
   const chunksRef=useRef([]);
   const ivRef=useRef(null);
@@ -422,6 +502,16 @@ export default function Articulate(){
   const initialTimeRef=useRef(0);
   const recognitionRef=useRef(null);
   const transcriptRef=useRef("");
+
+  useEffect(()=>{
+    if(!topic){setDisplayedTopic("");return;}
+    clearTimeout(typingRef.current);
+    setDisplayedTopic("");
+    let i=0;
+    const type=()=>{i++;setDisplayedTopic(topic.slice(0,i));if(i<topic.length)typingRef.current=setTimeout(type,18);};
+    typingRef.current=setTimeout(type,60);
+    return()=>clearTimeout(typingRef.current);
+  },[topic]);
 
   useEffect(()=>{
     if(running){
@@ -449,9 +539,7 @@ export default function Articulate(){
     setFeedback(null);setAudioBlob(null);setTranscript("");setAudioUrl(null);transcriptRef.current="";
     setPhase("prep");setTimer(prepTime);
     initialTimeRef.current = prepTime;
-    startTimeRef.current = Date.now();
-    if(prepTime===0){setScreen("speak");setPhase("speak");setTimer(speakTime);}
-    if(prepTime===0){initialTimeRef.current = speakTime;startTimeRef.current = Date.now();}
+    if(prepTime===0){setScreen("speak");setPhase("speak");setTimer(speakTime);initialTimeRef.current=speakTime;}
     else setScreen("prep");
   };
 
@@ -657,7 +745,7 @@ export default function Articulate(){
               <div className="card fadeUp d1" style={{padding:28,marginBottom:20,borderLeft:"6px solid var(--orange)",position:"relative"}}>
                 <Star size={20} color="#F5C842" style={{position:"absolute",top:16,right:16}}/>
                 <p style={{fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Your prompt</p>
-                <p className="fredoka" style={{fontSize:24,lineHeight:1.4,marginBottom:16}}>"{topic}"</p>
+                <p className="fredoka" style={{fontSize:24,lineHeight:1.4,marginBottom:16}}>"{displayedTopic}"</p>
                 <button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={pickTopic}>↻ New topic</button>
               </div>
 
@@ -668,7 +756,7 @@ export default function Articulate(){
 
               <div className="fadeUp d3" style={{display:"flex",gap:12}}>
                 {!running
-                  ?<button className="btn btn-orange" style={{flex:1,justifyContent:"center",padding:"15px",fontSize:18}} onClick={()=>setRunning(true)}>▶ Start Timer</button>
+                  ?<button className="btn btn-orange" style={{flex:1,justifyContent:"center",padding:"15px",fontSize:18}} onClick={()=>{startTimeRef.current=Date.now()-((initialTimeRef.current-timer)*1000);setRunning(true);}}>▶ Start Timer</button>
                   :<button className="btn btn-cream" style={{flex:1,justifyContent:"center"}} onClick={()=>setRunning(false)}>⏸ Pause</button>
                 }
                 <button className="btn btn-green" style={{flex:1,justifyContent:"center",padding:"15px",fontSize:18}} onClick={goSpeak}>Start Speaking →</button>
@@ -691,7 +779,7 @@ export default function Articulate(){
 
               <div className="card fadeUp d1" style={{textAlign:"left",padding:24,marginBottom:20}}>
                 <p style={{fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Your prompt</p>
-                <p className="fredoka" style={{fontSize:20,lineHeight:1.5,marginBottom:recording?0:14}}>"{topic}"</p>
+                <p className="fredoka" style={{fontSize:20,lineHeight:1.5,marginBottom:recording?0:14}}>"{displayedTopic}"</p>
                 {!recording&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={pickTopic}>↻ New topic</button>}
               </div>
 
@@ -739,7 +827,9 @@ export default function Articulate(){
               {!loading&&feedback&&!feedback.error&&(
                 <div>
                   {/* Score hero */}
-                  <div className="card fb1" style={{textAlign:"center",padding:"52px 32px",marginBottom:20,position:"relative",overflow:"hidden",borderTop:`6px solid ${feedback.score>=80?"var(--green)":feedback.score>=60?"var(--yellow)":"var(--red)"}`}}>
+                  <div className="card fb1" style={{textAlign:"center",padding:"52px 32px",marginBottom:20,position:"relative",overflow:"visible",borderTop:`6px solid ${feedback.score>=80?"var(--green)":feedback.score>=60?"var(--yellow)":"var(--red)"}`}}>
+                    <Confetti active={true}/>
+                    <CelebStars show={feedback.score>=80}/>
                     <div style={{position:"absolute",top:16,right:16}}><Star size={32} color="#F5C842"/></div>
                     <div style={{position:"absolute",top:20,left:20}}><Sparkle size={26} color="var(--orange)"/></div>
                     <h3 className="fredoka" style={{fontSize:19,color:"var(--muted)",marginBottom:20}}>Overall Score</h3>
@@ -823,7 +913,14 @@ export default function Articulate(){
                   {audioUrl&&(
                     <div className="card fb7" style={{padding:28,marginBottom:20}}>
                       <p className="fredoka" style={{fontSize:17,marginBottom:14,color:"var(--muted)"}}>🎧 Your Recording</p>
-                      <audio controls src={audioUrl} style={{width:"100%",borderRadius:12}}/>
+                      <audio controls src={audioUrl} style={{width:"100%",borderRadius:12}}
+                        onLoadedMetadata={e=>{
+                          const el=e.target;
+                          if(el.duration===Infinity||isNaN(el.duration)){
+                            el.currentTime=1e101;
+                            el.ontimeupdate=()=>{el.ontimeupdate=null;el.currentTime=0;};
+                          }
+                        }}/>
                     </div>
                   )}
 
