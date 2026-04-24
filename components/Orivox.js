@@ -918,6 +918,8 @@ export default function Orivox(){
   const [micErr,setMicErr]=useState("");
   const [audioUrl,setAudioUrl]=useState(null);
   const [sessionReviewed,setSessionReviewed]=useState(false);
+  const [lbName,setLbName]=useState("");
+  const [lbSaved,setLbSaved]=useState(false);
   const typingRef=useRef(null);
   const timerCardRef=useRef(null);
   const mediaRef=useRef(null);
@@ -1071,17 +1073,25 @@ export default function Orivox(){
       const existing=JSON.parse(localStorage.getItem("orivox_sessions")||"[]");
       existing.push(session);
       localStorage.setItem("orivox_sessions",JSON.stringify(existing));
-      // Save to Supabase directly from browser (same pattern as Reviews — works with anon key)
-      supabase.from("scores").insert({
-        player_name:"Anonymous",
-        score:feedbackData.totalScore,
-        category:activeCat,
-        difficulty:activeDiff,
-        date:localDate,
-      }).then(({error})=>{
-        if(error) supabase.from("scores").insert({player_name:"Anonymous",score:feedbackData.totalScore}).catch(()=>{});
-      }).catch(()=>{});
     }catch{}
+  };
+
+  const saveToLeaderboard=(name,scoreData)=>{
+    const displayName=(name||"").trim()||"Anonymous";
+    const now=new Date();
+    const localDate=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+    supabase.from("scores").insert({
+      player_name:displayName,
+      score:scoreData.totalScore,
+      category:activeCat,
+      difficulty:activeDiff,
+      date:localDate,
+    }).then(({error})=>{
+      if(error){
+        supabase.from("scores").insert({player_name:displayName,score:scoreData.totalScore}).catch(()=>{});
+      }
+    }).catch(()=>{});
+    setLbSaved(true);
   };
 
   const analyze=async()=>{
@@ -1108,6 +1118,7 @@ export default function Orivox(){
   const reset=()=>{
     recognitionRef.current?.stop();recognitionRef.current=null;
     setScreen("home");setFeedback(null);setAudioBlob(null);setTranscript("");setRecording(false);setRunning(false);
+    setLbName("");setLbSaved(false);
     clearInterval(ivRef.current);
     if(audioUrl){URL.revokeObjectURL(audioUrl);setAudioUrl(null);}
   };
@@ -1171,7 +1182,7 @@ export default function Orivox(){
               ))}
             </div>
           )}
-e        </header>
+        </header>
 
         {/* Key Modal */}
 
@@ -1450,9 +1461,30 @@ e        </header>
                     </div>
                   )}
 
+                  {/* Leaderboard name entry */}
+                  {!lbSaved?(
+                    <div className="card fb6" style={{padding:24,marginBottom:20,borderTop:"4px solid var(--orange)",background:"var(--orange-dim)"}}>
+                      <p className="fredoka" style={{fontSize:18,marginBottom:4}}>Post your score to the global leaderboard</p>
+                      <p style={{color:"var(--muted)",fontSize:13,marginBottom:14}}>{feedback.totalScore}/100 &middot; {activeCat} &middot; {activeDiff}</p>
+                      <div style={{display:"flex",gap:10}}>
+                        <input value={lbName} onChange={e=>setLbName(e.target.value)}
+                          onKeyDown={e=>e.key==="Enter"&&saveToLeaderboard(lbName,feedback)}
+                          placeholder="Your name (optional)" maxLength={30}
+                          style={{flex:1,padding:"10px 14px",borderRadius:12,border:"2px solid var(--orange-border)",fontSize:15,fontFamily:"Nunito,sans-serif",outline:"none",background:"var(--card)",color:"var(--text)"}}/>
+                        <button className="btn btn-orange" style={{padding:"10px 20px",fontSize:15,whiteSpace:"nowrap"}} onClick={()=>saveToLeaderboard(lbName,feedback)}>Post</button>
+                        <button className="btn btn-cream" style={{padding:"10px 16px",fontSize:15,whiteSpace:"nowrap"}} onClick={()=>saveToLeaderboard("",feedback)}>Skip</button>
+                      </div>
+                    </div>
+                  ):(
+                    <div className="card fb6" style={{padding:18,marginBottom:20,borderTop:"4px solid var(--green)",background:"#E8F7EE",display:"flex",alignItems:"center",gap:12}}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                      <span style={{fontFamily:"Fredoka,sans-serif",fontSize:16,color:"var(--green)"}}>Score posted to the global leaderboard!</span>
+                    </div>
+                  )}
+
                   {/* Actions */}
                   <div className="fb7" style={{display:"flex",gap:14,marginBottom:20}}>
-                    <button className="btn btn-orange" style={{flex:1,justifyContent:"center",padding:"16px",fontSize:18}} onClick={()=>{setFeedback(null);setAudioBlob(null);setTranscript("");startSession();}}>Try Again</button>
+                    <button className="btn btn-orange" style={{flex:1,justifyContent:"center",padding:"16px",fontSize:18}} onClick={()=>{setFeedback(null);setAudioBlob(null);setTranscript("");setLbName("");setLbSaved(false);startSession();}}>Try Again</button>
                     <button className="btn btn-cream" style={{flex:1,justifyContent:"center"}} onClick={reset}>Change Topic</button>
                   </div>
 

@@ -32,13 +32,17 @@ const G = () => (
     .silver{background:#E8E8E8;color:#666;}
     .bronze{background:#E8C4A0;color:#7A4400;}
     .rank-num{background:var(--orange-dim);color:var(--muted);}
-    @media(max-width:600px){.lb-row{padding:12px 14px;gap:10px}}
+    .tab-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 24px;border-radius:50px;font-family:'Fredoka',sans-serif;font-size:16px;font-weight:600;cursor:pointer;border:2.5px solid var(--border);background:var(--card);color:var(--muted);transition:all .15s;box-shadow:2px 2px 0 var(--border);}
+    .tab-btn.active{background:var(--orange);color:#fff;border-color:var(--orange);box-shadow:3px 3px 0 rgba(255,107,43,.35);}
+    .tab-btn:hover:not(.active){border-color:var(--orange);color:var(--orange);}
+    @media(max-width:600px){.lb-row{padding:12px 14px;gap:10px}.tab-btn{font-size:14px;padding:8px 18px;}}
   `}</style>
 )
 
 function fmtDate(dateStr) {
   if (!dateStr) return ''
-  const [y, m, d] = (dateStr.includes('T') ? dateStr.split('T')[0] : dateStr).split('-')
+  const s = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr
+  const [y, m, d] = s.split('-')
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
   return `${months[parseInt(m,10)-1]} ${parseInt(d,10)}, ${y}`
 }
@@ -76,7 +80,7 @@ function TrophyIcon({ size = 28, stroke = '#7A5500' }) {
 
 function GlobeIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" strokeWidth="2.5" strokeLinecap="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
       <circle cx="12" cy="12" r="10"/>
       <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
     </svg>
@@ -85,98 +89,75 @@ function GlobeIcon() {
 
 function PersonIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5" strokeLinecap="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
       <circle cx="12" cy="7" r="4"/>
     </svg>
   )
 }
 
-function ScoreRow({ rank, entry, nameKey = 'player_name' }) {
+function EmptyState({ cta }) {
   return (
-    <div className="lb-row">
-      <RankBadge rank={rank} />
-      <div style={{ flex:1, minWidth:0 }}>
-        <div className="fredoka" style={{ fontSize:15, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-          {entry[nameKey] || 'Anonymous'}
-        </div>
-        {(entry.category || entry.difficulty || entry.date) && (
-          <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>
-            {[entry.category, entry.difficulty, entry.date ? fmtDate(entry.date) : (entry.created_at ? fmtDate(entry.created_at) : null)].filter(Boolean).join(' · ')}
-          </div>
-        )}
-      </div>
-      <ScorePill score={entry.score} />
+    <div style={{ padding:'40px 24px', textAlign:'center' }}>
+      <p style={{ color:'var(--muted)', fontSize:15, marginBottom:20 }}>
+        No scores here yet — complete a session to appear!
+      </p>
+      {cta && (
+        <Link href="/" style={{
+          display:'inline-flex', alignItems:'center', gap:8,
+          padding:'12px 28px', borderRadius:50, fontFamily:'Fredoka,sans-serif',
+          fontSize:16, fontWeight:600, border:'2.5px solid var(--text)',
+          background:'var(--orange)', color:'#fff', textDecoration:'none',
+          boxShadow:'4px 4px 0 var(--text)',
+        }}>
+          Start a session
+        </Link>
+      )}
     </div>
   )
 }
 
 export default function Leaderboard() {
-  const [global, setGlobal] = useState(null)   // from Supabase
-  const [local, setLocal] = useState([])        // from localStorage
-  const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState('global')
+  const [globalScores, setGlobalScores] = useState(null)
+  const [localScores, setLocalScores] = useState([])
+  const [globalLoading, setGlobalLoading] = useState(true)
 
   useEffect(() => {
-    // Load localStorage immediately
+    // Local scores from localStorage
     try {
       const raw = localStorage.getItem('orivox_sessions')
       const sessions = raw ? JSON.parse(raw) : []
-      setLocal([...sessions].sort((a, b) => b.score - a.score).slice(0, 20))
-    } catch { setLocal([]) }
+      setLocalScores([...sessions].sort((a, b) => b.score - a.score))
+    } catch { setLocalScores([]) }
 
-    // Query Supabase directly from browser (same as Reviews — works with anon key)
+    // Global scores from Supabase directly (browser-side, same as Reviews)
     supabase
       .from('scores')
       .select('id, player_name, score, category, difficulty, date, created_at')
       .order('score', { ascending: false })
-      .limit(20)
+      .limit(50)
       .then(({ data, error }) => {
         if (!error && data) {
-          setGlobal(data)
+          setGlobalScores(data)
         } else {
-          // Try minimal columns if full select fails
+          // Fallback: try minimal columns
           supabase
             .from('scores')
             .select('id, player_name, score, created_at')
             .order('score', { ascending: false })
-            .limit(20)
-            .then(({ data: d2 }) => setGlobal(d2 || []))
-            .catch(() => setGlobal(null))
+            .limit(50)
+            .then(({ data: d2, error: e2 }) => {
+              setGlobalScores(e2 ? null : (d2 || []))
+            })
+            .catch(() => setGlobalScores(null))
         }
-        setLoading(false)
+        setGlobalLoading(false)
       })
-      .catch(() => { setGlobal(null); setLoading(false) })
+      .catch(() => { setGlobalScores(null); setGlobalLoading(false) })
   }, [])
 
-  // Use global if available and has entries; otherwise fall back to local
-  const useGlobal = global && global.length > 0
-  const entries = useGlobal ? global : local
-
-  // All-time high
-  const allTimeHigh = entries[0] || null
-
-  // Best per day (for local fallback, compute from full localStorage)
-  const [byDay, setByDay] = useState([])
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('orivox_sessions')
-      const sessions = raw ? JSON.parse(raw) : []
-      const map = {}
-      sessions.forEach(s => { if (!map[s.date] || s.score > map[s.date].score) map[s.date] = s })
-      setByDay(Object.values(map).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30))
-    } catch { setByDay([]) }
-  }, [])
-
-  if (loading) {
-    return (
-      <>
-        <G />
-        <div style={{ minHeight:'100vh', background:'var(--bg)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <div className="fredoka" style={{ fontSize:22, color:'var(--muted)' }}>Loading...</div>
-        </div>
-      </>
-    )
-  }
+  const allTimeHigh = globalScores && globalScores.length > 0 ? globalScores[0] : null
 
   return (
     <>
@@ -188,120 +169,120 @@ export default function Leaderboard() {
         <div style={{ maxWidth:700, margin:'0 auto', padding:'56px 24px 80px', position:'relative', zIndex:1 }}>
 
           {/* Title */}
-          <div className="fadeUp" style={{ marginBottom:40, textAlign:'center' }}>
+          <div className="fadeUp" style={{ marginBottom:36, textAlign:'center' }}>
             <h1 className="fredoka" style={{ fontSize:'clamp(36px,6vw,52px)', color:'var(--text)', marginBottom:10 }}>
               Leaderboard
             </h1>
             <p style={{ color:'var(--muted)', fontSize:16 }}>
-              {useGlobal ? 'Global rankings — visible to everyone.' : 'Your personal best sessions.'}
+              Top scores from speakers worldwide. Post your score after a session to compete.
             </p>
           </div>
 
-          {/* All-time high */}
-          <div className="fadeUp d1" style={{
-            background:'var(--yellow-dim)', border:'2.5px solid var(--yellow)',
-            borderRadius:20, padding:'24px 28px', marginBottom:24,
-            boxShadow:'var(--shadow)', display:'flex', alignItems:'center', gap:20,
-          }}>
-            <div style={{ width:56, height:56, borderRadius:'50%', background:'#FFF3C0', border:'2.5px solid var(--yellow)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-              <TrophyIcon size={28} stroke="#7A5500" />
-            </div>
-            <div style={{ flex:1 }}>
-              <p className="fredoka" style={{ fontSize:13, color:'#7A5500', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:4 }}>All-Time High Score</p>
-              {allTimeHigh ? (
-                <>
-                  <div className="fredoka" style={{ fontSize:32, color:'#7A5500', lineHeight:1, marginBottom:4 }}>
-                    {allTimeHigh.score} <span style={{ fontSize:16, opacity:.6 }}>/ 100</span>
-                  </div>
-                  <div style={{ fontSize:14, color:'#A07820' }}>
-                    {[allTimeHigh.player_name || allTimeHigh.category, allTimeHigh.difficulty, allTimeHigh.date ? fmtDate(allTimeHigh.date) : null].filter(Boolean).join(' · ')}
-                  </div>
-                </>
-              ) : (
-                <div className="fredoka" style={{ fontSize:18, color:'#A07820' }}>No sessions yet — complete one to appear here!</div>
-              )}
-            </div>
-          </div>
-
-          {/* Global leaderboard */}
-          <div className="fadeUp d2 lb-card" style={{ marginBottom:24 }}>
-            <div style={{ padding:'20px 20px 16px', borderBottom:'2.5px solid var(--border)', display:'flex', alignItems:'center', gap:10 }}>
-              {useGlobal ? <GlobeIcon /> : <PersonIcon />}
-              <h2 className="fredoka" style={{ fontSize:22, color:'var(--text)' }}>
-                {useGlobal ? 'Global Top Scores' : 'Your Top Sessions'}
-              </h2>
-              {!useGlobal && (
-                <span style={{ marginLeft:'auto', fontSize:12, color:'var(--muted)', fontWeight:600, background:'var(--orange-dim)', padding:'3px 10px', borderRadius:50, border:'1.5px solid var(--orange-border)' }}>
-                  Local only
-                </span>
-              )}
-            </div>
-
-            {entries.length === 0 ? (
-              <div style={{ padding:'40px 24px', textAlign:'center' }}>
-                <p style={{ color:'var(--muted)', fontSize:15, marginBottom:20 }}>
-                  No sessions yet — complete your first practice to appear here!
-                </p>
-                <Link href="/" style={{
-                  display:'inline-flex', alignItems:'center', gap:8,
-                  padding:'12px 28px', borderRadius:50, fontFamily:'Fredoka,sans-serif',
-                  fontSize:16, fontWeight:600, border:'2.5px solid var(--text)',
-                  background:'var(--orange)', color:'#fff', textDecoration:'none',
-                  boxShadow:'4px 4px 0 var(--text)',
-                }}>
-                  Start a session
-                </Link>
+          {/* All-time high — global only */}
+          {allTimeHigh && (
+            <div className="fadeUp d1" style={{
+              background:'var(--yellow-dim)', border:'2.5px solid var(--yellow)',
+              borderRadius:20, padding:'22px 28px', marginBottom:28,
+              boxShadow:'var(--shadow)', display:'flex', alignItems:'center', gap:20,
+            }}>
+              <div style={{ width:52, height:52, borderRadius:'50%', background:'#FFF3C0', border:'2.5px solid var(--yellow)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <TrophyIcon size={26} stroke="#7A5500" />
               </div>
-            ) : (
-              entries.map((entry, i) => (
-                <ScoreRow key={entry.id || entry.date + i} rank={i + 1} entry={entry} />
-              ))
-            )}
-          </div>
-
-          {/* Best per day (always from local, since it's personal history) */}
-          {byDay.length > 0 && (
-            <div className="fadeUp d3 lb-card">
-              <div style={{ padding:'20px 20px 16px', borderBottom:'2.5px solid var(--border)', display:'flex', alignItems:'center', gap:10 }}>
-                <PersonIcon />
-                <h2 className="fredoka" style={{ fontSize:22, color:'var(--text)' }}>Your Best Per Day</h2>
-                <span style={{ marginLeft:'auto', fontSize:13, color:'var(--muted)', fontWeight:600 }}>Personal history</span>
-              </div>
-              <div style={{ overflowX:'auto' }}>
-                <table style={{ borderCollapse:'collapse', width:'100%' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ background:'var(--orange-dim)', color:'var(--text)', fontFamily:'Fredoka,sans-serif', fontSize:14, fontWeight:600, padding:'12px 20px', textAlign:'left', borderBottom:'2.5px solid var(--border)' }}>Date</th>
-                      <th style={{ background:'var(--orange-dim)', color:'var(--text)', fontFamily:'Fredoka,sans-serif', fontSize:14, fontWeight:600, padding:'12px 20px', textAlign:'left', borderBottom:'2.5px solid var(--border)' }}>Category</th>
-                      <th style={{ background:'var(--orange-dim)', color:'var(--text)', fontFamily:'Fredoka,sans-serif', fontSize:14, fontWeight:600, padding:'12px 20px', textAlign:'right', borderBottom:'2.5px solid var(--border)' }}>Score</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {byDay.map(s => {
-                      const b = scoreBadge(s.score)
-                      return (
-                        <tr key={s.date} style={{ borderBottom:'1.5px solid var(--border)' }}>
-                          <td style={{ padding:'12px 20px', fontSize:14, color:'var(--muted)', whiteSpace:'nowrap' }}>{fmtDate(s.date)}</td>
-                          <td style={{ padding:'12px 20px', fontSize:14 }}>
-                            <span className="fredoka">{s.category || '—'}</span>
-                            {s.difficulty && <span style={{ fontSize:12, color:'var(--muted)', marginLeft:6 }}>{s.difficulty}</span>}
-                          </td>
-                          <td style={{ padding:'12px 20px', textAlign:'right' }}>
-                            <span style={{ padding:'4px 14px', borderRadius:50, fontFamily:'Fredoka,sans-serif', fontSize:15, fontWeight:700, background:b.bg, color:b.color, border:`2px solid ${b.border}50` }}>
-                              {s.score}
-                            </span>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+              <div>
+                <p className="fredoka" style={{ fontSize:12, color:'#7A5500', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:3 }}>All-Time World Record</p>
+                <div className="fredoka" style={{ fontSize:30, color:'#7A5500', lineHeight:1, marginBottom:3 }}>
+                  {allTimeHigh.score}<span style={{ fontSize:15, opacity:.5 }}> / 100</span>
+                </div>
+                <div style={{ fontSize:13, color:'#A07820' }}>
+                  {[allTimeHigh.player_name, allTimeHigh.category, allTimeHigh.difficulty, allTimeHigh.date ? fmtDate(allTimeHigh.date) : null].filter(Boolean).join(' · ')}
+                </div>
               </div>
             </div>
           )}
 
+          {/* Tabs */}
+          <div className="fadeUp d2" style={{ display:'flex', gap:10, marginBottom:20 }}>
+            <button className={`tab-btn${tab==='global'?' active':''}`} onClick={() => setTab('global')}>
+              <GlobeIcon /> Global
+            </button>
+            <button className={`tab-btn${tab==='local'?' active':''}`} onClick={() => setTab('local')}>
+              <PersonIcon /> My Sessions
+            </button>
+          </div>
+
+          {/* Global tab */}
+          {tab === 'global' && (
+            <div className="fadeUp lb-card">
+              <div style={{ padding:'18px 20px', borderBottom:'2.5px solid var(--border)', display:'flex', alignItems:'center', gap:10 }}>
+                <GlobeIcon />
+                <h2 className="fredoka" style={{ fontSize:20, color:'var(--text)' }}>Global Rankings</h2>
+                <span style={{ marginLeft:'auto', fontSize:13, color:'var(--muted)' }}>All-time top scores</span>
+              </div>
+
+              {globalLoading ? (
+                <div style={{ padding:'40px 24px', textAlign:'center' }}>
+                  <div className="fredoka" style={{ fontSize:18, color:'var(--muted)' }}>Loading...</div>
+                </div>
+              ) : globalScores === null ? (
+                <div style={{ padding:'32px 24px', textAlign:'center' }}>
+                  <p style={{ color:'var(--muted)', fontSize:14, marginBottom:8 }}>Could not load global scores.</p>
+                  <p style={{ color:'var(--muted)', fontSize:13 }}>Make sure the Supabase <code>scores</code> table is set up and RLS allows public reads.</p>
+                </div>
+              ) : globalScores.length === 0 ? (
+                <EmptyState cta />
+              ) : (
+                globalScores.map((entry, i) => (
+                  <div key={entry.id} className="lb-row">
+                    <RankBadge rank={i + 1} />
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div className="fredoka" style={{ fontSize:15, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                        {entry.player_name || 'Anonymous'}
+                      </div>
+                      {(entry.category || entry.difficulty || entry.date || entry.created_at) && (
+                        <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>
+                          {[entry.category, entry.difficulty, entry.date ? fmtDate(entry.date) : (entry.created_at ? fmtDate(entry.created_at) : null)].filter(Boolean).join(' · ')}
+                        </div>
+                      )}
+                    </div>
+                    <ScorePill score={entry.score} />
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* Local tab */}
+          {tab === 'local' && (
+            <div className="fadeUp lb-card">
+              <div style={{ padding:'18px 20px', borderBottom:'2.5px solid var(--border)', display:'flex', alignItems:'center', gap:10 }}>
+                <PersonIcon />
+                <h2 className="fredoka" style={{ fontSize:20, color:'var(--text)' }}>My Sessions</h2>
+                <span style={{ marginLeft:'auto', fontSize:13, color:'var(--muted)' }}>This device only</span>
+              </div>
+
+              {localScores.length === 0 ? (
+                <EmptyState cta />
+              ) : (
+                localScores.map((s, i) => (
+                  <div key={s.id} className="lb-row">
+                    <RankBadge rank={i + 1} />
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div className="fredoka" style={{ fontSize:15, color:'var(--text)' }}>
+                        {s.category || 'Session'} &middot; {s.difficulty || '—'}
+                      </div>
+                      {s.date && (
+                        <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>{fmtDate(s.date)}</div>
+                      )}
+                    </div>
+                    <ScorePill score={s.score} />
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
           {/* CTA */}
-          <div className="fadeUp d4" style={{ textAlign:'center', marginTop:48 }}>
+          <div className="fadeUp d4" style={{ textAlign:'center', marginTop:40 }}>
             <Link href="/" style={{
               display:'inline-flex', alignItems:'center', gap:8,
               padding:'14px 32px', borderRadius:50, fontFamily:'Fredoka,sans-serif',
@@ -309,9 +290,9 @@ export default function Leaderboard() {
               background:'var(--orange)', color:'#fff', textDecoration:'none',
               boxShadow:'4px 4px 0 var(--text)', transition:'all .15s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translate(-2px,-2px)'; e.currentTarget.style.boxShadow = '6px 6px 0 var(--text)' }}
-            onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '4px 4px 0 var(--text)' }}>
-              Keep Practicing
+            onMouseEnter={e => { e.currentTarget.style.transform='translate(-2px,-2px)'; e.currentTarget.style.boxShadow='6px 6px 0 var(--text)' }}
+            onMouseLeave={e => { e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow='4px 4px 0 var(--text)' }}>
+              Practice and Compete
             </Link>
           </div>
         </div>
