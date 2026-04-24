@@ -31,17 +31,13 @@ const G = () => (
     .silver{background:#E8E8E8;color:#666;}
     .bronze{background:#E8C4A0;color:#7A4400;}
     .rank-num{background:var(--orange-dim);color:var(--muted);}
-    table{border-collapse:collapse;width:100%}
-    th{background:var(--orange-dim);color:var(--text);font-family:'Fredoka',sans-serif;font-size:14px;font-weight:600;padding:12px 20px;text-align:left;border-bottom:2.5px solid var(--border);}
-    td{padding:12px 20px;font-size:14px;border-bottom:1.5px solid var(--border);vertical-align:middle;}
-    tr:last-child td{border-bottom:none}
-    @media(max-width:600px){.lb-row{padding:12px 14px;gap:10px}td,th{padding:10px 12px;font-size:13px}}
+    @media(max-width:600px){.lb-row{padding:12px 14px;gap:10px}}
   `}</style>
 )
 
 function fmtDate(dateStr) {
   if (!dateStr) return ''
-  const [y, m, d] = dateStr.split('-')
+  const [y, m, d] = (dateStr.includes('T') ? dateStr.split('T')[0] : dateStr).split('-')
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
   return `${months[parseInt(m,10)-1]} ${parseInt(d,10)}, ${y}`
 }
@@ -77,37 +73,83 @@ function TrophyIcon({ size = 28, stroke = '#7A5500' }) {
   )
 }
 
-function MicIcon() {
+function GlobeIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" strokeWidth="2.5" strokeLinecap="round">
-      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
-      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-      <line x1="12" y1="19" x2="12" y2="22"/>
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
     </svg>
   )
 }
 
-function StarIcon() {
+function PersonIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="#F5C842" stroke="#F5C842" strokeWidth="1.5">
-      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5" strokeLinecap="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+      <circle cx="12" cy="7" r="4"/>
     </svg>
+  )
+}
+
+function ScoreRow({ rank, entry, nameKey = 'player_name' }) {
+  return (
+    <div className="lb-row">
+      <RankBadge rank={rank} />
+      <div style={{ flex:1, minWidth:0 }}>
+        <div className="fredoka" style={{ fontSize:15, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+          {entry[nameKey] || 'Anonymous'}
+        </div>
+        {(entry.category || entry.difficulty || entry.date) && (
+          <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>
+            {[entry.category, entry.difficulty, entry.date ? fmtDate(entry.date) : (entry.created_at ? fmtDate(entry.created_at) : null)].filter(Boolean).join(' · ')}
+          </div>
+        )}
+      </div>
+      <ScorePill score={entry.score} />
+    </div>
   )
 }
 
 export default function Leaderboard() {
-  const [sessions, setSessions] = useState(null)
+  const [global, setGlobal] = useState(null)   // from Supabase
+  const [local, setLocal] = useState([])        // from localStorage
+  const [loading, setLoading] = useState(true)
 
+  useEffect(() => {
+    // Load localStorage immediately
+    try {
+      const raw = localStorage.getItem('orivox_sessions')
+      const sessions = raw ? JSON.parse(raw) : []
+      setLocal([...sessions].sort((a, b) => b.score - a.score).slice(0, 20))
+    } catch { setLocal([]) }
+
+    // Fetch global leaderboard
+    fetch('/api/leaderboard')
+      .then(r => r.json())
+      .then(d => { setGlobal(d.top20 || []); setLoading(false) })
+      .catch(() => { setGlobal(null); setLoading(false) })
+  }, [])
+
+  // Use global if available and has entries; otherwise fall back to local
+  const useGlobal = global && global.length > 0
+  const entries = useGlobal ? global : local
+
+  // All-time high
+  const allTimeHigh = entries[0] || null
+
+  // Best per day (for local fallback, compute from full localStorage)
+  const [byDay, setByDay] = useState([])
   useEffect(() => {
     try {
       const raw = localStorage.getItem('orivox_sessions')
-      setSessions(raw ? JSON.parse(raw) : [])
-    } catch {
-      setSessions([])
-    }
+      const sessions = raw ? JSON.parse(raw) : []
+      const map = {}
+      sessions.forEach(s => { if (!map[s.date] || s.score > map[s.date].score) map[s.date] = s })
+      setByDay(Object.values(map).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30))
+    } catch { setByDay([]) }
   }, [])
 
-  if (sessions === null) {
+  if (loading) {
     return (
       <>
         <G />
@@ -117,19 +159,6 @@ export default function Leaderboard() {
       </>
     )
   }
-
-  // Top 20 all-time by score
-  const top20 = [...sessions].sort((a, b) => b.score - a.score).slice(0, 20)
-
-  // All-time high
-  const allTimeHigh = top20[0] || null
-
-  // Best score per calendar day (hall of fame)
-  const byDay = {}
-  sessions.forEach(s => {
-    if (!byDay[s.date] || s.score > byDay[s.date].score) byDay[s.date] = s
-  })
-  const hallOfFame = Object.values(byDay).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30)
 
   return (
     <>
@@ -146,7 +175,7 @@ export default function Leaderboard() {
               Leaderboard
             </h1>
             <p style={{ color:'var(--muted)', fontSize:16 }}>
-              Your all-time best sessions — keep practicing to climb the ranks.
+              {useGlobal ? 'Global rankings — visible to everyone.' : 'Your personal best sessions.'}
             </p>
           </div>
 
@@ -167,30 +196,37 @@ export default function Leaderboard() {
                     {allTimeHigh.score} <span style={{ fontSize:16, opacity:.6 }}>/ 100</span>
                   </div>
                   <div style={{ fontSize:14, color:'#A07820' }}>
-                    {[allTimeHigh.category, allTimeHigh.difficulty, fmtDate(allTimeHigh.date)].filter(Boolean).join(' · ')}
+                    {[allTimeHigh.player_name || allTimeHigh.category, allTimeHigh.difficulty, allTimeHigh.date ? fmtDate(allTimeHigh.date) : null].filter(Boolean).join(' · ')}
                   </div>
                 </>
               ) : (
-                <div className="fredoka" style={{ fontSize:20, color:'#A07820' }}>No sessions yet — complete a session to appear here!</div>
+                <div className="fredoka" style={{ fontSize:18, color:'#A07820' }}>No sessions yet — complete one to appear here!</div>
               )}
             </div>
           </div>
 
-          {/* Top 20 */}
+          {/* Global leaderboard */}
           <div className="fadeUp d2 lb-card" style={{ marginBottom:24 }}>
             <div style={{ padding:'20px 20px 16px', borderBottom:'2.5px solid var(--border)', display:'flex', alignItems:'center', gap:10 }}>
-              <MicIcon />
-              <h2 className="fredoka" style={{ fontSize:22, color:'var(--text)' }}>Top Sessions</h2>
+              {useGlobal ? <GlobeIcon /> : <PersonIcon />}
+              <h2 className="fredoka" style={{ fontSize:22, color:'var(--text)' }}>
+                {useGlobal ? 'Global Top Scores' : 'Your Top Sessions'}
+              </h2>
+              {!useGlobal && (
+                <span style={{ marginLeft:'auto', fontSize:12, color:'var(--muted)', fontWeight:600, background:'var(--orange-dim)', padding:'3px 10px', borderRadius:50, border:'1.5px solid var(--orange-border)' }}>
+                  Local only
+                </span>
+              )}
             </div>
 
-            {top20.length === 0 ? (
+            {entries.length === 0 ? (
               <div style={{ padding:'40px 24px', textAlign:'center' }}>
                 <p style={{ color:'var(--muted)', fontSize:15, marginBottom:20 }}>
                   No sessions yet — complete your first practice to appear here!
                 </p>
                 <Link href="/" style={{
                   display:'inline-flex', alignItems:'center', gap:8,
-                  padding:'12px 28px', borderRadius:50, fontFamily:'Fredoka, sans-serif',
+                  padding:'12px 28px', borderRadius:50, fontFamily:'Fredoka,sans-serif',
                   fontSize:16, fontWeight:600, border:'2.5px solid var(--text)',
                   background:'var(--orange)', color:'#fff', textDecoration:'none',
                   boxShadow:'4px 4px 0 var(--text)',
@@ -199,58 +235,40 @@ export default function Leaderboard() {
                 </Link>
               </div>
             ) : (
-              top20.map((s, i) => (
-                <div key={s.id} className="lb-row">
-                  <RankBadge rank={i + 1} />
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div className="fredoka" style={{ fontSize:15, color:'var(--text)' }}>
-                      {s.category || 'Session'} &middot; {s.difficulty || '—'}
-                    </div>
-                    {s.date && (
-                      <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>{fmtDate(s.date)}</div>
-                    )}
-                  </div>
-                  <ScorePill score={s.score} />
-                </div>
+              entries.map((entry, i) => (
+                <ScoreRow key={entry.id || entry.date + i} rank={i + 1} entry={entry} />
               ))
             )}
           </div>
 
-          {/* Hall of Fame */}
-          <div className="fadeUp d3 lb-card">
-            <div style={{ padding:'20px 20px 16px', borderBottom:'2.5px solid var(--border)', display:'flex', alignItems:'center', gap:10 }}>
-              <StarIcon />
-              <h2 className="fredoka" style={{ fontSize:22, color:'var(--text)' }}>Best Per Day</h2>
-              <span style={{ marginLeft:'auto', fontSize:13, color:'var(--muted)', fontWeight:600 }}>Top score each session day</span>
-            </div>
-
-            {hallOfFame.length === 0 ? (
-              <div style={{ padding:'40px 24px', textAlign:'center' }}>
-                <p style={{ color:'var(--muted)', fontSize:15 }}>
-                  Complete your first session to start your streak history.
-                </p>
+          {/* Best per day (always from local, since it's personal history) */}
+          {byDay.length > 0 && (
+            <div className="fadeUp d3 lb-card">
+              <div style={{ padding:'20px 20px 16px', borderBottom:'2.5px solid var(--border)', display:'flex', alignItems:'center', gap:10 }}>
+                <PersonIcon />
+                <h2 className="fredoka" style={{ fontSize:22, color:'var(--text)' }}>Your Best Per Day</h2>
+                <span style={{ marginLeft:'auto', fontSize:13, color:'var(--muted)', fontWeight:600 }}>Personal history</span>
               </div>
-            ) : (
               <div style={{ overflowX:'auto' }}>
-                <table>
+                <table style={{ borderCollapse:'collapse', width:'100%' }}>
                   <thead>
                     <tr>
-                      <th>Date</th>
-                      <th>Category</th>
-                      <th style={{ textAlign:'right' }}>Score</th>
+                      <th style={{ background:'var(--orange-dim)', color:'var(--text)', fontFamily:'Fredoka,sans-serif', fontSize:14, fontWeight:600, padding:'12px 20px', textAlign:'left', borderBottom:'2.5px solid var(--border)' }}>Date</th>
+                      <th style={{ background:'var(--orange-dim)', color:'var(--text)', fontFamily:'Fredoka,sans-serif', fontSize:14, fontWeight:600, padding:'12px 20px', textAlign:'left', borderBottom:'2.5px solid var(--border)' }}>Category</th>
+                      <th style={{ background:'var(--orange-dim)', color:'var(--text)', fontFamily:'Fredoka,sans-serif', fontSize:14, fontWeight:600, padding:'12px 20px', textAlign:'right', borderBottom:'2.5px solid var(--border)' }}>Score</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {hallOfFame.map(s => {
+                    {byDay.map(s => {
                       const b = scoreBadge(s.score)
                       return (
-                        <tr key={s.date}>
-                          <td style={{ color:'var(--muted)', whiteSpace:'nowrap' }}>{fmtDate(s.date)}</td>
-                          <td>
-                            <span className="fredoka" style={{ fontSize:15 }}>{s.category || '—'}</span>
+                        <tr key={s.date} style={{ borderBottom:'1.5px solid var(--border)' }}>
+                          <td style={{ padding:'12px 20px', fontSize:14, color:'var(--muted)', whiteSpace:'nowrap' }}>{fmtDate(s.date)}</td>
+                          <td style={{ padding:'12px 20px', fontSize:14 }}>
+                            <span className="fredoka">{s.category || '—'}</span>
                             {s.difficulty && <span style={{ fontSize:12, color:'var(--muted)', marginLeft:6 }}>{s.difficulty}</span>}
                           </td>
-                          <td style={{ textAlign:'right' }}>
+                          <td style={{ padding:'12px 20px', textAlign:'right' }}>
                             <span style={{ padding:'4px 14px', borderRadius:50, fontFamily:'Fredoka,sans-serif', fontSize:15, fontWeight:700, background:b.bg, color:b.color, border:`2px solid ${b.border}50` }}>
                               {s.score}
                             </span>
@@ -261,14 +279,14 @@ export default function Leaderboard() {
                   </tbody>
                 </table>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* CTA */}
           <div className="fadeUp d4" style={{ textAlign:'center', marginTop:48 }}>
             <Link href="/" style={{
               display:'inline-flex', alignItems:'center', gap:8,
-              padding:'14px 32px', borderRadius:50, fontFamily:'Fredoka, sans-serif',
+              padding:'14px 32px', borderRadius:50, fontFamily:'Fredoka,sans-serif',
               fontSize:18, fontWeight:600, border:'2.5px solid var(--text)',
               background:'var(--orange)', color:'#fff', textDecoration:'none',
               boxShadow:'4px 4px 0 var(--text)', transition:'all .15s',

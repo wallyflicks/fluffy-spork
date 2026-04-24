@@ -1095,12 +1095,7 @@ export default function Orivox(){
       await new Promise(r=>setTimeout(r,800));
       result=analyzeTranscript(text,topic,activeDiff);
     }
-    // Apply early-stop score penalty based on fraction of time completed
-    if(earlyStopRef.current&&speakTime>0){
-      const ratio=Math.min(1,Math.max(0,earlyStopElapsedRef.current/speakTime));
-      const penalised=Math.max(10,Math.round(result.totalScore*Math.sqrt(ratio)));
-      result={...result,totalScore:penalised,feedback:result.feedback+(ratio<0.5?" Session ended early — score reduced due to incomplete time.":"")};
-    }
+    // No penalty for stopping early — score reflects what was actually said
     saveSession(result);setFeedback(result);setLoading(false);
   };
 
@@ -1326,7 +1321,7 @@ e        </header>
                   ?<button className="btn btn-orange" style={{width:"100%",justifyContent:"center",padding:"17px",fontSize:20}} onClick={startMic} disabled={micStarting}>{micStarting?"Starting...":"Start Recording"}</button>
                   :<div style={{textAlign:"center"}}>
                     <div style={{padding:"14px 20px",borderRadius:50,background:"var(--red-dim)",border:"2px solid var(--red)",fontFamily:"Fredoka",fontSize:16,color:"var(--red)",fontWeight:600,marginBottom:10}}>Timer ends automatically</div>
-                    <button style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"var(--muted)",fontFamily:"Nunito,sans-serif",textDecoration:"underline",padding:0}} onClick={()=>doStop(true)}>Stop early (score penalty applies)</button>
+                    <button style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"var(--muted)",fontFamily:"Nunito,sans-serif",textDecoration:"underline",padding:0}} onClick={()=>doStop(true)}>Stop early (not recommended)</button>
                   </div>
                 }
               </div>
