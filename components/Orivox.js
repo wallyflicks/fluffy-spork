@@ -1024,6 +1024,16 @@ export default function Orivox(){
         fillerWords:Object.keys(fillerWordList),
         pacingRating,
         speakDuration:speakTime,
+        // Rich detail fields
+        clarity:feedbackData.clarity,
+        structure:feedbackData.structure,
+        deliveryScore:feedbackData.fillerWords,
+        confidence:feedbackData.confidence,
+        fillerWordList,
+        transcript:transcriptRef.current,
+        strength:feedbackData.strength||"",
+        improvement:feedbackData.improvement||"",
+        feedback:feedbackData.feedback||"",
       };
       const existing=JSON.parse(localStorage.getItem("orivox_sessions")||"[]");
       existing.push(session);

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import Link from 'next/link'
 
 const G = () => (
@@ -50,14 +50,37 @@ const G = () => (
     tr:last-child td{border-bottom:none}
     tr:last-child td:first-child{border-radius:0 0 0 12px}
     tr:last-child td:last-child{border-radius:0 0 12px 0}
-    tbody tr:hover td{background:var(--orange-dim)}
+    tbody tr.data-row{cursor:pointer}
+    tbody tr.data-row:hover td{background:var(--orange-dim)}
+    tbody tr.expanded-row td{background:var(--orange-dim)!important}
+    tr.detail-row td{padding:0;border-bottom:2px solid var(--orange-border)}
+    .chevron{transition:transform .2s ease;flex-shrink:0}
+    .chevron.open{transform:rotate(180deg)}
     @media(max-width:600px){
       .stat-grid{grid-template-columns:1fr 1fr!important}
       .hide-mobile{display:none!important}
       td,th{padding:10px 10px;font-size:13px}
+      .breakdown-grid{grid-template-columns:1fr 1fr!important}
+      .feedback-grid{grid-template-columns:1fr!important}
     }
   `}</style>
 )
+
+function MiniBar({ label, val, max, color }) {
+  return (
+    <div style={{ background: 'var(--card)', borderRadius: 12, padding: '12px 14px', border: `2px solid ${color}25` }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
+        <span style={{ fontSize: 13, fontFamily: 'Fredoka, sans-serif', color: 'var(--text)' }}>{label}</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color, fontFamily: 'Fredoka, sans-serif' }}>
+          {val}<span style={{ fontSize: 10, opacity: .55, fontWeight: 400 }}>/{max}</span>
+        </span>
+      </div>
+      <div style={{ height: 7, borderRadius: 4, background: 'rgba(0,0,0,0.08)' }}>
+        <div style={{ height: '100%', width: `${(val / max) * 100}%`, background: color, borderRadius: 4 }} />
+      </div>
+    </div>
+  )
+}
 
 function scoreBadge(score) {
   if (score >= 80) return { bg: '#E8F7EE', color: '#2D7A4F', border: '#2D7A4F' }
@@ -97,6 +120,7 @@ function mostPracticed(sessions) {
 
 export default function Progress() {
   const [sessions, setSessions] = useState(null)
+  const [expandedId, setExpandedId] = useState(null)
   const chartRef = useRef(null)
   const chartInstance = useRef(null)
 
@@ -358,38 +382,124 @@ export default function Progress() {
                       <th className="hide-mobile">Difficulty</th>
                       <th>Score</th>
                       <th>Filler Words</th>
+                      <th style={{ width: 36 }}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {sorted.map(s => {
                       const badge = scoreBadge(s.score)
+                      const isOpen = expandedId === s.id
+                      const hasDetail = s.clarity != null
                       return (
-                        <tr key={s.id}>
-                          <td style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>{fmt(s.date)}</td>
-                          <td style={{ fontWeight: 600 }}>{s.category}</td>
-                          <td className="hide-mobile">
-                            <span style={{
-                              padding: '3px 12px', borderRadius: 50, fontSize: 12,
-                              fontFamily: 'Fredoka, sans-serif', fontWeight: 600,
-                              background: s.difficulty === 'Easy' ? '#E8F7EE' : s.difficulty === 'Medium' ? '#FFF9E0' : '#FFECEC',
-                              color: s.difficulty === 'Easy' ? 'var(--green)' : s.difficulty === 'Medium' ? '#7A5500' : 'var(--red)',
-                              border: `1.5px solid ${s.difficulty === 'Easy' ? 'var(--green)' : s.difficulty === 'Medium' ? 'var(--yellow)' : 'var(--red)'}`,
-                            }}>{s.difficulty}</span>
-                          </td>
-                          <td>
-                            <span style={{
-                              padding: '4px 14px', borderRadius: 50,
-                              fontFamily: 'Fredoka, sans-serif', fontSize: 15, fontWeight: 700,
-                              background: badge.bg, color: badge.color,
-                              border: `2px solid ${badge.border}50`,
-                            }}>{s.score}</span>
-                          </td>
-                          <td style={{ color: s.fillerWordCount > 0 ? 'var(--red)' : 'var(--green)', fontWeight: 600 }}>
-                            {s.fillerWordCount > 0
-                              ? `${s.fillerWordCount} (${s.fillerWords.slice(0, 3).join(', ')}${s.fillerWords.length > 3 ? '…' : ''})`
-                              : '✓ Clean'}
-                          </td>
-                        </tr>
+                        <Fragment key={s.id}>
+                          <tr
+                            className={`data-row${isOpen ? ' expanded-row' : ''}`}
+                            onClick={() => setExpandedId(isOpen ? null : s.id)}
+                          >
+                            <td style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>{fmt(s.date)}</td>
+                            <td style={{ fontWeight: 600 }}>{s.category}</td>
+                            <td className="hide-mobile">
+                              <span style={{
+                                padding: '3px 12px', borderRadius: 50, fontSize: 12,
+                                fontFamily: 'Fredoka, sans-serif', fontWeight: 600,
+                                background: s.difficulty === 'Easy' ? '#E8F7EE' : s.difficulty === 'Medium' ? '#FFF9E0' : '#FFECEC',
+                                color: s.difficulty === 'Easy' ? 'var(--green)' : s.difficulty === 'Medium' ? '#7A5500' : 'var(--red)',
+                                border: `1.5px solid ${s.difficulty === 'Easy' ? 'var(--green)' : s.difficulty === 'Medium' ? 'var(--yellow)' : 'var(--red)'}`,
+                              }}>{s.difficulty}</span>
+                            </td>
+                            <td>
+                              <span style={{
+                                padding: '4px 14px', borderRadius: 50,
+                                fontFamily: 'Fredoka, sans-serif', fontSize: 15, fontWeight: 700,
+                                background: badge.bg, color: badge.color,
+                                border: `2px solid ${badge.border}50`,
+                              }}>{s.score}</span>
+                            </td>
+                            <td style={{ color: s.fillerWordCount > 0 ? 'var(--red)' : 'var(--green)', fontWeight: 600 }}>
+                              {s.fillerWordCount > 0
+                                ? `${s.fillerWordCount} (${s.fillerWords.slice(0, 3).join(', ')}${s.fillerWords.length > 3 ? '…' : ''})`
+                                : '✓ Clean'}
+                            </td>
+                            <td style={{ textAlign: 'center', paddingLeft: 4, paddingRight: 12 }}>
+                              <svg className={`chevron${isOpen ? ' open' : ''}`} width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round">
+                                <path d="M4 6l4 4 4-4"/>
+                              </svg>
+                            </td>
+                          </tr>
+
+                          {isOpen && (
+                            <tr className="detail-row">
+                              <td colSpan={6} style={{ padding: 0 }}>
+                                <div style={{ padding: '22px 24px 24px', background: 'var(--orange-dim)' }}>
+                                  {!hasDetail ? (
+                                    <p style={{ color: 'var(--muted)', fontSize: 14, fontStyle: 'italic' }}>
+                                      Full details not available for this session
+                                    </p>
+                                  ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+                                      {/* Score breakdown */}
+                                      <div>
+                                        <p className="fredoka" style={{ fontSize: 16, marginBottom: 10 }}>Score Breakdown</p>
+                                        <div className="breakdown-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
+                                          <MiniBar label="Clarity" val={s.clarity} max={25} color="#3B82F6" />
+                                          <MiniBar label="Structure" val={s.structure} max={25} color="var(--orange)" />
+                                          <MiniBar label="Delivery" val={s.deliveryScore} max={25} color="var(--green)" />
+                                          <MiniBar label="Confidence" val={s.confidence} max={25} color="#8B5CF6" />
+                                        </div>
+                                      </div>
+
+                                      {/* Filler words */}
+                                      {Object.keys(s.fillerWordList || {}).length > 0 && (
+                                        <div>
+                                          <p className="fredoka" style={{ fontSize: 16, marginBottom: 10 }}>Filler Words Used</p>
+                                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                            {Object.entries(s.fillerWordList).sort((a, b) => b[1] - a[1]).map(([word, count]) => (
+                                              <div key={word} style={{
+                                                display: 'flex', alignItems: 'center', gap: 8,
+                                                padding: '7px 14px', borderRadius: 10, fontSize: 13,
+                                                background: 'var(--card)', border: '1.5px solid rgba(232,64,64,.2)',
+                                              }}>
+                                                <span style={{ fontFamily: 'Fredoka, sans-serif', color: 'var(--red)' }}>"{word}"</span>
+                                                <span style={{ color: 'var(--red)', fontWeight: 700 }}>— {count}×</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                      {Object.keys(s.fillerWordList || {}).length === 0 && (
+                                        <p style={{ fontSize: 13, color: 'var(--green)', fontWeight: 700 }}>✓ Clean delivery — no filler words</p>
+                                      )}
+
+                                      {/* Strength + Improvement */}
+                                      <div className="feedback-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                                        <div style={{ background: 'var(--card)', borderRadius: 12, padding: '14px 16px', borderTop: '3px solid var(--green)' }}>
+                                          <p className="fredoka" style={{ fontSize: 14, color: 'var(--green)', marginBottom: 6 }}>✓ What worked</p>
+                                          <p style={{ fontSize: 13, lineHeight: 1.6 }}>{s.strength}</p>
+                                        </div>
+                                        <div style={{ background: 'var(--card)', borderRadius: 12, padding: '14px 16px', borderTop: '3px solid var(--orange)' }}>
+                                          <p className="fredoka" style={{ fontSize: 14, color: 'var(--orange)', marginBottom: 6 }}>↑ Focus on this</p>
+                                          <p style={{ fontSize: 13, lineHeight: 1.6 }}>{s.improvement}</p>
+                                        </div>
+                                      </div>
+
+                                      {/* Transcript */}
+                                      {s.transcript && (
+                                        <details style={{ background: 'var(--card)', borderRadius: 12, padding: '12px 16px', border: '1.5px solid var(--border)', cursor: 'pointer' }}>
+                                          <summary className="fredoka" style={{ fontSize: 14, color: 'var(--muted)', userSelect: 'none', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 4h12M2 8h8M2 12h10"/></svg>
+                                            View transcript
+                                          </summary>
+                                          <p style={{ marginTop: 10, fontSize: 13, lineHeight: 1.8, opacity: .85 }}>{s.transcript}</p>
+                                        </details>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       )
                     })}
                   </tbody>
