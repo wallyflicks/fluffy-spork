@@ -15,7 +15,7 @@ export async function POST(req) {
 
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
+      max_tokens: 1536,
       messages: [{
         role: 'user',
         content: `You are a strict but encouraging speaking coach. Analyze the following speech transcript and score it across these four categories:
@@ -27,6 +27,8 @@ export async function POST(req) {
 
 Total score is out of 100. Be honest — do not inflate scores. A mediocre response should score 50-65, a good one 70-85, and an excellent one 85+. Only give 90+ for truly exceptional delivery.
 
+Also produce a "cleanedTranscript": take the raw transcript and add punctuation, capitalize sentences, and break into paragraphs at natural pauses. Do NOT change, remove, or reorder any spoken words — every word must appear exactly as said, just made readable.
+
 Return your response in this exact JSON format with no extra text:
 {
   "totalScore": 74,
@@ -37,7 +39,8 @@ Return your response in this exact JSON format with no extra text:
   "fillerWordList": {"um": 3, "like": 5},
   "feedback": "One sentence of specific feedback here",
   "strength": "One thing they did well",
-  "improvement": "The single most important thing to work on"
+  "improvement": "The single most important thing to work on",
+  "cleanedTranscript": "The full transcript with punctuation and paragraphs added, words unchanged."
 }
 
 Transcript to analyze:

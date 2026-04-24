@@ -1110,7 +1110,11 @@ export default function Orivox(){
                   {transcript&&(
                     <details className="card fb6" style={{marginBottom:20,padding:28,cursor:"pointer"}}>
                       <summary className="fredoka" style={{fontSize:16,color:"var(--muted)",userSelect:"none"}}>📝 View transcript ▾</summary>
-                      <p style={{marginTop:16,fontSize:14,lineHeight:1.9,opacity:.85}}>{transcript}</p>
+                      <div style={{marginTop:16}}>
+                        {(feedback.cleanedTranscript||transcript).split(/\n+/).map((para,i)=>(
+                          <p key={i} style={{fontSize:14,lineHeight:1.9,opacity:.85,marginBottom:12}}>{para}</p>
+                        ))}
+                      </div>
                     </details>
                   )}
 
