@@ -90,7 +90,7 @@ export default function About() {
           }}>
             <div style={{borderLeft:'4px solid var(--orange)',paddingLeft:24}}>
               <p style={{fontSize:16,lineHeight:1.9,color:'var(--text)',marginBottom:20}}>
-                Hi, I'm a 16-year-old high school student from Vancouver, BC — and I built Orivox because I had the same problem most people have but rarely talk about: I could think of the perfect thing to say about ten seconds too late.
+                Hi, my name is Wallace and I am a 16 year old high school student from Vancouver, BC. I built Orivox because I had the same problem most people have but rarely talk about: I could think of the perfect thing to say about ten seconds too late.
               </p>
               <p style={{fontSize:16,lineHeight:1.9,color:'var(--text)',marginBottom:20}}>
                 I wanted to get better at quick thinking, at articulating my thoughts clearly under pressure, at sounding confident when it mattered. But I couldn't find a good way to actually practice that. Reading books about public speaking didn't help. Watching YouTube videos didn't help. What I needed was a way to just <em>do it</em> — over and over — and get real feedback.

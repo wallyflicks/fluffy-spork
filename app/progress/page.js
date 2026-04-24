@@ -314,7 +314,6 @@ export default function Progress() {
                 height: 180, display: 'flex', flexDirection: 'column',
                 alignItems: 'center', justifyContent: 'center', gap: 10,
               }}>
-                <span style={{ fontSize: 36 }}>📈</span>
                 <p style={{ color: 'var(--muted)', fontSize: 15, textAlign: 'center' }}>
                   Complete {sessions.length === 0 ? '2' : '1 more'} session{sessions.length === 0 ? 's' : ''} to see your progress chart
                 </p>
@@ -337,7 +336,6 @@ export default function Progress() {
             </div>
             {sessions.length === 0 ? (
               <div style={{ padding: '0 28px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, paddingTop: 20 }}>
-                <span style={{ fontSize: 40 }}>🎙️</span>
                 <p style={{ color: 'var(--muted)', fontSize: 15 }}>No sessions yet — go practice!</p>
                 <Link href="/" style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
