@@ -926,6 +926,8 @@ export default function Orivox(){
   const initialTimeRef=useRef(0);
   const recognitionRef=useRef(null);
   const transcriptRef=useRef("");
+  const stoppingRef=useRef(false);
+  const [micStarting,setMicStarting]=useState(false);
 
   useEffect(()=>{
     if(!topic){setDisplayedTopic("");return;}
@@ -973,7 +975,10 @@ export default function Orivox(){
   const goSpeak=()=>{setPhase("speak");setTimer(speakTime);initialTimeRef.current = speakTime;setScreen("speak");};
 
   const startMic=async()=>{
+    if(micStarting||recording) return;
+    setMicStarting(true);
     setMicErr("");setTranscript("");transcriptRef.current="";
+    stoppingRef.current=false;
     try{
       const stream=await navigator.mediaDevices.getUserMedia({audio:true});
       const mr=new MediaRecorder(stream);
@@ -986,6 +991,7 @@ export default function Orivox(){
         stream.getTracks().forEach(t=>t.stop());
       };
       mr.start(1000);startTimeRef.current=Date.now();setRecording(true);setRunning(true);
+      setMicStarting(false);
 
       const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
       if(SR){
@@ -1004,20 +1010,24 @@ export default function Orivox(){
             setTranscript(val);
           };
           rec.onend=()=>{
-            if(mediaRef.current?.state==="recording") startRec();
+            if(!stoppingRef.current&&mediaRef.current?.state==="recording") startRec();
           };
           rec.onerror=()=>{
-            if(mediaRef.current?.state==="recording") startRec();
+            if(!stoppingRef.current&&mediaRef.current?.state==="recording") startRec();
           };
           rec.start();
           recognitionRef.current=rec;
         };
         startRec();
       }
-    }catch{setMicErr("Mic access denied — please allow microphone permissions.");}
+    }catch{
+      setMicErr("Mic access denied — please allow microphone permissions.");
+      setMicStarting(false);
+    }
   };
 
   const doStop=()=>{
+    stoppingRef.current=true;
     recognitionRef.current?.stop();recognitionRef.current=null;
     if(mediaRef.current?.state!=="inactive")mediaRef.current?.stop();
     setRecording(false);setRunning(false);setScreen("feedback");analyze();
@@ -1297,8 +1307,8 @@ export default function Orivox(){
 
               <div className="fadeUp d3">
                 {!recording
-                  ?<button className="btn btn-orange" style={{width:"100%",justifyContent:"center",padding:"17px",fontSize:20}} onClick={startMic}>Start Recording</button>
-                  :<button className="btn btn-red" style={{width:"100%",justifyContent:"center",padding:"17px",fontSize:20}} onClick={doStop}>■ Stop & Get Feedback</button>
+                  ?<button className="btn btn-orange" style={{width:"100%",justifyContent:"center",padding:"17px",fontSize:20}} onClick={startMic} disabled={micStarting}>{micStarting?"Starting...":"Start Recording"}</button>
+                  :<div style={{padding:"17px",borderRadius:50,background:"var(--red-dim)",border:"2px solid var(--red)",fontFamily:"Fredoka",fontSize:17,color:"var(--red)",fontWeight:600,textAlign:"center"}}>Timer will stop your session automatically</div>
                 }
               </div>
               {micErr&&<p style={{color:"var(--red)",fontSize:14,marginTop:12}}>{micErr}</p>}
