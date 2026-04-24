@@ -96,8 +96,7 @@ export default function Reviews() {
 
   const total = reviews.length
   const avg = total ? (reviews.reduce((s, r) => s + r.rating, 0) / total).toFixed(1) : null
-  const countByStars = [5, 4].map(s => ({ stars: s, count: reviews.filter(r => r.rating === s).length }))
-  const maxCount = Math.max(...countByStars.map(x => x.count), 1)
+  const countByStars = [5, 4, 3, 2, 1].map(s => ({ stars: s, count: reviews.filter(r => r.rating === s).length }))
 
   return (
     <>
@@ -184,28 +183,31 @@ export default function Reviews() {
               }}>
                 <p className="fredoka" style={{ fontSize: 19, marginBottom: 20 }}>Rating breakdown</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {countByStars.map(({ stars, count }) => (
-                    <div key={stars} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, width: 80, flexShrink: 0 }}>
-                        <span className="fredoka bar-label" style={{ fontSize: 14, color: 'var(--text)', width: 10 }}>{stars}</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="#F5C842" stroke="#F5C842" strokeWidth="2">
-                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                        </svg>
+                  {countByStars.map(({ stars, count }) => {
+                    const pct = total > 0 ? Math.round((count / total) * 100) : 0
+                    return (
+                      <div key={stars} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, width: 40, flexShrink: 0 }}>
+                          <span className="fredoka bar-label" style={{ fontSize: 14, color: 'var(--text)', width: 10 }}>{stars}</span>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="#F5C842" stroke="#F5C842" strokeWidth="2">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                          </svg>
+                        </div>
+                        <div style={{ flex: 1, height: 10, background: 'var(--border)', borderRadius: 5, overflow: 'hidden' }}>
+                          <div style={{
+                            height: '100%',
+                            width: `${pct}%`,
+                            background: stars >= 4 ? 'var(--orange)' : stars === 3 ? 'var(--yellow)' : 'var(--red)',
+                            borderRadius: 5,
+                            transition: 'width .6s cubic-bezier(.22,.68,0,1.2)',
+                          }} />
+                        </div>
+                        <span style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 700, width: 38, textAlign: 'right', flexShrink: 0 }}>
+                          {pct}%
+                        </span>
                       </div>
-                      <div style={{ flex: 1, height: 10, background: 'var(--border)', borderRadius: 5, overflow: 'hidden' }}>
-                        <div style={{
-                          height: '100%',
-                          width: `${(count / maxCount) * 100}%`,
-                          background: stars === 5 ? 'var(--orange)' : 'var(--yellow)',
-                          borderRadius: 5,
-                          transition: 'width .6s cubic-bezier(.22,.68,0,1.2)',
-                        }} />
-                      </div>
-                      <span style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 700, width: 60, textAlign: 'right', flexShrink: 0 }}>
-                        {count} review{count !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
 
