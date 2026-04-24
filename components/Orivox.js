@@ -192,39 +192,38 @@ const TrophyDoodle = ({ size=64 }) => (
 // ── Data ─────────────────────────────────────────────────────────────────────
 const TOPICS = {
   General:{
-    Easy:["What is your favorite hobby and why?","Describe your ideal weekend","What is something you are grateful for today?","What is your favorite season and why?","Describe your morning routine","What would you do with a free day?","What is your favorite food and why?","Describe your hometown"],
-    Medium:["What is the most important lesson you have learned so far in life?","How do you handle stress?","What does success mean to you?","How has technology changed your daily life?","What is something you wish you had learned earlier?","How do you make difficult decisions?","What motivates you to keep going when things get hard?","Describe a time you stepped outside your comfort zone"],
-    Hard:["What is your philosophy on life and how did you develop it?","How do you think the next generation will be different from yours?","What does it mean to live a meaningful life?","If you could change one thing about society what would it be and why?","How do you balance short term desires with long term goals?","What is the relationship between happiness and success?","How do you define your own identity?","What legacy do you want to leave behind?"],
+    Easy:["What is your favorite hobby and why?","Describe your ideal weekend","What is something you are grateful for today?","What is your favorite season and why?","Describe your morning routine","What would you do with a free day?","What is your favorite food and why?","Describe your hometown","What is your favorite book, movie, or show and what made it memorable?","What is a skill you recently picked up or want to learn?","Describe a place that makes you feel calm and why","What is something small that consistently makes your day better?","What does your ideal Sunday look like from start to finish?","Describe a person in your life who has had a positive influence on you","What is a tradition or habit from your family that you appreciate?","What is one thing you wish more people knew about where you grew up?","Describe the best meal you have ever had and what made it special","What is something you do just for yourself with no other reason?"],
+    Medium:["What is the most important lesson you have learned so far in life?","How do you handle stress?","What does success mean to you?","How has technology changed your daily life?","What is something you wish you had learned earlier?","How do you make difficult decisions?","What motivates you to keep going when things get hard?","Describe a time you stepped outside your comfort zone","What is a belief you held strongly a few years ago that you have since changed?","How do you know when to keep pushing and when to walk away from something?","What does a meaningful friendship look like to you?","How has your relationship with failure changed as you have gotten older?","What is the most valuable piece of feedback you have ever received?","How do you stay grounded when life feels chaotic?","What is something most people assume about you that is wrong?","How do you make sure the people in your life know you care about them?","What do you think is the single biggest thing holding most people back?","Describe a moment when you had to make a choice that changed your path"],
+    Hard:["What is your philosophy on life and how did you develop it?","How do you think the next generation will be different from yours?","What does it mean to live a meaningful life?","If you could change one thing about society what would it be and why?","How do you balance short term desires with long term goals?","What is the relationship between happiness and success?","How do you define your own identity?","What legacy do you want to leave behind?","If you could redesign education from scratch what would it look like and why?","How do you think about the role of luck versus hard work in life outcomes?","What is the biggest tension between individual freedom and collective responsibility?","What does it mean to truly know yourself and how do you get there?","How should people think about their moral obligations to strangers?","What is the most important question your generation will have to answer in the next 20 years?","How do you reconcile wanting to make an impact with the reality that individual action feels small?","What does genuine self-improvement look like versus surface-level change?","How do you think people actually change their minds about deeply held beliefs?","What would you say to someone who believes their circumstances make success impossible for them?"],
   },
   Interview:{
-    Easy:["Tell me about yourself","What are your strengths?","What are your weaknesses?","Why do you want this job?","Where do you see yourself in 5 years?","What is your greatest achievement?","Why should we hire you?","Describe your work style"],
-    Medium:["Tell me about a time you faced a conflict at work or school and how you resolved it","Describe a situation where you had to lead a team","How do you prioritize tasks when you have multiple deadlines?","Tell me about a time you failed and what you learned from it","How do you handle criticism?","Describe a time you went above and beyond","Tell me about a time you had to adapt quickly to change","How do you work under pressure?"],
-    Hard:["Tell me about a time you had to make a difficult decision with limited information","Describe a situation where you had to convince someone who strongly disagreed with you","Tell me about the most complex problem you have ever solved","How would you handle managing someone who was underperforming?","Describe a time you had to deliver bad news — how did you handle it?","Tell me about a time you took initiative without being asked","How do you approach situations where there is no clear right answer?","Describe your biggest professional failure and what you would do differently"],
+    Easy:["Tell me about yourself","What are your strengths?","What are your weaknesses?","Why do you want this job?","Where do you see yourself in 5 years?","What is your greatest achievement?","Why should we hire you?","Describe your work style","How do you prefer to receive feedback?","What are you most proud of from your last year of school or work?","How would your friends or colleagues describe you?","What is something you are still learning and how are you improving?","What do you know about our company and why does it appeal to you?","What kind of environment do you do your best work in?","What is one goal you have set for yourself this year?","Describe a skill you have that would surprise people","What does a good day at work or school look like for you?","How do you like to collaborate with others?"],
+    Medium:["Tell me about a time you faced a conflict at work or school and how you resolved it","Describe a situation where you had to lead a team","How do you prioritize tasks when you have multiple deadlines?","Tell me about a time you failed and what you learned from it","How do you handle criticism?","Describe a time you went above and beyond","Tell me about a time you had to adapt quickly to change","How do you work under pressure?","Describe a time when you disagreed with a decision and how you handled it","Tell me about a project you are genuinely proud of and your specific role in it","How do you approach learning something you know nothing about?","Describe a time when you had to deliver work under a very tight deadline","Tell me about a situation where you had to work with someone who had a very different communication style","How do you handle situations where priorities shift unexpectedly?","Describe a time when you identified a problem before anyone else noticed it","Tell me about a time you had to earn someone's trust quickly","How have you responded to a situation where the goalposts changed mid-project?","Describe a moment when you received feedback that was hard to hear and what you did with it"],
+    Hard:["Tell me about a time you had to make a difficult decision with limited information","Describe a situation where you had to convince someone who strongly disagreed with you","Tell me about the most complex problem you have ever solved","How would you handle managing someone who was underperforming?","Describe a time you had to deliver bad news — how did you handle it?","Tell me about a time you took initiative without being asked","How do you approach situations where there is no clear right answer?","Describe your biggest professional failure and what you would do differently","Tell me about a time you had to make an unpopular decision and then defend it","Describe a situation where you had to balance competing demands from multiple stakeholders","How would you handle a situation where your manager gave you instructions you believed were wrong?","Tell me about a time when you had to rebuild trust after a mistake","Describe a situation where you had to lead through significant uncertainty","How do you approach ethical dilemmas where the right answer is not obvious?","Tell me about the most politically complex environment you have worked or studied in","Describe a time you drove meaningful change in an organization or team","How do you approach performance conversations that could be emotionally charged?","Tell me about a time when you had to sacrifice short-term results for long-term gain"],
   },
   Storytelling:{
-    Easy:["Tell a story about a funny thing that happened to you","Describe your most memorable birthday","Tell a story about a time you got lost","Describe your first day at a new school or job","Tell a story about a pet or animal encounter","Describe your favorite childhood memory","Tell a story about a time you were surprised","Describe a trip or vacation that stood out"],
-    Medium:["Tell a story about a time a friendship changed your life","Describe a moment that made you see the world differently","Tell a story about a time you had to be brave","Describe a moment you are proud of but rarely talk about","Tell a story about a time things did not go as planned but worked out","Describe a moment that taught you something unexpected","Tell a story about a time you helped someone","Describe a turning point in your life"],
-    Hard:["Tell a story that captures who you are as a person in under 2 minutes","Describe a moment of failure that ultimately led to growth","Tell a story that changed how you think about human connection","Describe the most difficult thing you have ever had to communicate to someone","Tell a story where the stakes were high and walk us through your thought process","Describe a moment where your values were tested","Tell a story about a time you had to rebuild after something fell apart","Describe an experience that you think everyone should have at least once"],
+    Easy:["Tell a story about a funny thing that happened to you","Describe your most memorable birthday","Tell a story about a time you got lost","Describe your first day at a new school or job","Tell a story about a pet or animal encounter","Describe your favorite childhood memory","Tell a story about a time you were surprised","Describe a trip or vacation that stood out","Tell the story of how you met your closest friend","Describe a time when something went completely wrong in a funny way","Tell a story about a lesson you learned the hard way when you were young","Describe a moment when a stranger did something kind for you","Tell a story about a time you tried something new and did not expect to enjoy it","Describe the most adventurous thing you have done with a group of people","Tell a story about a moment that made you laugh until you could not stop","Describe a time when a small decision turned into a big unexpected adventure","Tell a story about a tradition or event in your family that means something to you","Describe a moment when you realized someone was far more interesting than you had assumed"],
+    Medium:["Tell a story about a time a friendship changed your life","Describe a moment that made you see the world differently","Tell a story about a time you had to be brave","Describe a moment you are proud of but rarely talk about","Tell a story about a time things did not go as planned but worked out","Describe a moment that taught you something unexpected","Tell a story about a time you helped someone","Describe a turning point in your life","Tell a story about a time you had to stand up for what you believed in even when it was uncomfortable","Describe a moment when you realized that a relationship had fundamentally changed","Tell a story about the most nervous you have ever been before doing something important","Describe a time when you had to make a sacrifice and whether you stand by it today","Tell a story about a moment when you felt genuinely lost and how you found your way","Describe a conversation that changed how you think about something important","Tell a story about a time you were underestimated and what you did with it","Describe a moment when you realized you had been wrong about something significant","Tell a story about a time when failure led you somewhere you never expected to go","Describe a relationship that shaped your values in a way you are still living out today"],
+    Hard:["Tell a story that captures who you are as a person in under 2 minutes","Describe a moment of failure that ultimately led to growth","Tell a story that changed how you think about human connection","Describe the most difficult thing you have ever had to communicate to someone","Tell a story where the stakes were high and walk us through your thought process","Describe a moment where your values were tested","Tell a story about a time you had to rebuild after something fell apart","Describe an experience that you think everyone should have at least once","Tell the story of a decision you knew would change everything and walk through exactly how it felt to make it","Describe an experience where you had to hold two completely opposing truths at the same time","Tell a story about a loss and how it reshaped what you value","Describe the most complex relationship you have ever navigated and what you learned","Tell a story about a time you chose integrity over convenience and what it cost you","Describe a moment when you realized the story you had been telling yourself was wrong","Tell a story about a time you had to forgive — either someone else or yourself","Describe an experience that made you confront your own blind spots or assumptions","Tell a story where you were the antagonist in someone else's narrative and how you came to see that","Describe the moment that best explains why you are the way you are today"],
   },
   Debate:{
-    Easy:["Should school uniforms be mandatory?","Is social media more harmful than helpful?","Should students have homework?","Is it better to be book smart or street smart?","Should phones be banned in classrooms?","Is it better to work in a team or alone?","Should junk food be banned in schools?","Is competition healthy?"],
-    Medium:["Should the voting age be lowered to 16?","Is college worth the cost?","Should influencers be held to the same standards as journalists?","Is it ethical to eat meat?","Should AI be regulated by governments?","Is remote work better than working in an office?","Should standardized testing be abolished?","Is cancel culture harmful or necessary?"],
-    Hard:["Should billionaires exist?","Is democracy the best form of government?","Should gene editing in humans be allowed?","Is it ever ethical to lie?","Should the internet be considered a human right?","Is capitalism compatible with solving climate change?","Should prisons focus on punishment or rehabilitation?","Is it possible to be truly objective?"],
+    Easy:["Should school uniforms be mandatory?","Is social media more harmful than helpful?","Should students have homework?","Is it better to be book smart or street smart?","Should phones be banned in classrooms?","Is it better to work in a team or alone?","Should junk food be banned in schools?","Is competition healthy?","Should PE be mandatory in schools?","Is it better to be early or exactly on time?","Should celebrities be allowed to keep their personal lives private?","Is it better to live in a big city or a small town?","Should video games be considered a sport?","Is it better to be honest or kind when the two conflict?","Should students be allowed to grade their teachers?","Is peer pressure always negative?","Should there be a universal dress code in public spaces?","Is it better to follow the rules or trust your instincts?"],
+    Medium:["Should the voting age be lowered to 16?","Is college worth the cost?","Should influencers be held to the same standards as journalists?","Is it ethical to eat meat?","Should AI be regulated by governments?","Is remote work better than working in an office?","Should standardized testing be abolished?","Is cancel culture harmful or necessary?","Should social media platforms be legally responsible for the content posted on them?","Is the concept of work-life balance realistic in today's economy?","Should wealthy nations have open borders?","Is it ethical to use animals in medical research?","Should mental health days be treated the same as sick days?","Is hustle culture doing more harm than good?","Should the legal drinking age be changed?","Is technology making us more or less connected as humans?","Should people be allowed to buy social media followers?","Is it possible to be a good person and still benefit from an unjust system?"],
+    Hard:["Should billionaires exist?","Is democracy the best form of government?","Should gene editing in humans be allowed?","Is it ever ethical to lie?","Should the internet be considered a human right?","Is capitalism compatible with solving climate change?","Should prisons focus on punishment or rehabilitation?","Is it possible to be truly objective?","Should developed nations pay reparations for historical injustices?","Is universal basic income economically viable and morally justified?","Should there be limits on how much wealth any single person can accumulate?","Is it ethical to have children in the current state of the world?","Should free speech have any limits and if so who should decide?","Is national identity a force for good or for division?","Should artificial intelligence be granted any legal rights?","Is it ever morally acceptable to break the law?","Should governments be able to mandate vaccination for public health?","Is it possible to separate art from the personal ethics of the artist who created it?"],
   },
   Business:{
-    Easy:["Pitch a simple app idea in 60 seconds","Describe a business you would start with $1000","What makes a good leader?","What is the most important quality in a team member?","How would you market a new product to young people?","What is customer service and why does it matter?","Describe a brand you admire and why","What is the difference between a manager and a leader?"],
-    Medium:["You are pitching your startup to investors — go","How would you turn around a struggling business?","Describe how you would build a team from scratch","How do you handle a customer complaint professionally?","What is your strategy for entering a competitive market?","How would you cut costs without hurting quality?","Describe how you would launch a product with no budget","How do you keep employees motivated?"],
-    Hard:["You have 90 seconds to convince a board of directors to approve your proposal","How would you disrupt an industry that has not changed in 50 years?","Describe your framework for making high stakes business decisions","How do you build a company culture that survives rapid growth?","How would you handle a major PR crisis for your company?","What is your vision for where your industry will be in 10 years?","How do you balance ethics and profit in business?","Pitch yourself as the CEO of a company you would want to run"],
+    Easy:["Pitch a simple app idea in 60 seconds","Describe a business you would start with $1000","What makes a good leader?","What is the most important quality in a team member?","How would you market a new product to young people?","What is customer service and why does it matter?","Describe a brand you admire and why","What is the difference between a manager and a leader?","What does good communication look like in a workplace?","Describe what makes a product truly stand out in a crowded market","What is one thing most businesses get wrong when they are just starting out?","If you were starting a small food business today where would you begin?","What does a great customer experience look like from start to finish?","What is the most important thing a new employee can do in their first 30 days?","Describe the qualities you would look for when hiring your first team member","What is one way a local business could grow without spending money on advertising?","What does good feedback look like in a professional setting?","What makes someone trustworthy in a business context?"],
+    Medium:["You are pitching your startup to investors — go","How would you turn around a struggling business?","Describe how you would build a team from scratch","How do you handle a customer complaint professionally?","What is your strategy for entering a competitive market?","How would you cut costs without hurting quality?","Describe how you would launch a product with no budget","How do you keep employees motivated?","How would you identify whether a new business idea has real market potential?","Describe how you would handle a conflict between two key team members","What is your approach to setting goals that are ambitious but achievable?","How would you rebuild customer trust after a public mistake or failure?","Describe how you would approach pricing a new product for the first time","What is your strategy for retaining top talent when you cannot compete on salary?","How would you approach delegating to a team you have just taken over?","Describe how you would structure the first 90 days in a new leadership role","What metrics would you track to know whether a product launch was successful?","How would you approach a partnership that could help your business grow but comes with risk?"],
+    Hard:["You have 90 seconds to convince a board of directors to approve your proposal","How would you disrupt an industry that has not changed in 50 years?","Describe your framework for making high stakes business decisions","How do you build a company culture that survives rapid growth?","How would you handle a major PR crisis for your company?","What is your vision for where your industry will be in 10 years?","How do you balance ethics and profit in business?","Pitch yourself as the CEO of a company you would want to run","You just discovered a key vendor has been acting unethically — walk through exactly how you handle it","Describe how you would lead a company through a forced pivot when the original model stops working","How would you make the case for long-term investment when the board is focused on quarterly results?","Describe your approach to acquisitions — how do you evaluate, negotiate, and integrate?","How do you maintain clarity of vision while staying genuinely open to challenging feedback?","What is your philosophy on risk and how do you decide when a bet is worth taking?","Describe how you would restructure an organization that has grown chaotic and siloed","How would you approach entering an international market for the first time?","What does responsible innovation look like and where do companies typically get it wrong?","If a profitable line of business was causing real social harm, how would you decide what to do?"],
   },
   Motivational:{
-    Easy:["What is one small habit that has made a big difference in your life?","Share a quote that inspires you and explain why","What does confidence mean to you?","Describe a time someone believed in you","What is something you are working to improve about yourself?","What gets you out of bed in the morning?","Describe your definition of a good day","What is one piece of advice you would give your younger self?"],
-    Medium:["Talk about a time you overcame self doubt","What is the hardest thing you have ever pushed through and how?","How do you stay motivated when you do not see results?","Describe your personal definition of success","How do you deal with fear of failure?","What does resilience look like in your life?","How do you get back up after a setback?","What is the mindset shift that changed your life?"],
-    Hard:["Give a 2 minute motivational speech to someone who has completely given up","What would you say to a room full of people who feel like they are not enough?","Describe the moment you decided to stop making excuses and what happened next","What is the most important thing you know about perseverance that most people do not?","If you had one chance to inspire someone to change their life what would you say?","Talk about the relationship between discipline and freedom","What does it mean to truly believe in yourself and how do you get there?","Give a speech about why failure is not the opposite of success"],
+    Easy:["What is one small habit that has made a big difference in your life?","Share a quote that inspires you and explain why","What does confidence mean to you?","Describe a time someone believed in you","What is something you are working to improve about yourself?","What gets you out of bed in the morning?","Describe your definition of a good day","What is one piece of advice you would give your younger self?","What is a simple thing you do when you need to reset your mindset?","Describe someone whose work ethic you admire and what makes them stand out","What does it look like when you are performing at your best?","What is something you once thought was impossible that you now know you can do?","What does the word discipline mean to you in your own life?","Describe a moment when you genuinely surprised yourself","What is one area of your life where you have made real progress that you are proud of?","What do you do when your motivation runs out but you still have to show up?","Describe what it looks like when you are truly focused and how you get there","What is the best advice you have ever been given and did you actually take it?"],
+    Medium:["Talk about a time you overcame self doubt","What is the hardest thing you have ever pushed through and how?","How do you stay motivated when you do not see results?","Describe your personal definition of success","How do you deal with fear of failure?","What does resilience look like in your life?","How do you get back up after a setback?","What is the mindset shift that changed your life?","Describe a time when you had to commit to something before you felt ready","What do you do when comparison makes you feel like you are not enough?","How do you build momentum on a goal when you are starting from zero?","Describe a time when your circumstances made success harder but you found a way anyway","What separates people who talk about their goals from people who actually achieve them?","How do you define your own success in a way that does not depend on external validation?","Describe a moment when giving up felt like the rational choice but you chose to stay","What is the hardest mental habit you have had to build and how did you do it?","How do you stay consistent on the days when you simply do not feel like it?","Describe the moment you decided to take your own potential seriously"],
+    Hard:["Give a 2 minute motivational speech to someone who has completely given up","What would you say to a room full of people who feel like they are not enough?","Describe the moment you decided to stop making excuses and what happened next","What is the most important thing you know about perseverance that most people do not?","If you had one chance to inspire someone to change their life what would you say?","Talk about the relationship between discipline and freedom","What does it mean to truly believe in yourself and how do you get there?","Give a speech about why failure is not the opposite of success","Address a group of young people told their dreams are unrealistic and give them something real to hold on to","What would you say to someone stuck between the person they are and the person they know they could be?","Talk about the cost of playing it safe and what people are really giving up when they choose comfort over growth","Give a speech about what it means to be consistent when no one is watching — why that is where character is actually built","What would you say to someone at the start of a hard journey who is wondering if it will be worth it?","Talk about the relationship between identity and behavior — why changing how you act without changing how you see yourself never works","Give a speech about why the people who make the biggest difference are rarely the most talented in the room","What does it mean to fully commit to something and why is half-commitment the most expensive kind?","Talk about the difference between being motivated and being driven and why only one actually gets you where you want to go","Give a closing speech for a group that has just completed something difficult — make them feel the weight and meaning of what they accomplished"],
   },
 };
 const ALL_PROMPTS = Object.values(TOPICS).flatMap(cat=>Object.values(cat).flat());
 const CATS = Object.keys(TOPICS);
-const CAT_EMOJI = {General:"🌍",Interview:"💼",Storytelling:"📖",Debate:"⚡",Business:"📊",Motivational:"🔥"};
 const DIFFS = ["Easy","Medium","Hard"];
 const DIFF_COLOR = {Easy:"#2D7A4F",Medium:"#CC6600",Hard:"#E84040",Random:"#1A1A2E"};
 const DIFF_BG = {Easy:"#E8F7EE",Medium:"#FFF4E0",Hard:"#FFECEC",Random:"#F0F0F0"};
@@ -576,7 +575,9 @@ function ReviewPrompt({onSubmit}){
 
   if(submitted)return(
     <div style={{textAlign:"center",padding:"28px 20px"}}>
-      <div style={{fontSize:36,marginBottom:10}}>🙏</div>
+      <div style={{width:52,height:52,borderRadius:"50%",background:"#E8F7EE",border:"3px solid var(--green)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 12px"}}>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+      </div>
       <p className="fredoka" style={{fontSize:20,color:"var(--green)"}}>Thanks for your feedback!</p>
     </div>
   );
@@ -717,7 +718,7 @@ function ShareCard({score,category,difficulty,strength}){
   const getBlob=()=>new Promise(resolve=>makeCanvas().toBlob(resolve,'image/png'));
 
   const handleShare=async()=>{
-    const text=`I scored ${score}/100 on Orivox's AI speaking coach 🎙️ Try it yourself: orivoxapp.vercel.app`;
+    const text=`I scored ${score}/100 on Orivox's AI speaking coach. Try it yourself: orivoxapp.vercel.app`;
     if(typeof navigator!=='undefined'&&navigator.share){
       try{
         const blob=await getBlob();
@@ -739,7 +740,7 @@ function ShareCard({score,category,difficulty,strength}){
 
   const handleCopy=async()=>{
     try{
-      await navigator.clipboard.writeText(`I scored ${score}/100 on Orivox's AI speaking coach 🎙️ Try it yourself: orivoxapp.vercel.app`);
+      await navigator.clipboard.writeText(`I scored ${score}/100 on Orivox's AI speaking coach. Try it yourself: orivoxapp.vercel.app`);
       setCopied(true);setTimeout(()=>setCopied(false),2200);
     }catch{}
   };
@@ -927,6 +928,8 @@ export default function Orivox(){
   const recognitionRef=useRef(null);
   const transcriptRef=useRef("");
   const stoppingRef=useRef(false);
+  const earlyStopRef=useRef(false);
+  const earlyStopElapsedRef=useRef(0);
   const [micStarting,setMicStarting]=useState(false);
 
   useEffect(()=>{
@@ -1026,7 +1029,10 @@ export default function Orivox(){
     }
   };
 
-  const doStop=()=>{
+  const doStop=(early=false)=>{
+    if(stoppingRef.current)return;
+    earlyStopRef.current=early;
+    if(early&&startTimeRef.current) earlyStopElapsedRef.current=Math.floor((Date.now()-startTimeRef.current)/1000);
     stoppingRef.current=true;
     recognitionRef.current?.stop();recognitionRef.current=null;
     if(mediaRef.current?.state!=="inactive")mediaRef.current?.stop();
@@ -1039,9 +1045,11 @@ export default function Orivox(){
       const wpm=speakTime>0?(words/speakTime)*60:0;
       const pacingRating=wpm<100?"slow":wpm<170?"good":"fast";
       const fillerWordList=feedbackData.fillerWordList||{};
+      const now=new Date();
+      const localDate=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
       const session={
         id:Date.now().toString(),
-        date:new Date().toISOString().split("T")[0],
+        date:localDate,
         category:activeCat,
         difficulty:activeDiff,
         score:feedbackData.totalScore,
@@ -1063,6 +1071,10 @@ export default function Orivox(){
       const existing=JSON.parse(localStorage.getItem("orivox_sessions")||"[]");
       existing.push(session);
       localStorage.setItem("orivox_sessions",JSON.stringify(existing));
+      // Also post to leaderboard
+      fetch("/api/submit-score",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({player_name:"Anonymous",score:feedbackData.totalScore,category:activeCat,difficulty:activeDiff,date:localDate})
+      }).catch(()=>{});
     }catch{}
   };
 
@@ -1073,19 +1085,23 @@ export default function Orivox(){
       setFeedback({error:"No speech detected. Make sure your microphone is working and try again."});
       setLoading(false);return;
     }
+    let result=null;
     try{
       const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({transcript:text,topic,category:activeCat,difficulty:activeDiff})});
-      if(res.ok){
-        const data=await res.json();
-        if(!data.error){saveSession(data);setFeedback(data);setLoading(false);return;}
-      }
+      if(res.ok){const d=await res.json();if(!d.error)result=d;}
     }catch{}
-    await new Promise(r=>setTimeout(r,800));
-    const localData=analyzeTranscript(text,topic,activeDiff);
-    saveSession(localData);
-    setFeedback(localData);
-    setLoading(false);
+    if(!result){
+      await new Promise(r=>setTimeout(r,800));
+      result=analyzeTranscript(text,topic,activeDiff);
+    }
+    // Apply early-stop score penalty based on fraction of time completed
+    if(earlyStopRef.current&&speakTime>0){
+      const ratio=Math.min(1,Math.max(0,earlyStopElapsedRef.current/speakTime));
+      const penalised=Math.max(10,Math.round(result.totalScore*Math.sqrt(ratio)));
+      result={...result,totalScore:penalised,feedback:result.feedback+(ratio<0.5?" Session ended early — score reduced due to incomplete time.":"")};
+    }
+    saveSession(result);setFeedback(result);setLoading(false);
   };
 
   const reset=()=>{
@@ -1154,7 +1170,7 @@ export default function Orivox(){
               ))}
             </div>
           )}
-        </header>
+e        </header>
 
         {/* Key Modal */}
 
@@ -1308,7 +1324,10 @@ export default function Orivox(){
               <div className="fadeUp d3">
                 {!recording
                   ?<button className="btn btn-orange" style={{width:"100%",justifyContent:"center",padding:"17px",fontSize:20}} onClick={startMic} disabled={micStarting}>{micStarting?"Starting...":"Start Recording"}</button>
-                  :<div style={{padding:"17px",borderRadius:50,background:"var(--red-dim)",border:"2px solid var(--red)",fontFamily:"Fredoka",fontSize:17,color:"var(--red)",fontWeight:600,textAlign:"center"}}>Timer will stop your session automatically</div>
+                  :<div style={{textAlign:"center"}}>
+                    <div style={{padding:"14px 20px",borderRadius:50,background:"var(--red-dim)",border:"2px solid var(--red)",fontFamily:"Fredoka",fontSize:16,color:"var(--red)",fontWeight:600,marginBottom:10}}>Timer ends automatically</div>
+                    <button style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"var(--muted)",fontFamily:"Nunito,sans-serif",textDecoration:"underline",padding:0}} onClick={()=>doStop(true)}>Stop early (score penalty applies)</button>
+                  </div>
                 }
               </div>
               {micErr&&<p style={{color:"var(--red)",fontSize:14,marginTop:12}}>{micErr}</p>}
@@ -1337,7 +1356,7 @@ export default function Orivox(){
                     <div style={{position:"absolute",top:16,right:16}}><Star size={32} color="#F5C842"/></div>
                     <div style={{position:"absolute",top:20,left:20}}><Sparkle size={26} color="var(--orange)"/></div>
                     <h2 className="fredoka" style={{fontSize:28,color:"var(--text)",marginBottom:16}}>
-                      {feedback.totalScore>=80?"Crushed it 🔥":feedback.totalScore>=60?"Nice work 💪":"Keep going — it gets easier"}
+                      {feedback.totalScore>=80?"Crushed it":feedback.totalScore>=60?"Nice work":"Keep going — it gets easier"}
                     </h2>
                     <div style={{display:"flex",justifyContent:"center",marginBottom:20}}><ScoreRing score={feedback.totalScore} size={160}/></div>
                     <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:"10px 24px",borderRadius:50,
@@ -1363,7 +1382,7 @@ export default function Orivox(){
                   <div className="card fb3" style={{padding:28,marginBottom:20,borderLeft:`5px solid ${Object.keys(feedback.fillerWordList||{}).length===0?"var(--green)":"var(--red)"}`}}>
                     <p className="fredoka" style={{fontSize:19,marginBottom:16}}>Filler Words</p>
                     {Object.keys(feedback.fillerWordList||{}).length===0?(
-                      <p style={{color:"var(--green)",fontSize:15,fontWeight:600}}>Clean delivery — no filler words detected 🎉</p>
+                      <p style={{color:"var(--green)",fontSize:15,fontWeight:600}}>Clean delivery — no filler words detected</p>
                     ):(
                       <div style={{display:"flex",flexDirection:"column",gap:8}}>
                         {Object.entries(feedback.fillerWordList).sort((a,b)=>b[1]-a[1]).map(([word,count])=>(
@@ -1415,7 +1434,10 @@ export default function Orivox(){
                   {/* Audio */}
                   {audioUrl&&(
                     <div className="card fb7" style={{padding:28,marginBottom:20}}>
-                      <p className="fredoka" style={{fontSize:17,marginBottom:14,color:"var(--muted)"}}>🎧 Your Recording</p>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                        <span className="fredoka" style={{fontSize:17,color:"var(--muted)"}}>Your Recording</span>
+                      </div>
                       <audio controls src={audioUrl} style={{width:"100%",borderRadius:12}}
                         onLoadedMetadata={e=>{
                           const el=e.target;
@@ -1444,7 +1466,9 @@ export default function Orivox(){
 
               {!loading&&feedback?.error&&(
                 <div className="card fadeUp" style={{textAlign:"center",padding:48}}>
-                  <div style={{fontSize:48,marginBottom:16}}>⚠️</div>
+                  <div style={{display:"flex",justifyContent:"center",marginBottom:16}}>
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  </div>
                   <p style={{color:"var(--red)",marginBottom:20,fontFamily:"Fredoka",fontSize:18}}>{feedback.error}</p>
                   <button className="btn btn-cream" onClick={reset}>Go back</button>
                 </div>

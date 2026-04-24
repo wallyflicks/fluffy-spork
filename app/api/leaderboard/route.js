@@ -2,12 +2,12 @@ import { supabase } from '../../../lib/supabase'
 
 export async function GET() {
   try {
-    const [top10Res, hallRes, highRes] = await Promise.all([
+    const [topRes, hallRes, highRes] = await Promise.all([
       supabase
         .from('scores')
-        .select('id, player_name, score, created_at')
+        .select('id, player_name, score, category, difficulty, date, created_at')
         .order('score', { ascending: false })
-        .limit(10),
+        .limit(20),
 
       supabase
         .from('hall_of_fame')
@@ -24,7 +24,7 @@ export async function GET() {
     ])
 
     return Response.json({
-      top10: top10Res.data || [],
+      top20: topRes.data || [],
       hallOfFame: hallRes.data || [],
       allTimeHigh: highRes.data || null,
     })

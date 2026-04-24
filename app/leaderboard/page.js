@@ -16,9 +16,9 @@ const G = () => (
     body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;}
     .fredoka{font-family:'Fredoka',sans-serif;}
     @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes shine{from{background-position:200% center}to{background-position:-200% center}}
     .fadeUp{animation:fadeUp .5s cubic-bezier(.22,.68,0,1.2) both}
-    .d1{animation-delay:.08s}.d2{animation-delay:.18s}.d3{animation-delay:.28s}
-    .d4{animation-delay:.38s}.d5{animation-delay:.48s}
+    .d1{animation-delay:.08s}.d2{animation-delay:.18s}.d3{animation-delay:.28s}.d4{animation-delay:.38s}
     ::-webkit-scrollbar{width:6px}
     ::-webkit-scrollbar-thumb{background:var(--orange-border);border-radius:3px}
     .dot-bg{
@@ -26,32 +26,23 @@ const G = () => (
       background-image:radial-gradient(circle,#E0CEBC 1px,transparent 1px);
       background-size:30px 30px;opacity:.55;pointer-events:none;z-index:0;
     }
-    .lb-card{
-      background:var(--card);border:2.5px solid var(--border);border-radius:20px;
-      box-shadow:var(--shadow);overflow:hidden;
-    }
+    .lb-card{background:var(--card);border:2.5px solid var(--border);border-radius:20px;box-shadow:var(--shadow);overflow:hidden;}
     .lb-row{display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1.5px solid var(--border);}
     .lb-row:last-child{border-bottom:none}
     .lb-row:hover{background:var(--orange-dim)}
-    .rank-badge{
-      width:34px;height:34px;border-radius:50%;display:flex;align-items:center;
-      justify-content:center;font-family:'Fredoka',sans-serif;font-size:15px;
-      font-weight:700;flex-shrink:0;
-    }
-    @keyframes shine{from{background-position:200% center}to{background-position:-200% center}}
+    .rank-badge{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Fredoka',sans-serif;font-size:15px;font-weight:700;flex-shrink:0;}
     .gold{background:linear-gradient(135deg,#FFD700,#FFC000,#FFD700);background-size:200%;animation:shine 2.5s linear infinite;color:#7A5500;}
     .silver{background:#E8E8E8;color:#666;}
     .bronze{background:#E8C4A0;color:#7A4400;}
     .rank-num{background:var(--orange-dim);color:var(--muted);}
     table{border-collapse:collapse;width:100%}
-    th{background:var(--orange-dim);color:var(--text);font-family:'Fredoka',sans-serif;
-       font-size:14px;font-weight:600;padding:12px 20px;text-align:left;
-       border-bottom:2.5px solid var(--border);}
+    th{background:var(--orange-dim);color:var(--text);font-family:'Fredoka',sans-serif;font-size:14px;font-weight:600;padding:12px 20px;text-align:left;border-bottom:2.5px solid var(--border);}
     td{padding:12px 20px;font-size:14px;border-bottom:1.5px solid var(--border);vertical-align:middle;}
     tr:last-child td{border-bottom:none}
     @media(max-width:600px){
       .lb-row{padding:12px 14px;gap:10px}
       td,th{padding:10px 12px;font-size:13px}
+      .hide-mob{display:none!important}
     }
   `}</style>
 )
@@ -76,6 +67,41 @@ function RankBadge({ rank }) {
   return <div className="rank-badge rank-num">{rank}</div>
 }
 
+function TrophyIcon({ size = 44, stroke = '#7A5500' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <path d="M8 21h8M12 17v4M7 4H4v5c0 2.2 1.8 4 4 4M17 4h3v5c0 2.2-1.8 4-4 4"/>
+      <path d="M7 13c0 2.8 2.2 5 5 5s5-2.2 5-5V4H7v9z"/>
+    </svg>
+  )
+}
+
+function MicIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" strokeWidth="2.5" strokeLinecap="round">
+      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+      <line x1="12" y1="19" x2="12" y2="22"/>
+    </svg>
+  )
+}
+
+function StarIcon({ size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="#F5C842" stroke="#F5C842" strokeWidth="1.5">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+    </svg>
+  )
+}
+
+function CrownIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="#F5C842" stroke="#CC8800" strokeWidth="1.5" strokeLinejoin="round">
+      <path d="M2 20h20M5 20L3 8l5 4 4-8 4 8 5-4-2 12"/>
+    </svg>
+  )
+}
+
 export default function Leaderboard() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
@@ -95,13 +121,13 @@ export default function Leaderboard() {
       <>
         <G />
         <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="fredoka" style={{ fontSize: 22, color: 'var(--muted)' }}>Loading…</div>
+          <div className="fredoka" style={{ fontSize: 22, color: 'var(--muted)' }}>Loading...</div>
         </div>
       </>
     )
   }
 
-  const { top10 = [], hallOfFame = [], allTimeHigh = null } = data || {}
+  const { top20 = [], hallOfFame = [], allTimeHigh = null } = data || {}
 
   return (
     <>
@@ -135,7 +161,9 @@ export default function Leaderboard() {
             borderRadius: 20, padding: '24px 28px', marginBottom: 24,
             boxShadow: 'var(--shadow)', display: 'flex', alignItems: 'center', gap: 20,
           }}>
-            <span style={{ fontSize: 44, lineHeight: 1, flexShrink: 0 }}>🏆</span>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#FFF3C0', border: '2.5px solid var(--yellow)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <TrophyIcon size={28} stroke="#7A5500" />
+            </div>
             <div style={{ flex: 1 }}>
               <p className="fredoka" style={{ fontSize: 13, color: '#7A5500', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>All-Time High Score</p>
               {allTimeHigh ? (
@@ -144,7 +172,7 @@ export default function Leaderboard() {
                     {allTimeHigh.score} <span style={{ fontSize: 16, opacity: .6 }}>/ 100</span>
                   </div>
                   <div style={{ fontSize: 14, color: '#A07820' }}>
-                    {allTimeHigh.player_name} · {fmtDate(allTimeHigh.won_on)}
+                    {allTimeHigh.player_name} &middot; {fmtDate(allTimeHigh.won_on)}
                   </div>
                 </>
               ) : (
@@ -153,17 +181,17 @@ export default function Leaderboard() {
             </div>
           </div>
 
-          {/* Today's top 10 */}
+          {/* Top scores */}
           <div className="fadeUp d2 lb-card" style={{ marginBottom: 24 }}>
             <div style={{ padding: '20px 20px 16px', borderBottom: '2.5px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 22 }}>🎙️</span>
-              <h2 className="fredoka" style={{ fontSize: 22, color: 'var(--text)' }}>Today's Top 10</h2>
+              <MicIcon />
+              <h2 className="fredoka" style={{ fontSize: 22, color: 'var(--text)' }}>Top Scores</h2>
             </div>
 
-            {top10.length === 0 ? (
+            {top20.length === 0 ? (
               <div style={{ padding: '40px 24px', textAlign: 'center' }}>
                 <p style={{ color: 'var(--muted)', fontSize: 15, marginBottom: 20 }}>
-                  No scores yet today — be the first on the board!
+                  No scores yet — be the first on the board!
                 </p>
                 <Link href="/" style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
@@ -172,19 +200,24 @@ export default function Leaderboard() {
                   background: 'var(--orange)', color: '#fff', textDecoration: 'none',
                   boxShadow: '4px 4px 0 var(--text)',
                 }}>
-                  Start a session →
+                  Start a session
                 </Link>
               </div>
             ) : (
-              top10.map((entry, i) => {
+              top20.map((entry, i) => {
                 const badge = scoreBadge(entry.score)
                 return (
                   <div key={entry.id} className="lb-row">
                     <RankBadge rank={i + 1} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="fredoka" style={{ fontSize: 16, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div className="fredoka" style={{ fontSize: 15, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {entry.player_name}
                       </div>
+                      {(entry.category || entry.difficulty) && (
+                        <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+                          {[entry.category, entry.difficulty, entry.date ? fmtDate(entry.date) : null].filter(Boolean).join(' · ')}
+                        </div>
+                      )}
                     </div>
                     <div style={{
                       padding: '5px 16px', borderRadius: 50,
@@ -203,7 +236,7 @@ export default function Leaderboard() {
           {/* Hall of Fame */}
           <div className="fadeUp d3 lb-card">
             <div style={{ padding: '20px 20px 16px', borderBottom: '2.5px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 22 }}>⭐</span>
+              <StarIcon size={22} />
               <h2 className="fredoka" style={{ fontSize: 22, color: 'var(--text)' }}>Hall of Fame</h2>
               <span style={{ marginLeft: 'auto', fontSize: 13, color: 'var(--muted)', fontWeight: 600 }}>Past daily winners</span>
             </div>
@@ -232,7 +265,7 @@ export default function Leaderboard() {
                           <td style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>{fmtDate(entry.won_on)}</td>
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              {i === 0 && <span style={{ fontSize: 14 }}>👑</span>}
+                              {i === 0 && <CrownIcon />}
                               <span className="fredoka" style={{ fontSize: 15 }}>{entry.player_name}</span>
                             </div>
                           </td>
@@ -266,7 +299,7 @@ export default function Leaderboard() {
             }}
             onMouseEnter={e => { e.currentTarget.style.transform = 'translate(-2px,-2px)'; e.currentTarget.style.boxShadow = '6px 6px 0 var(--text)' }}
             onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '4px 4px 0 var(--text)' }}>
-              Practice & Post Your Score →
+              Practice and Post Your Score
             </Link>
           </div>
         </div>

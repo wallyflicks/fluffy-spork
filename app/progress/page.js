@@ -87,17 +87,25 @@ function fmt(dateStr) {
   return `${months[parseInt(m,10)-1]} ${parseInt(d,10)}`
 }
 
+function localDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
 function calcStreak(sessions) {
   if (!sessions.length) return 0
   const days = [...new Set(sessions.map(s => s.date))].sort().reverse()
-  const today = new Date().toISOString().split('T')[0]
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+  const now = new Date()
+  const today = localDateStr(now)
+  const yest = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
+  const yesterday = localDateStr(yest)
   if (days[0] !== today && days[0] !== yesterday) return 0
   let streak = 1
   for (let i = 1; i < days.length; i++) {
-    const prev = new Date(days[i - 1])
-    const curr = new Date(days[i])
-    const diff = (prev - curr) / 86400000
+    const [py, pm, pd] = days[i-1].split('-').map(Number)
+    const [cy, cm, cd] = days[i].split('-').map(Number)
+    const prev = new Date(py, pm-1, pd)
+    const curr = new Date(cy, cm-1, cd)
+    const diff = Math.round((prev - curr) / 86400000)
     if (diff === 1) streak++
     else break
   }
@@ -240,7 +248,14 @@ export default function Progress() {
             borderRadius: 20, padding: '20px 28px', marginBottom: 20,
             boxShadow: 'var(--shadow)', display: 'flex', alignItems: 'center', gap: 16,
           }}>
-            <span style={{ fontSize: 40, lineHeight: 1 }}>{streak > 0 ? '🔥' : '💤'}</span>
+            {streak > 0
+              ? <div style={{ width:44,height:44,borderRadius:'50%',background:'#FFF0E8',border:'2.5px solid var(--orange)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="var(--orange)" stroke="none"><path d="M12 23c-4.4 0-8-3.6-8-8 0-2.8 1.4-5.5 3-7.5.5 1.5 1.5 2.5 2.5 3C9 8.5 10 6 12 2c1.5 3.5 4 5.5 4 9.5.5-1 .5-2 .3-3C18 10.5 20 13 20 15c0 4.4-3.6 8-8 8z"/></svg>
+                </div>
+              : <div style={{ width:44,height:44,borderRadius:'50%',background:'var(--border)',border:'2.5px solid var(--muted)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                </div>
+            }
             <div>
               {streak > 0 ? (
                 <>
@@ -281,7 +296,9 @@ export default function Progress() {
               borderRadius: 20, padding: '18px 28px', marginBottom: 20,
               boxShadow: 'var(--shadow)', display: 'flex', alignItems: 'center', gap: 16,
             }}>
-              <span style={{ fontSize: 36, lineHeight: 1 }}>🏆</span>
+              <div style={{ width:44,height:44,borderRadius:'50%',background:'#E8F7EE',border:'2.5px solid var(--green)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 21h8M12 17v4M7 4H4v5c0 2.2 1.8 4 4 4M17 4h3v5c0 2.2-1.8 4-4 4"/><path d="M7 13c0 2.8 2.2 5 5 5s5-2.2 5-5V4H7v9z"/></svg>
+              </div>
               <div>
                 <div className="fredoka" style={{ fontSize: 20, color: 'var(--green)' }}>
                   Personal best: {best.score}

@@ -108,8 +108,9 @@ export default function Reviews() {
               Testimonials
             </h1>
             {total > 0 ? (
-              <p style={{ color: 'var(--muted)', fontSize: 17 }}>
-                ⭐ {avg} out of 5 — based on {total} review{total !== 1 ? 's' : ''}
+              <p style={{ color: 'var(--muted)', fontSize: 17, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#F5C842" stroke="#F5C842" strokeWidth="1.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                {avg} out of 5 — based on {total} review{total !== 1 ? 's' : ''}
               </p>
             ) : (
               <p style={{ color: 'var(--muted)', fontSize: 17 }}>Be the first to share your experience</p>
@@ -123,7 +124,9 @@ export default function Reviews() {
               borderRadius: 22, boxShadow: 'var(--shadow)',
               padding: '60px 32px', textAlign: 'center',
             }}>
-              <div style={{ fontSize: 52, marginBottom: 16 }}>💬</div>
+              <div style={{ display:'flex', justifyContent:'center', marginBottom:16 }}>
+                <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--border)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              </div>
               <p className="fredoka" style={{ fontSize: 22, marginBottom: 8 }}>No reviews yet</p>
               <p style={{ color: 'var(--muted)', fontSize: 15, marginBottom: 28 }}>
                 Be the first to share your experience after a session.
