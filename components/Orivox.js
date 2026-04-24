@@ -964,7 +964,7 @@ export default function Orivox(){
   },[activeCat,activeDiff]);
 
   const startSession=()=>{
-    const resolvedCat=cat==="Random"?"Random":cat;
+    const resolvedCat=cat==="Random"?rand(CATS):cat;
     const resolvedDiff=diff==="Random"?rand(DIFFS):diff;
     setActiveCat(resolvedCat);setActiveDiff(resolvedDiff);
     setTopic(rand(TOPICS[resolvedCat][resolvedDiff]));
