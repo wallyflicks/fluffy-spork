@@ -720,6 +720,28 @@ export default function Orivox(){
     setRecording(false);setRunning(false);setScreen("feedback");analyze();
   };
 
+  const saveSession=(feedbackData)=>{
+    try{
+      const words=transcriptRef.current.trim().split(/\s+/).filter(Boolean).length;
+      const wpm=speakTime>0?(words/speakTime)*60:0;
+      const pacingRating=wpm<100?"slow":wpm<170?"good":"fast";
+      const session={
+        id:Date.now().toString(),
+        date:new Date().toISOString().split("T")[0],
+        category:activeCat,
+        difficulty:activeDiff,
+        score:feedbackData.score,
+        fillerWordCount:feedbackData.filler_count||0,
+        fillerWords:feedbackData.filler_words||[],
+        pacingRating,
+        speakDuration:speakTime,
+      };
+      const existing=JSON.parse(localStorage.getItem("orivox_sessions")||"[]");
+      existing.push(session);
+      localStorage.setItem("orivox_sessions",JSON.stringify(existing));
+    }catch{}
+  };
+
   const analyze=async()=>{
     setLoading(true);
     const text=transcriptRef.current;
@@ -732,11 +754,13 @@ export default function Orivox(){
         body:JSON.stringify({transcript:text,topic,category:activeCat,difficulty:activeDiff})});
       if(res.ok){
         const data=await res.json();
-        if(!data.error){setFeedback(data);setLoading(false);return;}
+        if(!data.error){saveSession(data);setFeedback(data);setLoading(false);return;}
       }
     }catch{}
     await new Promise(r=>setTimeout(r,800));
-    setFeedback(analyzeTranscript(text,topic,activeDiff));
+    const localData=analyzeTranscript(text,topic,activeDiff);
+    saveSession(localData);
+    setFeedback(localData);
     setLoading(false);
   };
 
@@ -780,6 +804,11 @@ export default function Orivox(){
           </div>
           <div style={{display:"flex",gap:10,alignItems:"center"}}>
             {screen!=="home"&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={reset}>← Home</button>}
+            <Link href="/progress" style={{display:"inline-flex",alignItems:"center",padding:"8px 18px",borderRadius:50,fontFamily:"Fredoka, sans-serif",fontSize:14,fontWeight:600,border:"2px solid var(--border)",color:"var(--muted)",background:"var(--card)",textDecoration:"none",boxShadow:"2px 2px 0 var(--border)",transition:"all .18s",whiteSpace:"nowrap"}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--orange)";e.currentTarget.style.color="var(--orange)";e.currentTarget.style.boxShadow="2px 2px 0 var(--orange)"}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--muted)";e.currentTarget.style.boxShadow="2px 2px 0 var(--border)"}}>
+              Progress
+            </Link>
             <Link href="/about" style={{display:"inline-flex",alignItems:"center",padding:"8px 18px",borderRadius:50,fontFamily:"Fredoka, sans-serif",fontSize:14,fontWeight:600,border:"2px solid var(--border)",color:"var(--muted)",background:"var(--card)",textDecoration:"none",boxShadow:"2px 2px 0 var(--border)",transition:"all .18s",whiteSpace:"nowrap"}}
               onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--orange)";e.currentTarget.style.color="var(--orange)";e.currentTarget.style.boxShadow="2px 2px 0 var(--orange)"}}
               onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--muted)";e.currentTarget.style.boxShadow="2px 2px 0 var(--border)"}}>

@@ -64,35 +64,13 @@ export default function About() {
           </Link>
           <div style={{display:'flex',gap:10,alignItems:'center'}}>
             <Link href="/about" className="nav-link" style={{background:'var(--orange)',color:'#fff',borderColor:'var(--orange)',boxShadow:'3px 3px 0 var(--orange)'}}>About</Link>
+            <Link href="/progress" className="nav-link">Progress</Link>
             <Link href="/" className="nav-link">← Back</Link>
           </div>
         </header>
 
         {/* Content */}
         <div style={{maxWidth:680,margin:'0 auto',padding:'64px 24px 80px',position:'relative',zIndex:1}}>
-
-          {/* Photo */}
-          <div className="fadeUp" style={{display:'flex',justifyContent:'center',marginBottom:40}}>
-            <div style={{
-              width:160,height:160,borderRadius:'50%',overflow:'hidden',
-              border:'3px solid var(--border)',boxShadow:'5px 5px 0 rgba(0,0,0,0.12)',
-              flexShrink:0,
-            }}>
-              <img
-                src="/wallace.jpg"
-                alt="Wallace Cheng"
-                style={{
-                  width:'100%',
-                  height:'100%',
-                  objectFit:'cover',
-                  objectPosition:'center 30%',
-                  transform:'scale(2.4)',
-                  transformOrigin:'center 36%',
-                  display:'block',
-                }}
-              />
-            </div>
-          </div>
 
           {/* Headline */}
           <div className="fadeUp d1" style={{textAlign:'center',marginBottom:48}}>
