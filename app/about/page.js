@@ -65,6 +65,7 @@ export default function About() {
           <div style={{display:'flex',gap:10,alignItems:'center'}}>
             <Link href="/about" className="nav-link" style={{background:'var(--orange)',color:'#fff',borderColor:'var(--orange)',boxShadow:'3px 3px 0 var(--orange)'}}>About</Link>
             <Link href="/progress" className="nav-link">Progress</Link>
+            <Link href="/reviews" className="nav-link">Reviews</Link>
             <Link href="/" className="nav-link">← Back</Link>
           </div>
         </header>

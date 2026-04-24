@@ -229,6 +229,7 @@ export default function Progress() {
           </Link>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <Link href="/progress" className="nav-link" style={{ background: 'var(--orange)', color: '#fff', borderColor: 'var(--orange)', boxShadow: '2px 2px 0 var(--orange)' }}>Progress</Link>
+            <Link href="/reviews" className="nav-link">Reviews</Link>
             <Link href="/about" className="nav-link">About</Link>
             <Link href="/" className="nav-link">← Back</Link>
           </div>

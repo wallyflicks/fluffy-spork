@@ -905,7 +905,6 @@ export default function Orivox(){
   const [micErr,setMicErr]=useState("");
   const [audioUrl,setAudioUrl]=useState(null);
   const [sessionReviewed,setSessionReviewed]=useState(false);
-  const [reviews,setReviews]=useState([]);
   const typingRef=useRef(null);
   const timerCardRef=useRef(null);
   const mediaRef=useRef(null);
@@ -925,12 +924,6 @@ export default function Orivox(){
     typingRef.current=setTimeout(type,60);
     return()=>clearTimeout(typingRef.current);
   },[topic]);
-
-  useEffect(()=>{
-    supabase.from("Reviews").select("id,rating,comment,Name,created_at")
-      .gte("rating",4).order("created_at",{ascending:false}).limit(6)
-      .then(({data})=>{ if(data?.length) setReviews(data); });
-  },[]);
 
   useEffect(()=>{
     if(running){
@@ -1100,16 +1093,13 @@ export default function Orivox(){
           </div>
           <div style={{display:"flex",gap:10,alignItems:"center"}}>
             {screen!=="home"&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={reset}>← Home</button>}
-            <Link href="/progress" style={{display:"inline-flex",alignItems:"center",padding:"8px 18px",borderRadius:50,fontFamily:"Fredoka, sans-serif",fontSize:14,fontWeight:600,border:"2px solid var(--border)",color:"var(--muted)",background:"var(--card)",textDecoration:"none",boxShadow:"2px 2px 0 var(--border)",transition:"all .18s",whiteSpace:"nowrap"}}
-              onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--orange)";e.currentTarget.style.color="var(--orange)";e.currentTarget.style.boxShadow="2px 2px 0 var(--orange)"}}
-              onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--muted)";e.currentTarget.style.boxShadow="2px 2px 0 var(--border)"}}>
-              Progress
-            </Link>
-            <Link href="/about" style={{display:"inline-flex",alignItems:"center",padding:"8px 18px",borderRadius:50,fontFamily:"Fredoka, sans-serif",fontSize:14,fontWeight:600,border:"2px solid var(--border)",color:"var(--muted)",background:"var(--card)",textDecoration:"none",boxShadow:"2px 2px 0 var(--border)",transition:"all .18s",whiteSpace:"nowrap"}}
-              onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--orange)";e.currentTarget.style.color="var(--orange)";e.currentTarget.style.boxShadow="2px 2px 0 var(--orange)"}}
-              onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--muted)";e.currentTarget.style.boxShadow="2px 2px 0 var(--border)"}}>
-              About
-            </Link>
+            {["Progress","/progress","Reviews","/reviews","About","/about"].reduce((acc,v,i,a)=>i%2===0?[...acc,[a[i],a[i+1]]]:acc,[]).map(([label,href])=>(
+              <Link key={href} href={href} style={{display:"inline-flex",alignItems:"center",padding:"8px 18px",borderRadius:50,fontFamily:"Fredoka, sans-serif",fontSize:14,fontWeight:600,border:"2px solid var(--border)",color:"var(--muted)",background:"var(--card)",textDecoration:"none",boxShadow:"2px 2px 0 var(--border)",transition:"all .18s",whiteSpace:"nowrap"}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--orange)";e.currentTarget.style.color="var(--orange)";e.currentTarget.style.boxShadow="2px 2px 0 var(--orange)"}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--muted)";e.currentTarget.style.boxShadow="2px 2px 0 var(--border)"}}>
+                {label}
+              </Link>
+            ))}
           </div>
         </header>
 
@@ -1186,29 +1176,6 @@ export default function Orivox(){
                 ))}
               </div>
 
-              {/* Reviews */}
-              {reviews.length>0&&(
-                <div className="fadeUp d5" style={{marginBottom:40}}>
-                  <p className="fredoka" style={{fontSize:22,marginBottom:16,textAlign:"center"}}>What people are saying</p>
-                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14}}>
-                    {reviews.map(r=>(
-                      <div key={r.id} className="card" style={{padding:"20px 18px"}}>
-                        <div style={{display:"flex",gap:3,marginBottom:10}}>
-                          {[1,2,3,4,5].map(i=>(
-                            <svg key={i} width="16" height="16" viewBox="0 0 24 24"
-                              fill={i<=r.rating?"#F5C842":"none"}
-                              stroke={i<=r.rating?"#F5C842":"var(--border)"} strokeWidth="2">
-                              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                            </svg>
-                          ))}
-                        </div>
-                        <p className="fredoka" style={{fontSize:13,color:"var(--orange)",marginBottom:6}}>{r.Name||"Anonymous"}</p>
-                        {r.comment&&<p style={{fontSize:13,lineHeight:1.6,color:"var(--text)",opacity:.85}}>{r.comment}</p>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
