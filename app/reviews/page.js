@@ -42,6 +42,9 @@ const G = () => (
     @media(max-width:600px){
       .review-grid{grid-template-columns:1fr!important}
       .bar-label{font-size:12px!important}
+      .site-header{padding:10px 14px!important}
+      .nav-links{overflow-x:auto;-webkit-overflow-scrolling:touch}
+      .nav-link{font-size:11px!important;padding:5px 8px!important;gap:4px!important}
     }
   `}</style>
 )
@@ -105,13 +108,13 @@ export default function Reviews() {
         <div className="dot-bg" />
 
         {/* Header */}
-        <header style={{
+        <header className="site-header" style={{
           position: 'sticky', top: 0, zIndex: 100,
           background: 'rgba(255,248,240,0.9)', backdropFilter: 'blur(12px)',
           borderBottom: '2.5px solid var(--border)', padding: '14px 32px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
         }}>
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none' }}>
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', flexShrink: 0 }}>
             <div style={{
               width: 42, height: 42, borderRadius: 13, background: 'var(--orange)',
               border: '2.5px solid var(--text)', display: 'flex', alignItems: 'center',
@@ -125,7 +128,7 @@ export default function Reviews() {
             </div>
             <span className="fredoka" style={{ fontSize: 26, fontWeight: 700, color: 'var(--text)' }}>Orivox</span>
           </Link>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div className="nav-links" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <Link href="/reviews" className="nav-link" style={{ background: 'var(--orange)', color: '#fff', borderColor: 'var(--orange)', boxShadow: '2px 2px 0 var(--orange)' }}>Reviews</Link>
             <Link href="/progress" className="nav-link">Progress</Link>
             <Link href="/about" className="nav-link">About</Link>

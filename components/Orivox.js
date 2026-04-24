@@ -117,6 +117,8 @@ const G = () => (
     @media(max-width:480px){
       .chip{font-size:13px;padding:7px 14px;}
       .card{border-radius:16px;}
+      .nav-links{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:calc(100vw - 130px)}
+      .nav-links a,.nav-links button{font-size:12px!important;padding:6px 10px!important}
     }
   `}</style>
 );
@@ -750,7 +752,7 @@ function ShareCard({score,category,difficulty,strength}){
       }}
       onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--orange)';e.currentTarget.style.color='var(--orange)';e.currentTarget.style.boxShadow='3px 3px 0 var(--orange)'}}
       onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--text)';e.currentTarget.style.boxShadow='3px 3px 0 var(--border)'}}>
-        ↗ Share Result
+        Share Result
       </button>
 
       {open&&(
@@ -1105,7 +1107,7 @@ export default function Orivox(){
             </div>
             <span className="fredoka" style={{fontSize:26,fontWeight:700,color:"var(--text)"}}>Orivox</span>
           </div>
-          <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          <div className="nav-links" style={{display:"flex",gap:8,alignItems:"center"}}>
             {screen!=="home"&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={reset}>← Home</button>}
             {["Progress","/progress","Reviews","/reviews","About","/about"].reduce((acc,v,i,a)=>i%2===0?[...acc,[a[i],a[i+1]]]:acc,[]).map(([label,href])=>(
               <Link key={href} href={href} style={{display:"inline-flex",alignItems:"center",padding:"8px 18px",borderRadius:50,fontFamily:"Fredoka, sans-serif",fontSize:14,fontWeight:600,border:"2px solid var(--border)",color:"var(--muted)",background:"var(--card)",textDecoration:"none",boxShadow:"2px 2px 0 var(--border)",transition:"all .18s",whiteSpace:"nowrap"}}
@@ -1364,7 +1366,7 @@ export default function Orivox(){
                   {/* Transcript */}
                   {transcript&&(
                     <details className="card fb6" style={{marginBottom:20,padding:28,cursor:"pointer"}}>
-                      <summary className="fredoka" style={{fontSize:16,color:"var(--muted)",userSelect:"none"}}>📝 View transcript ▾</summary>
+                      <summary className="fredoka" style={{fontSize:16,color:"var(--muted)",userSelect:"none"}}>View transcript ▾</summary>
                       <div style={{marginTop:16}}>
                         {(feedback.cleanedTranscript||transcript).split(/\n+/).map((para,i)=>(
                           <p key={i} style={{fontSize:14,lineHeight:1.9,opacity:.85,marginBottom:12}}>{para}</p>
