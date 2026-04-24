@@ -1071,9 +1071,15 @@ export default function Orivox(){
       const existing=JSON.parse(localStorage.getItem("orivox_sessions")||"[]");
       existing.push(session);
       localStorage.setItem("orivox_sessions",JSON.stringify(existing));
-      // Also post to leaderboard
-      fetch("/api/submit-score",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({player_name:"Anonymous",score:feedbackData.totalScore,category:activeCat,difficulty:activeDiff,date:localDate})
+      // Save to Supabase directly from browser (same pattern as Reviews — works with anon key)
+      supabase.from("scores").insert({
+        player_name:"Anonymous",
+        score:feedbackData.totalScore,
+        category:activeCat,
+        difficulty:activeDiff,
+        date:localDate,
+      }).then(({error})=>{
+        if(error) supabase.from("scores").insert({player_name:"Anonymous",score:feedbackData.totalScore}).catch(()=>{});
       }).catch(()=>{});
     }catch{}
   };

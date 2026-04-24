@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import PageNav from '../../components/PageNav'
+import { supabase } from '../../lib/supabase'
 
 const G = () => (
   <style>{`
@@ -123,10 +124,27 @@ export default function Leaderboard() {
       setLocal([...sessions].sort((a, b) => b.score - a.score).slice(0, 20))
     } catch { setLocal([]) }
 
-    // Fetch global leaderboard
-    fetch('/api/leaderboard')
-      .then(r => r.json())
-      .then(d => { setGlobal(d.top20 || []); setLoading(false) })
+    // Query Supabase directly from browser (same as Reviews — works with anon key)
+    supabase
+      .from('scores')
+      .select('id, player_name, score, category, difficulty, date, created_at')
+      .order('score', { ascending: false })
+      .limit(20)
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setGlobal(data)
+        } else {
+          // Try minimal columns if full select fails
+          supabase
+            .from('scores')
+            .select('id, player_name, score, created_at')
+            .order('score', { ascending: false })
+            .limit(20)
+            .then(({ data: d2 }) => setGlobal(d2 || []))
+            .catch(() => setGlobal(null))
+        }
+        setLoading(false)
+      })
       .catch(() => { setGlobal(null); setLoading(false) })
   }, [])
 
