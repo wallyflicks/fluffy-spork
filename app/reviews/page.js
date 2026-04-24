@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '../../lib/supabase'
+import PageNav from '../../components/PageNav'
 
 const G = () => (
   <style>{`
@@ -20,14 +21,6 @@ const G = () => (
     .d1{animation-delay:.08s}.d2{animation-delay:.18s}.d3{animation-delay:.28s}.d4{animation-delay:.38s}
     ::-webkit-scrollbar{width:6px}
     ::-webkit-scrollbar-thumb{background:var(--orange-border);border-radius:3px}
-    .nav-link{
-      display:inline-flex;align-items:center;gap:8px;padding:8px 18px;
-      border-radius:50px;font-family:'Fredoka',sans-serif;font-size:14px;
-      font-weight:600;cursor:pointer;border:2px solid var(--border);
-      background:var(--card);color:var(--muted);text-decoration:none;
-      transition:all .15s ease;box-shadow:2px 2px 0 var(--border);white-space:nowrap;
-    }
-    .nav-link:hover{border-color:var(--orange);color:var(--orange);box-shadow:2px 2px 0 var(--orange)}
     .review-card{
       background:var(--card);border:2.5px solid var(--border);border-radius:20px;
       box-shadow:var(--shadow);padding:24px;display:flex;flex-direction:column;gap:12px;
@@ -42,9 +35,6 @@ const G = () => (
     @media(max-width:600px){
       .review-grid{grid-template-columns:1fr!important}
       .bar-label{font-size:12px!important}
-      .site-header{padding:10px 14px!important}
-      .nav-links{overflow-x:auto;-webkit-overflow-scrolling:touch}
-      .nav-link{font-size:11px!important;padding:5px 8px!important;gap:4px!important}
     }
   `}</style>
 )
@@ -108,33 +98,7 @@ export default function Reviews() {
         <div className="dot-bg" />
 
         {/* Header */}
-        <header className="site-header" style={{
-          position: 'sticky', top: 0, zIndex: 100,
-          background: 'rgba(255,248,240,0.9)', backdropFilter: 'blur(12px)',
-          borderBottom: '2.5px solid var(--border)', padding: '14px 32px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-        }}>
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', flexShrink: 0 }}>
-            <div style={{
-              width: 42, height: 42, borderRadius: 13, background: 'var(--orange)',
-              border: '2.5px solid var(--text)', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', boxShadow: '3px 3px 0 var(--text)',
-            }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                <line x1="12" y1="19" x2="12" y2="22"/>
-              </svg>
-            </div>
-            <span className="fredoka" style={{ fontSize: 26, fontWeight: 700, color: 'var(--text)' }}>Orivox</span>
-          </Link>
-          <div className="nav-links" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Link href="/reviews" className="nav-link" style={{ background: 'var(--orange)', color: '#fff', borderColor: 'var(--orange)', boxShadow: '2px 2px 0 var(--orange)' }}>Reviews</Link>
-            <Link href="/progress" className="nav-link">Progress</Link>
-            <Link href="/about" className="nav-link">About</Link>
-            <Link href="/" className="nav-link">← Back</Link>
-          </div>
-        </header>
+        <PageNav active="/reviews" />
 
         <div style={{ maxWidth: 760, margin: '0 auto', padding: '56px 24px 80px', position: 'relative', zIndex: 1 }}>
 

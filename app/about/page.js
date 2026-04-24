@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import PageNav from '../../components/PageNav'
 
 const G = () => (
   <style>{`
@@ -23,18 +24,14 @@ const G = () => (
       transition:box-shadow .2s,transform .2s;
     }
     .stat-card:hover{box-shadow:7px 7px 0 rgba(0,0,0,0.13);transform:translateY(-3px)}
-    .nav-link{
-      display:inline-flex;align-items:center;gap:8px;
-      padding:9px 20px;border-radius:50px;font-family:'Fredoka',sans-serif;
-      font-size:16px;font-weight:600;cursor:pointer;border:2.5px solid var(--text);
-      background:var(--card);color:var(--text);text-decoration:none;
-      transition:all .15s ease;box-shadow:3px 3px 0 var(--text);
-    }
-    .nav-link:hover{transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--text)}
     .dot-bg{
       position:fixed;inset:0;
       background-image:radial-gradient(circle,#E0CEBC 1px,transparent 1px);
       background-size:30px 30px;opacity:.55;pointer-events:none;z-index:0;
+    }
+    @media(max-width:600px){
+      .about-stat-grid{grid-template-columns:1fr 1fr!important}
+      .about-story{padding:24px 20px!important}
     }
   `}</style>
 )
@@ -46,29 +43,7 @@ export default function About() {
       <div style={{minHeight:'100vh',background:'var(--bg)',position:'relative'}}>
         <div className="dot-bg"/>
 
-        {/* Header */}
-        <header style={{position:'sticky',top:0,zIndex:100,background:'rgba(255,248,240,0.9)',
-          backdropFilter:'blur(12px)',borderBottom:'2.5px solid var(--border)',
-          padding:'14px 32px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <Link href="/" style={{display:'flex',alignItems:'center',gap:12,textDecoration:'none',cursor:'pointer'}}>
-            <div style={{width:42,height:42,borderRadius:13,background:'var(--orange)',
-              border:'2.5px solid var(--text)',display:'flex',alignItems:'center',
-              justifyContent:'center',boxShadow:'3px 3px 0 var(--text)'}}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                <line x1="12" y1="19" x2="12" y2="22"/>
-              </svg>
-            </div>
-            <span className="fredoka" style={{fontSize:26,fontWeight:700,color:'var(--text)'}}>Orivox</span>
-          </Link>
-          <div style={{display:'flex',gap:10,alignItems:'center'}}>
-            <Link href="/about" className="nav-link" style={{background:'var(--orange)',color:'#fff',borderColor:'var(--orange)',boxShadow:'3px 3px 0 var(--orange)'}}>About</Link>
-            <Link href="/progress" className="nav-link">Progress</Link>
-            <Link href="/reviews" className="nav-link">Reviews</Link>
-            <Link href="/" className="nav-link">← Back</Link>
-          </div>
-        </header>
+        <PageNav active="/about" />
 
         {/* Content */}
         <div style={{maxWidth:680,margin:'0 auto',padding:'64px 24px 80px',position:'relative',zIndex:1}}>
@@ -84,7 +59,7 @@ export default function About() {
           </div>
 
           {/* Story */}
-          <div className="fadeUp d2" style={{
+          <div className="fadeUp d2 about-story" style={{
             background:'var(--card)',border:'2.5px solid var(--border)',
             borderRadius:22,boxShadow:'var(--shadow)',padding:'36px 40px',
             marginBottom:32,
@@ -112,7 +87,7 @@ export default function About() {
           </div>
 
           {/* Stat cards */}
-          <div className="fadeUp d3" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14,marginBottom:40}}>
+          <div className="fadeUp d3 about-stat-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14,marginBottom:40}}>
             {[
               {label:'Grade 11', sub:'Vancouver, BC'},
               {label:'Built solo', sub:'Design, code, and launch'},
