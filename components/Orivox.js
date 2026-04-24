@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { supabase } from "../lib/supabase";
 
 const G = () => (
   <style>{`
@@ -532,6 +533,74 @@ function WaveViz({active}){
   );
 }
 
+// ── Review Prompt ────────────────────────────────────────────────────────────
+function ReviewPrompt({onSubmit}){
+  const [rating,setRating]=useState(0);
+  const [hover,setHover]=useState(0);
+  const [name,setName]=useState("");
+  const [comment,setComment]=useState("");
+  const [submitted,setSubmitted]=useState(false);
+  const [loading,setLoading]=useState(false);
+  const [err,setErr]=useState("");
+
+  const submit=async()=>{
+    if(!rating)return;
+    setLoading(true);setErr("");
+    const{error}=await supabase.from("Reviews").insert({
+      rating,
+      comment:comment.trim()||null,
+      Name:name.trim()||"Anonymous",
+    });
+    setLoading(false);
+    if(error){setErr("Couldn't submit — please try again.");return;}
+    setSubmitted(true);
+    onSubmit();
+  };
+
+  const inputStyle={
+    width:"100%",padding:"11px 16px",borderRadius:12,fontSize:14,
+    border:"2px solid var(--border)",background:"var(--bg)",color:"var(--text)",
+    fontFamily:"Nunito,sans-serif",outline:"none",marginBottom:10,boxSizing:"border-box",
+  };
+
+  if(submitted)return(
+    <div style={{textAlign:"center",padding:"28px 20px"}}>
+      <div style={{fontSize:36,marginBottom:10}}>🙏</div>
+      <p className="fredoka" style={{fontSize:20,color:"var(--green)"}}>Thanks for your feedback!</p>
+    </div>
+  );
+
+  return(
+    <div style={{padding:"28px 0 8px"}}>
+      <p className="fredoka" style={{fontSize:20,marginBottom:20,textAlign:"center"}}>How was your session?</p>
+      {/* Stars */}
+      <div style={{display:"flex",gap:6,justifyContent:"center",marginBottom:20}}>
+        {[1,2,3,4,5].map(i=>(
+          <button key={i} onClick={()=>setRating(i)}
+            onMouseEnter={()=>setHover(i)} onMouseLeave={()=>setHover(0)}
+            style={{background:"none",border:"none",cursor:"pointer",padding:4,transition:"transform .1s",transform:(hover||rating)>=i?"scale(1.15)":"scale(1)"}}>
+            <svg width="36" height="36" viewBox="0 0 24 24"
+              fill={(hover||rating)>=i?"#F5C842":"none"}
+              stroke={(hover||rating)>=i?"#F5C842":"var(--border)"} strokeWidth="2">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            </svg>
+          </button>
+        ))}
+      </div>
+      <input value={name} onChange={e=>setName(e.target.value)}
+        placeholder="Your name (optional)" style={inputStyle}/>
+      <textarea value={comment} onChange={e=>setComment(e.target.value)}
+        placeholder="Anything to add? Optional" rows={3}
+        style={{...inputStyle,resize:"vertical",marginBottom:14}}/>
+      {err&&<p style={{color:"var(--red)",fontSize:13,marginBottom:10}}>{err}</p>}
+      <button onClick={submit} disabled={!rating||loading}
+        className="btn btn-orange" style={{width:"100%",justifyContent:"center",padding:"14px",fontSize:17,opacity:!rating?.5:1}}>
+        {loading?"Submitting…":"Leave a review"}
+      </button>
+    </div>
+  );
+}
+
 // ── Share Card ───────────────────────────────────────────────────────────────
 function ShareCard({score,category,difficulty,strength}){
   const [open,setOpen]=useState(false);
@@ -835,6 +904,8 @@ export default function Orivox(){
   const [loading,setLoading]=useState(false);
   const [micErr,setMicErr]=useState("");
   const [audioUrl,setAudioUrl]=useState(null);
+  const [sessionReviewed,setSessionReviewed]=useState(false);
+  const [reviews,setReviews]=useState([]);
   const typingRef=useRef(null);
   const timerCardRef=useRef(null);
   const mediaRef=useRef(null);
@@ -854,6 +925,12 @@ export default function Orivox(){
     typingRef.current=setTimeout(type,60);
     return()=>clearTimeout(typingRef.current);
   },[topic]);
+
+  useEffect(()=>{
+    supabase.from("Reviews").select("id,rating,comment,Name,created_at")
+      .gte("rating",4).order("created_at",{ascending:false}).limit(6)
+      .then(({data})=>{ if(data?.length) setReviews(data); });
+  },[]);
 
   useEffect(()=>{
     if(running){
@@ -1108,6 +1185,30 @@ export default function Orivox(){
                   </div>
                 ))}
               </div>
+
+              {/* Reviews */}
+              {reviews.length>0&&(
+                <div className="fadeUp d5" style={{marginBottom:40}}>
+                  <p className="fredoka" style={{fontSize:22,marginBottom:16,textAlign:"center"}}>What people are saying</p>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14}}>
+                    {reviews.map(r=>(
+                      <div key={r.id} className="card" style={{padding:"20px 18px"}}>
+                        <div style={{display:"flex",gap:3,marginBottom:10}}>
+                          {[1,2,3,4,5].map(i=>(
+                            <svg key={i} width="16" height="16" viewBox="0 0 24 24"
+                              fill={i<=r.rating?"#F5C842":"none"}
+                              stroke={i<=r.rating?"#F5C842":"var(--border)"} strokeWidth="2">
+                              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                          ))}
+                        </div>
+                        <p className="fredoka" style={{fontSize:13,color:"var(--orange)",marginBottom:6}}>{r.Name||"Anonymous"}</p>
+                        {r.comment&&<p style={{fontSize:13,lineHeight:1.6,color:"var(--text)",opacity:.85}}>{r.comment}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1307,10 +1408,17 @@ export default function Orivox(){
                   )}
 
                   {/* Actions */}
-                  <div className="fb7" style={{display:"flex",gap:14,marginBottom:48}}>
+                  <div className="fb7" style={{display:"flex",gap:14,marginBottom:20}}>
                     <button className="btn btn-orange" style={{flex:1,justifyContent:"center",padding:"16px",fontSize:18}} onClick={()=>{setFeedback(null);setAudioBlob(null);setTranscript("");startSession();}}>Try Again 🔄</button>
                     <button className="btn btn-cream" style={{flex:1,justifyContent:"center"}} onClick={reset}>Change Topic</button>
                   </div>
+
+                  {/* Review prompt — once per session */}
+                  {!sessionReviewed&&(
+                    <div className="card fb7" style={{padding:28,marginBottom:48,borderTop:"4px solid var(--yellow)",background:"var(--yellow-dim)"}}>
+                      <ReviewPrompt onSubmit={()=>setSessionReviewed(true)}/>
+                    </div>
+                  )}
                 </div>
               )}
 
