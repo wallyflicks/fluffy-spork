@@ -1129,7 +1129,7 @@ export default function Orivox(){
             </div>
             <div className="nav-links">
               {screen!=="home"&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={reset}>← Home</button>}
-              {["Progress","/progress","Reviews","/reviews","About","/about"].reduce((acc,v,i,a)=>i%2===0?[...acc,[a[i],a[i+1]]]:acc,[]).map(([label,href])=>(
+              {["Progress","/progress","Leaderboard","/leaderboard","Reviews","/reviews","About","/about"].reduce((acc,v,i,a)=>i%2===0?[...acc,[a[i],a[i+1]]]:acc,[]).map(([label,href])=>(
                 <Link key={href} href={href} style={{display:"inline-flex",alignItems:"center",padding:"8px 18px",borderRadius:50,fontFamily:"Fredoka, sans-serif",fontSize:14,fontWeight:600,border:"2px solid var(--border)",color:"var(--muted)",background:"var(--card)",textDecoration:"none",boxShadow:"2px 2px 0 var(--border)",transition:"all .18s",whiteSpace:"nowrap"}}
                   onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--orange)";e.currentTarget.style.color="var(--orange)";e.currentTarget.style.boxShadow="2px 2px 0 var(--orange)"}}
                   onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--muted)";e.currentTarget.style.boxShadow="2px 2px 0 var(--border)"}}>
@@ -1149,7 +1149,7 @@ export default function Orivox(){
               {screen!=="home"&&(
                 <button className="mob-pill" style={{border:"2px solid var(--border)",cursor:"pointer"}} onClick={()=>{reset();setMenuOpen(false)}}>← Home</button>
               )}
-              {["Progress","/progress","Reviews","/reviews","About","/about"].reduce((acc,v,i,a)=>i%2===0?[...acc,[a[i],a[i+1]]]:acc,[]).map(([label,href])=>(
+              {["Progress","/progress","Leaderboard","/leaderboard","Reviews","/reviews","About","/about"].reduce((acc,v,i,a)=>i%2===0?[...acc,[a[i],a[i+1]]]:acc,[]).map(([label,href])=>(
                 <Link key={href} href={href} className="mob-pill" onClick={()=>setMenuOpen(false)}>{label}</Link>
               ))}
             </div>
