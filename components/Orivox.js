@@ -117,8 +117,16 @@ const G = () => (
     @media(max-width:480px){
       .chip{font-size:13px;padding:7px 14px;}
       .card{border-radius:16px;}
-      .nav-links{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:calc(100vw - 130px)}
-      .nav-links a,.nav-links button{font-size:12px!important;padding:6px 10px!important}
+    }
+    .nav-links{display:flex;gap:8px;align-items:center;}
+    .hamburger-btn{display:none;width:40px;height:40px;border-radius:12px;background:var(--card);border:2px solid var(--border);cursor:pointer;align-items:center;justify-content:center;box-shadow:2px 2px 0 var(--border);transition:all .15s;flex-shrink:0;}
+    .hamburger-btn:hover{border-color:var(--orange);box-shadow:2px 2px 0 var(--orange);}
+    .mob-menu{position:absolute;top:100%;left:0;right:0;background:rgba(255,248,240,0.98);border-bottom:2.5px solid var(--border);padding:14px 20px;display:flex;flex-direction:column;gap:8px;z-index:200;}
+    .mob-pill{display:flex;align-items:center;padding:13px 20px;border-radius:14px;font-family:'Fredoka',sans-serif;font-size:16px;font-weight:600;border:2px solid var(--border);color:var(--muted);background:var(--card);text-decoration:none;transition:all .15s;box-shadow:2px 2px 0 var(--border);}
+    .mob-pill:hover{border-color:var(--orange);color:var(--orange);}
+    @media(max-width:600px){
+      .nav-links{display:none;}
+      .hamburger-btn{display:flex;}
     }
   `}</style>
 );
@@ -889,6 +897,7 @@ function BorderTimer({containerRef, startTimeRef, durationSecs, active}){
 // ── App ──────────────────────────────────────────────────────────────────────
 export default function Orivox(){
   const [screen,setScreen]=useState("home");
+  const [menuOpen,setMenuOpen]=useState(false);
   const [cat,setCat]=useState("General");
   const [diff,setDiff]=useState("Medium");
   const [activeCat,setActiveCat]=useState("General");
@@ -1100,23 +1109,41 @@ export default function Orivox(){
         <div style={{position:"fixed",inset:0,backgroundImage:"radial-gradient(circle,#E0CEBC 1px,transparent 1px)",backgroundSize:"30px 30px",opacity:.55,pointerEvents:"none",zIndex:0}}/>
 
         {/* Header */}
-        <header style={{position:"sticky",top:0,zIndex:100,background:"rgba(255,248,240,0.9)",backdropFilter:"blur(12px)",borderBottom:"2.5px solid var(--border)",padding:"14px 32px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div style={{display:"flex",alignItems:"center",gap:12,cursor:"pointer"}} onClick={reset}>
-            <div style={{width:42,height:42,borderRadius:13,background:"var(--orange)",border:"2.5px solid var(--text)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"3px 3px 0 var(--text)"}}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+        <header style={{position:"sticky",top:0,zIndex:100,background:"rgba(255,248,240,0.9)",backdropFilter:"blur(12px)",borderBottom:"2.5px solid var(--border)"}}>
+          <div style={{padding:"14px 32px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div style={{display:"flex",alignItems:"center",gap:12,cursor:"pointer"}} onClick={()=>{reset();setMenuOpen(false)}}>
+              <div style={{width:42,height:42,borderRadius:13,background:"var(--orange)",border:"2.5px solid var(--text)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"3px 3px 0 var(--text)"}}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+              </div>
+              <span className="fredoka" style={{fontSize:26,fontWeight:700,color:"var(--text)"}}>Orivox</span>
             </div>
-            <span className="fredoka" style={{fontSize:26,fontWeight:700,color:"var(--text)"}}>Orivox</span>
+            <div className="nav-links">
+              {screen!=="home"&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={reset}>← Home</button>}
+              {["Progress","/progress","Reviews","/reviews","About","/about"].reduce((acc,v,i,a)=>i%2===0?[...acc,[a[i],a[i+1]]]:acc,[]).map(([label,href])=>(
+                <Link key={href} href={href} style={{display:"inline-flex",alignItems:"center",padding:"8px 18px",borderRadius:50,fontFamily:"Fredoka, sans-serif",fontSize:14,fontWeight:600,border:"2px solid var(--border)",color:"var(--muted)",background:"var(--card)",textDecoration:"none",boxShadow:"2px 2px 0 var(--border)",transition:"all .18s",whiteSpace:"nowrap"}}
+                  onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--orange)";e.currentTarget.style.color="var(--orange)";e.currentTarget.style.boxShadow="2px 2px 0 var(--orange)"}}
+                  onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--muted)";e.currentTarget.style.boxShadow="2px 2px 0 var(--border)"}}>
+                  {label}
+                </Link>
+              ))}
+            </div>
+            <button className="hamburger-btn" onClick={e=>{e.stopPropagation();setMenuOpen(o=>!o)}} aria-label="Menu">
+              {menuOpen
+                ? <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--text)" strokeWidth="2.5" strokeLinecap="round"><path d="M3 3l12 12M15 3L3 15"/></svg>
+                : <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--text)" strokeWidth="2.5" strokeLinecap="round"><path d="M2 4h14M2 9h14M2 14h14"/></svg>
+              }
+            </button>
           </div>
-          <div className="nav-links" style={{display:"flex",gap:8,alignItems:"center"}}>
-            {screen!=="home"&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={reset}>← Home</button>}
-            {["Progress","/progress","Reviews","/reviews","About","/about"].reduce((acc,v,i,a)=>i%2===0?[...acc,[a[i],a[i+1]]]:acc,[]).map(([label,href])=>(
-              <Link key={href} href={href} style={{display:"inline-flex",alignItems:"center",padding:"8px 18px",borderRadius:50,fontFamily:"Fredoka, sans-serif",fontSize:14,fontWeight:600,border:"2px solid var(--border)",color:"var(--muted)",background:"var(--card)",textDecoration:"none",boxShadow:"2px 2px 0 var(--border)",transition:"all .18s",whiteSpace:"nowrap"}}
-                onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--orange)";e.currentTarget.style.color="var(--orange)";e.currentTarget.style.boxShadow="2px 2px 0 var(--orange)"}}
-                onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--muted)";e.currentTarget.style.boxShadow="2px 2px 0 var(--border)"}}>
-                {label}
-              </Link>
-            ))}
-          </div>
+          {menuOpen&&(
+            <div className="mob-menu" onClick={e=>e.stopPropagation()}>
+              {screen!=="home"&&(
+                <button className="mob-pill" style={{border:"2px solid var(--border)",cursor:"pointer"}} onClick={()=>{reset();setMenuOpen(false)}}>← Home</button>
+              )}
+              {["Progress","/progress","Reviews","/reviews","About","/about"].reduce((acc,v,i,a)=>i%2===0?[...acc,[a[i],a[i+1]]]:acc,[]).map(([label,href])=>(
+                <Link key={href} href={href} className="mob-pill" onClick={()=>setMenuOpen(false)}>{label}</Link>
+              ))}
+            </div>
+          )}
         </header>
 
         {/* Key Modal */}
