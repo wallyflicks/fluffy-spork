@@ -2,12 +2,6 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic();
 
-const THRESHOLDS = {
-  Easy:   { filler: '10%', structure: 1, words: 60  },
-  Medium: { filler: '6%',  structure: 2, words: 100 },
-  Hard:   { filler: '3%',  structure: 3, words: 150 },
-};
-
 export async function POST(req) {
   try {
     const { transcript, topic, category, difficulty } = await req.json();
@@ -19,40 +13,35 @@ export async function POST(req) {
       );
     }
 
-    const t = THRESHOLDS[difficulty] || THRESHOLDS.Medium;
-
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2048,
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
       messages: [{
         role: 'user',
-        content: `You are a professional public speaking coach giving calibrated feedback based on difficulty level. Return ONLY valid JSON with no markdown.
+        content: `You are a strict but encouraging speaking coach. Analyze the following speech transcript and score it across these four categories:
 
-Topic: "${topic}"
-Category: "${category}"
-Difficulty: "${difficulty}"
-Difficulty expectations: filler rate under ${t.filler}, at least ${t.structure} signpost word(s), at least ${t.words} words spoken.
-Transcript: "${transcript}"
+- Clarity (0-25): Is the message easy to understand? Are sentences complete and logical?
+- Structure (0-25): Does it have a clear opening, middle, and end? Does it stay on topic?
+- Filler words (0-25): Penalize for um, uh, like, you know, sort of, kind of, basically, literally, right, so. List every filler word found and how many times it appeared.
+- Confidence & pacing (0-25): Does it sound confident? Are there signs of rambling or trailing off?
 
-Score everything RELATIVE to the difficulty level — the same speech should score higher on Easy than on Hard.
+Total score is out of 100. Be honest — do not inflate scores. A mediocre response should score 50-65, a good one 70-85, and an excellent one 85+. Only give 90+ for truly exceptional delivery.
 
-Return exactly this JSON:
+Return your response in this exact JSON format with no extra text:
 {
-  "score": <overall 0-100, difficulty-calibrated>,
-  "clarity": <0-100>,
-  "structure": <0-100>,
-  "confidence": <0-100>,
-  "filler_count": <exact total>,
-  "filler_words": ["each unique filler word found"],
-  "strengths": [
-    "<5-6 items — each must quote specific words from transcript as evidence, mention exact counts or metrics, and reference the difficulty level where relevant>"
-  ],
-  "improvements": [
-    "<5-6 items — each must include: exact filler word counts like 'actually ×4', quote specific unclear sentences, name missing structural elements, count hedges, note vocabulary weaknesses with specific replacement suggestions>"
-  ],
-  "overall_feedback": "<Explain the score: 'Score of X breaks down as: Clarity Y (reason), Structure Y (reason), Confidence Y (reason). One sentence on overall impression referencing the difficulty level.'>",
-  "one_tip": "<A specific step-by-step drill referencing their actual words and topic. Never generic. Include numbered steps.>"
-}`
+  "totalScore": 74,
+  "clarity": 18,
+  "structure": 17,
+  "fillerWords": 20,
+  "confidence": 19,
+  "fillerWordList": {"um": 3, "like": 5},
+  "feedback": "One sentence of specific feedback here",
+  "strength": "One thing they did well",
+  "improvement": "The single most important thing to work on"
+}
+
+Transcript to analyze:
+${transcript}`
       }]
     });
 

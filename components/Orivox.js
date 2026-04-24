@@ -244,7 +244,53 @@ function analyzeTranscript(text, topic, difficulty) {
   const wordCount = words.length;
   const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 3);
   const sentenceCount = sentences.length;
-
+  // ── new-format local fallback ──────────────────────────────────────────────
+  {
+    const FILLERS=[
+      {word:"um",re:/\bum\b/gi},{word:"uh",re:/\buh\b/gi},
+      {word:"like",re:/\blike\b/gi},{word:"you know",re:/\byou\s+know\b/gi},
+      {word:"basically",re:/\bbasically\b/gi},{word:"literally",re:/\bliterally\b/gi},
+      {word:"right",re:/\bright\b/gi},{word:"so",re:/\bso\b/gi},
+      {word:"kind of",re:/\bkind\s+of\b/gi},{word:"sort of",re:/\bsort\s+of\b/gi},
+    ];
+    const fillerWordList={};
+    let totalFillers=0;
+    for(const {word,re} of FILLERS){
+      const n=(text.match(re)||[]).length;
+      if(n>0){fillerWordList[word]=n;totalFillers+=n;}
+    }
+    const fillerRate=wordCount>0?totalFillers/wordCount:0;
+    const STRUCT=["first","second","third","finally","furthermore","however","therefore","additionally","for example","in conclusion"];
+    const structCount=STRUCT.filter(w=>lower.includes(w)).length;
+    const HEDGE_RES=[/\bi\s+think\b/gi,/\bmaybe\b/gi,/\bi\s+guess\b/gi,/\bprobably\b/gi,/\bi\s+feel\b/gi];
+    const totalHedges=HEDGE_RES.reduce((s,re)=>s+(text.match(re)||[]).length,0);
+    const clarity=Math.max(5,Math.min(25,20-Math.round(fillerRate*80)+(wordCount>80?3:0)+(sentenceCount>3?2:0)));
+    const structure=Math.max(5,Math.min(25,8+Math.min(structCount*4,12)+(sentenceCount>3?3:0)+(wordCount>100?2:0)));
+    const fillerWordsScore=Math.max(5,Math.min(25,25-Math.round(fillerRate*160)));
+    const confidence=Math.max(5,Math.min(25,22-totalHedges*3+(wordCount>100?2:0)));
+    const totalScore=Math.max(20,Math.min(100,clarity+structure+fillerWordsScore+confidence));
+    const topFiller=Object.entries(fillerWordList).sort((a,b)=>b[1]-a[1])[0];
+    const hasFiller=totalFillers>0;
+    const feedbackStr=totalScore>=80
+      ?`Strong response — clear, structured, and delivered with confidence on a ${difficulty} prompt.`
+      :totalScore>=60
+      ?`Solid effort on a ${difficulty} prompt.${hasFiller?` Watch the "${topFiller[0]}" habit — it appeared ${topFiller[1]} time${topFiller[1]>1?"s":""}.`:""}`
+      :`Keep working at it — the specifics below show exactly what to fix first.`;
+    const strength=structCount>1
+      ?`Used ${structCount} signpost words — your response had clear direction and was easy to follow`
+      :wordCount>100
+      ?`Good depth — ${wordCount} words shows you developed the idea rather than giving a surface-level answer`
+      :`Completed the full response without stopping — the discipline to speak to the end builds real skill`;
+    const improvement=hasFiller&&fillerRate>0.04
+      ?`Cut "${topFiller[0]}" (appeared ${topFiller[1]} time${topFiller[1]>1?"s":""}) — replace it with a deliberate one-second pause instead`
+      :structCount<2
+      ?`Add signpost words — try opening with "I'll cover two things: first… and second…" to give your response immediate structure`
+      :totalHedges>2
+      ?`Remove hedging language like "I think" or "maybe" — state your points directly and they instantly sound more authoritative`
+      :`Push for more depth — try hitting ${Math.min(wordCount+60,200)} words next time by adding one concrete example`;
+    return{totalScore,clarity,structure,fillerWords:fillerWordsScore,confidence,fillerWordList,feedback:feedbackStr,strength,improvement};
+  }
+  // (unreachable — kept for linter)
   const FILLER_DEFS = [
     {word:"um",re:/\bum\b/gi},{word:"uh",re:/\buh\b/gi},
     {word:"like",re:/\blike\b/gi},{word:"you know",re:/\byou\s+know\b/gi},
@@ -486,7 +532,7 @@ function WaveViz({active}){
   );
 }
 
-function SubBar({label,val,color,bg}){
+function SubBar({label,val,max=100,color,bg}){
   const [shown,setShown]=useState(0);
   useEffect(()=>{
     let raf;
@@ -503,11 +549,11 @@ function SubBar({label,val,color,bg}){
   return(
     <div style={{background:bg||"var(--orange-dim)",borderRadius:16,padding:"16px 18px",border:`2px solid ${color}30`}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-        <span style={{fontFamily:"Fredoka",fontSize:16,color:"var(--text)"}}>{label}</span>
-        <span style={{fontFamily:"Fredoka",fontSize:22,fontWeight:700,color}}>{shown}</span>
+        <span style={{fontFamily:"Fredoka",fontSize:15,color:"var(--text)"}}>{label}</span>
+        <span style={{fontFamily:"Fredoka",fontSize:20,fontWeight:700,color}}>{shown}<span style={{fontSize:12,opacity:.6,fontWeight:400}}>/{max}</span></span>
       </div>
       <div style={{height:8,borderRadius:4,background:"rgba(0,0,0,0.08)",overflow:"hidden"}}>
-        <div style={{height:"100%",width:`${shown}%`,background:color,borderRadius:4}}/>
+        <div style={{height:"100%",width:`${(shown/max)*100}%`,background:color,borderRadius:4,transition:"width .1s"}}/>
       </div>
     </div>
   );
@@ -725,14 +771,15 @@ export default function Orivox(){
       const words=transcriptRef.current.trim().split(/\s+/).filter(Boolean).length;
       const wpm=speakTime>0?(words/speakTime)*60:0;
       const pacingRating=wpm<100?"slow":wpm<170?"good":"fast";
+      const fillerWordList=feedbackData.fillerWordList||{};
       const session={
         id:Date.now().toString(),
         date:new Date().toISOString().split("T")[0],
         category:activeCat,
         difficulty:activeDiff,
-        score:feedbackData.score,
-        fillerWordCount:feedbackData.filler_count||0,
-        fillerWords:feedbackData.filler_words||[],
+        score:feedbackData.totalScore,
+        fillerWordCount:Object.values(fillerWordList).reduce((a,b)=>a+b,0),
+        fillerWords:Object.keys(fillerWordList),
         pacingRating,
         speakDuration:speakTime,
       };
@@ -991,77 +1038,72 @@ export default function Orivox(){
               {!loading&&feedback&&!feedback.error&&(
                 <div>
                   {/* Score hero */}
-                  <div className="card fb1" style={{textAlign:"center",padding:"52px 32px",marginBottom:20,position:"relative",overflow:"visible",borderTop:`6px solid ${feedback.score>=80?"var(--green)":feedback.score>=60?"var(--yellow)":"var(--red)"}`}}>
+                  <div className="card fb1" style={{textAlign:"center",padding:"48px 32px",marginBottom:20,position:"relative",overflow:"visible",borderTop:`6px solid ${feedback.totalScore>=80?"var(--green)":feedback.totalScore>=60?"var(--yellow)":"var(--red)"}`}}>
                     <Confetti active={true}/>
-                    <CelebStars show={feedback.score>=80}/>
+                    <CelebStars show={feedback.totalScore>=80}/>
                     <div style={{position:"absolute",top:16,right:16}}><Star size={32} color="#F5C842"/></div>
                     <div style={{position:"absolute",top:20,left:20}}><Sparkle size={26} color="var(--orange)"/></div>
-                    <h3 className="fredoka" style={{fontSize:19,color:"var(--muted)",marginBottom:20}}>Overall Score</h3>
-                    <div style={{display:"flex",justifyContent:"center",marginBottom:20}}><ScoreRing score={feedback.score} size={160}/></div>
+                    <h2 className="fredoka" style={{fontSize:28,color:"var(--text)",marginBottom:16}}>
+                      {feedback.totalScore>=80?"Crushed it 🔥":feedback.totalScore>=60?"Nice work 💪":"Keep going — it gets easier"}
+                    </h2>
+                    <div style={{display:"flex",justifyContent:"center",marginBottom:20}}><ScoreRing score={feedback.totalScore} size={160}/></div>
                     <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:"10px 24px",borderRadius:50,
-                      background:feedback.score>=80?"var(--green)":feedback.score>=60?"var(--yellow-dim)":"var(--red-dim)",
-                      border:`2px solid ${feedback.score>=80?"var(--green)":feedback.score>=60?"var(--yellow)":"var(--red)"}`,
-                      color:feedback.score>=80?"white":feedback.score>=60?"#7A5500":"var(--red)",
+                      background:feedback.totalScore>=80?"var(--green)":feedback.totalScore>=60?"var(--yellow-dim)":"var(--red-dim)",
+                      border:`2px solid ${feedback.totalScore>=80?"var(--green)":feedback.totalScore>=60?"var(--yellow)":"var(--red)"}`,
+                      color:feedback.totalScore>=80?"white":feedback.totalScore>=60?"#7A5500":"var(--red)",
                       fontFamily:"Fredoka",fontSize:18,fontWeight:600,marginBottom:20}}>
-                      {feedback.score>=80?"Excellent":feedback.score>=60?"Good Job":"Keep Practicing"}
+                      {feedback.totalScore>=80?"Excellent":feedback.totalScore>=60?"Good Job":"Keep Practicing"}
                     </div>
-                    <p style={{color:"var(--muted)",fontSize:16,maxWidth:460,margin:"0 auto",lineHeight:1.8}}>{feedback.overall_feedback}</p>
+                    <p style={{color:"var(--muted)",fontSize:16,maxWidth:460,margin:"0 auto",lineHeight:1.8}}>{feedback.feedback}</p>
                   </div>
 
-                  {/* Sub scores */}
-                  <div className="fb2" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:20}}>
-                    <SubBar label="Clarity" val={feedback.clarity} color="#3B82F6" bg="#EFF6FF"/>
-                    <SubBar label="Structure" val={feedback.structure} color="var(--orange)" bg="var(--orange-dim)"/>
-                    <SubBar label="Confidence" val={feedback.confidence} color="var(--green)" bg="#E8F7EE"/>
+                  {/* Sub scores — 4 categories out of 25 */}
+                  <div className="fb2" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+                    <SubBar label="Clarity" val={feedback.clarity} max={25} color="#3B82F6" bg="#EFF6FF"/>
+                    <SubBar label="Structure" val={feedback.structure} max={25} color="var(--orange)" bg="var(--orange-dim)"/>
+                    <SubBar label="Delivery" val={feedback.fillerWords} max={25} color="var(--green)" bg="#E8F7EE"/>
+                    <SubBar label="Confidence" val={feedback.confidence} max={25} color="#8B5CF6" bg="#F5F3FF"/>
                   </div>
 
-                  {/* Fillers */}
-                  {feedback.filler_count>0&&(
-                    <div className="card fb3" style={{padding:28,marginBottom:20,borderLeft:"5px solid var(--red)"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
-                        <span className="fredoka" style={{fontSize:19}}>Filler Words</span>
-                        <span style={{background:"var(--red-dim)",color:"var(--red)",border:"2px solid rgba(232,64,64,.2)",borderRadius:50,padding:"3px 14px",fontFamily:"Fredoka",fontSize:14}}>{feedback.filler_count} detected</span>
+                  {/* Filler word callouts */}
+                  <div className="card fb3" style={{padding:28,marginBottom:20,borderLeft:`5px solid ${Object.keys(feedback.fillerWordList||{}).length===0?"var(--green)":"var(--red)"}`}}>
+                    <p className="fredoka" style={{fontSize:19,marginBottom:16}}>Filler Words</p>
+                    {Object.keys(feedback.fillerWordList||{}).length===0?(
+                      <p style={{color:"var(--green)",fontSize:15,fontWeight:600}}>Clean delivery — no filler words detected 🎉</p>
+                    ):(
+                      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                        {Object.entries(feedback.fillerWordList).sort((a,b)=>b[1]-a[1]).map(([word,count])=>(
+                          <div key={word} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 18px",borderRadius:12,background:"var(--red-dim)",border:"1.5px solid rgba(232,64,64,.18)"}}>
+                            <span style={{fontFamily:"Fredoka",fontSize:16,color:"var(--red)"}}>"{word}"</span>
+                            <span style={{fontSize:14,color:"var(--red)",fontWeight:700}}>— {count} {count===1?"time":"times"}</span>
+                          </div>
+                        ))}
                       </div>
-                      <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-                        {feedback.filler_words.map(w=><span key={w} style={{padding:"6px 18px",borderRadius:50,background:"var(--red-dim)",color:"var(--red)",border:"2px solid rgba(232,64,64,.2)",fontFamily:"Fredoka",fontSize:15}}>{w}</span>)}
-                      </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
-                  {/* Strengths + Improvements */}
+                  {/* What's working + Focus on this */}
                   <div className="fb4" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:20}}>
                     <div className="card" style={{padding:28,borderTop:"5px solid var(--green)"}}>
-                      <p className="fredoka" style={{fontSize:18,color:"var(--green)",marginBottom:16}}>✓ What's working</p>
-                      {feedback.strengths.map((s,i)=>(
-                        <div key={i} style={{display:"flex",gap:10,marginBottom:12,alignItems:"flex-start"}}>
-                          <div style={{width:22,height:22,borderRadius:"50%",background:"#E8F7EE",border:"2px solid var(--green)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:2}}>
-                            <svg width="10" height="10" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="var(--green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
-                          </div>
-                          <span style={{fontSize:15,lineHeight:1.6}}>{s}</span>
-                        </div>
-                      ))}
+                      <p className="fredoka" style={{fontSize:18,color:"var(--green)",marginBottom:14}}>✓ What's working</p>
+                      <p style={{fontSize:15,lineHeight:1.7,color:"var(--text)"}}>{feedback.strength}</p>
                     </div>
                     <div className="card" style={{padding:28,borderTop:"5px solid var(--orange)"}}>
-                      <p className="fredoka" style={{fontSize:18,color:"var(--orange)",marginBottom:16}}>↑ To improve</p>
-                      {feedback.improvements.map((s,i)=>(
-                        <div key={i} style={{display:"flex",gap:10,marginBottom:12,alignItems:"flex-start"}}>
-                          <div style={{width:22,height:22,borderRadius:"50%",background:"var(--orange-dim)",border:"2px solid var(--orange-border)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:2}}>
-                            <svg width="10" height="10" viewBox="0 0 12 12"><path d="M6 9V3M3 6l3-3 3 3" stroke="var(--orange)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
-                          </div>
-                          <span style={{fontSize:15,lineHeight:1.6}}>{s}</span>
-                        </div>
-                      ))}
+                      <p className="fredoka" style={{fontSize:18,color:"var(--orange)",marginBottom:14}}>↑ Focus on this</p>
+                      <p style={{fontSize:15,lineHeight:1.7,color:"var(--text)"}}>{feedback.improvement}</p>
                     </div>
                   </div>
 
-                  {/* Coach tip */}
+                  {/* Next session suggestion */}
                   <div className="card fb5" style={{padding:28,marginBottom:20,background:"var(--yellow-dim)",border:"2.5px solid var(--yellow)",borderRadius:22}}>
-                    <div style={{display:"flex",gap:16,alignItems:"flex-start"}}>
-                      <div>
-                        <p className="fredoka" style={{fontSize:18,color:"#7A5500",marginBottom:8}}>Coach's Tip</p>
-                        <p style={{fontSize:15,lineHeight:1.8}}>{feedback.one_tip}</p>
-                      </div>
-                    </div>
+                    <p className="fredoka" style={{fontSize:18,color:"#7A5500",marginBottom:8}}>Coach's Note</p>
+                    <p style={{fontSize:15,lineHeight:1.8}}>
+                      {feedback.totalScore<60
+                        ?"Focus on slowing down and pausing instead of filling silence — try an Easy session next"
+                        :feedback.totalScore<=80
+                        ?"Good foundation — try pushing to a harder difficulty next time"
+                        :"Strong session — challenge yourself with Debate or Business next"}
+                    </p>
                   </div>
 
                   {/* Transcript */}
