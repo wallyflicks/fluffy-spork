@@ -1019,12 +1019,37 @@ export default function Orivox(){
     setMicErr("");setTranscript("");transcriptRef.current="";
     stoppingRef.current=false;
     try{
+      // Check permission state before attempting getUserMedia
+      if(navigator.permissions){
+        try{
+          const perm=await navigator.permissions.query({name:"microphone"});
+          if(perm.state==="denied"){
+            setMicErr("Microphone access is blocked. Go to your browser settings and allow microphone access for this site, then refresh and try again.");
+            setMicStarting(false);return;
+          }
+        }catch{}
+      }
+
       const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-      const mr=new MediaRecorder(stream);
+
+      // Pick best supported MIME type — Safari/iOS needs mp4, others prefer webm
+      const mimeTypes=["audio/webm;codecs=opus","audio/webm","audio/mp4","audio/ogg;codecs=opus","audio/ogg",""];
+      const isSafari=/^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      const preferredTypes=isSafari?["audio/mp4","audio/ogg","audio/webm",""]:mimeTypes;
+      const mimeType=preferredTypes.find(t=>t===""||MediaRecorder.isTypeSupported(t))||"";
+
+      const mr=new MediaRecorder(stream,mimeType?{mimeType}:{});
       mediaRef.current=mr;chunksRef.current=[];
-      mr.ondataavailable=e=>chunksRef.current.push(e.data);
+      mr.ondataavailable=e=>{if(e.data&&e.data.size>0)chunksRef.current.push(e.data);};
       mr.onstop=()=>{
-        const blob=new Blob(chunksRef.current,{type:mr.mimeType||"audio/webm"});
+        const finalMime=mr.mimeType||mimeType||"audio/webm";
+        const blob=new Blob(chunksRef.current,{type:finalMime});
+        console.log(`[Orivox] Recording stopped. MIME: ${finalMime}, size: ${blob.size} bytes, chunks: ${chunksRef.current.length}`);
+        if(blob.size<1000){
+          setMicErr("We could not detect your audio. Please check your microphone permissions and try again.");
+          stream.getTracks().forEach(t=>t.stop());
+          return;
+        }
         setAudioBlob(blob);
         setAudioUrl(URL.createObjectURL(blob));
         stream.getTracks().forEach(t=>t.stop());
@@ -1059,8 +1084,13 @@ export default function Orivox(){
         };
         startRec();
       }
-    }catch{
-      setMicErr("Mic access denied — please allow microphone permissions.");
+    }catch(err){
+      const msg=err?.name==="NotAllowedError"||err?.name==="PermissionDeniedError"
+        ?"Microphone access was denied. Please allow microphone access in your browser settings and try again."
+        :err?.name==="NotFoundError"||err?.name==="DevicesNotFoundError"
+        ?"No microphone found. Please connect a microphone and try again."
+        :"Could not start recording — please check your microphone and try again.";
+      setMicErr(msg);
       setMicStarting(false);
     }
   };
@@ -1125,7 +1155,12 @@ export default function Orivox(){
     setLoading(true);
     const text=transcriptRef.current;
     if(!text.trim()){
-      setFeedback({error:"No speech detected. Make sure your microphone is working and try again."});
+      // Check if we actually had audio data — if so, transcription failed rather than mic failing
+      const hadAudio=chunksRef.current.length>0&&chunksRef.current.some(c=>c.size>0);
+      setFeedback({error:hadAudio
+        ?"We had trouble transcribing your audio — please speak clearly and try again."
+        :"No speech detected. Make sure your microphone is working and try again."
+      });
       setLoading(false);return;
     }
     let result=null;

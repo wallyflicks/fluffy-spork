@@ -15,21 +15,32 @@ export async function POST(req) {
 
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 1536,
+      max_tokens: 2048,
       messages: [{
         role: 'user',
-        content: `You are a strict but encouraging speaking coach. Analyze the following speech transcript and score it across these four categories:
+        content: `You are an expert speaking coach with years of experience helping people communicate clearly and confidently. Analyze the following speech transcript in detail and provide genuinely useful, specific coaching.
 
-- Clarity (0-25): Is the message easy to understand? Are sentences complete and logical?
-- Structure (0-25): Does it have a clear opening, middle, and end? Does it stay on topic?
-- Filler words (0-25): Penalize for um, uh, like, you know, sort of, kind of, basically, literally, right, so. List every filler word found and how many times it appeared.
-- Confidence & pacing (0-25): Does it sound confident? Are there signs of rambling or trailing off?
+Score across these four categories:
+- Clarity (0-25): Can the listener easily follow the message? Are ideas expressed clearly or muddled?
+- Structure (0-25): Is there a clear beginning, middle, and end? Does it flow logically?
+- Filler words (0-25): Penalize for um, uh, like, you know, sort of, kind of, basically, literally, right, so, actually, honestly. List every filler word and exact count.
+- Confidence & delivery (0-25): Does it sound assured and natural? Any rambling, trailing off, or lack of commitment to ideas?
 
-Total score is out of 100. Be honest — do not inflate scores. A mediocre response should score 50-65, a good one 70-85, and an excellent one 85+. Only give 90+ for truly exceptional delivery.
+Scoring must be honest and calibrated:
+- 0-50: Significant issues with clarity or structure
+- 51-65: Basic communication but noticeable weaknesses
+- 66-79: Solid with clear areas to improve
+- 80-89: Strong delivery with minor issues
+- 90-100: Exceptional — only for truly outstanding responses
+
+For the feedback field, write 3-4 sentences of SPECIFIC coaching based on what they actually said. Reference their actual words, ideas, or patterns. Do not write generic advice. If they rambled about a specific topic, name it. If their structure was weak, explain exactly where it broke down. If they had a strong opening, acknowledge it specifically.
+
+For strength: write one specific thing they did well, referencing their actual content.
+For improvement: write the single most important thing to work on, with a concrete tip for how to do it next time.
 
 Also produce a "cleanedTranscript": take the raw transcript and add punctuation, capitalize sentences, and break into paragraphs at natural pauses. Do NOT change, remove, or reorder any spoken words — every word must appear exactly as said, just made readable.
 
-Return your response in this exact JSON format with no extra text:
+Return ONLY this JSON with no extra text:
 {
   "totalScore": 74,
   "clarity": 18,
@@ -37,13 +48,16 @@ Return your response in this exact JSON format with no extra text:
   "fillerWords": 20,
   "confidence": 19,
   "fillerWordList": {"um": 3, "like": 5},
-  "feedback": "One sentence of specific feedback here",
-  "strength": "One thing they did well",
-  "improvement": "The single most important thing to work on",
+  "feedback": "Your specific 3-4 sentence coaching here based on what they actually said",
+  "strength": "One specific thing they did well referencing their actual content",
+  "improvement": "The single most important thing to work on with a concrete actionable tip",
   "cleanedTranscript": "The full transcript with punctuation and paragraphs added, words unchanged."
 }
 
-Transcript to analyze:
+Category: ${category}
+Difficulty: ${difficulty}
+Topic: ${topic}
+Transcript:
 ${transcript}`
       }]
     });
