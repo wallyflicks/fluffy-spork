@@ -39,8 +39,8 @@ Session history: ${JSON.stringify(body.sessions)}`
       return Response.json(JSON.parse(raw));
     }
 
-    // ── Normal / Roast analysis ──────────────────────────────────────────────
-    const { transcript, topic, category, difficulty, roastMode } = body;
+    // ── Normal analysis ──────────────────────────────────────────────────────
+    const { transcript, topic, category, difficulty } = body;
 
     if (!transcript?.trim()) {
       return Response.json(
@@ -49,53 +49,12 @@ Session history: ${JSON.stringify(body.sessions)}`
       );
     }
 
-    const prompt = roastMode
-      ? `You are the most brutally honest, savage, and comedically ruthless speaking coach who has ever lived. You have zero patience for mediocrity and an encyclopedic memory for every bad speech habit known to mankind. Your roasts are SPECIFIC, FUNNY, and DEVASTATING — but always about the speech, never the person. You are roasting the words on the page, not the human who said them.
-
-RULES FOR THE ROAST:
-- Reference their ACTUAL words and topics. Generic roasts are lazy. If they talked about productivity, roast their productivity speech specifically.
-- Every filler word gets called out by name and count. Make the count feel shameful and funny.
-- If their structure was bad, describe exactly HOW it was bad with a funny analogy.
-- If they rambled, quote or paraphrase the rambling back at them.
-- Use comparisons, analogies, and exaggeration for comic effect.
-- The roast should feel like it was written by someone who actually listened, not a bot running a template.
-
-TONE EXAMPLES (use this energy, not these exact lines):
-- "You opened with 'so basically' and then proved that you had no idea what 'basically' meant for the next 45 seconds."
-- "The word 'like' appeared 9 times. Your transcript reads less like a speech and more like a text message to someone who already knows what you mean."
-- "You had a point somewhere in there. I could feel it trying to escape. It never made it."
-- "Your conclusion was not a conclusion. It was just you stopping."
-- "You spent 30 seconds explaining what you were about to say instead of saying it. That is called a false start. You had two of them."
-- "Confidence score: 14 out of 25. You sound like someone who prepared for a different question."
-
-For the feedback field: write 4-5 sentences of genuinely savage, specific, funny commentary on what they actually said. Quote or closely paraphrase their actual words. Explain WHY each thing is bad, not just THAT it is bad.
-For the strength field: give a backhanded compliment that acknowledges something real but undercuts it. Example: "You technically answered the question, which puts you ahead of roughly 40% of people who have stood at a podium."
-For the improvement field: give the single most important fix with brutal clarity and a sharp delivery. Make it memorable.
-
-The scores should still be accurate and fair — do not artificially lower them. The roast is entirely in the text, not the numbers.
-
-Also produce a "cleanedTranscript": add punctuation and paragraph breaks. Do NOT change any spoken words.
-
-Return ONLY this JSON with no extra text:
-{
-  "totalScore": 74,
-  "clarity": 18,
-  "structure": 17,
-  "fillerWords": 20,
-  "confidence": 19,
-  "fillerWordList": {"um": 3, "like": 5},
-  "feedback": "4-5 sentences of brutal specific roast here referencing their actual words",
-  "strength": "Backhanded compliment here",
-  "improvement": "Savage but genuinely useful advice here",
-  "cleanedTranscript": "The full transcript with punctuation added, words unchanged."
-}
-
-Category: ${category}
-Difficulty: ${difficulty}
-Topic: ${topic}
-Transcript:
-${transcript}`
-      : `You are an expert speaking coach with years of experience helping people communicate clearly and confidently. Analyze the following speech transcript in detail and provide genuinely useful, specific coaching.
+    const message = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2048,
+      messages: [{
+        role: 'user',
+        content: `You are an expert speaking coach with years of experience helping people communicate clearly and confidently. Analyze the following speech transcript in detail and provide genuinely useful, specific coaching.
 
 Score across these four categories:
 - Clarity (0-25): Can the listener easily follow the message? Are ideas expressed clearly or muddled?
@@ -135,12 +94,8 @@ Category: ${category}
 Difficulty: ${difficulty}
 Topic: ${topic}
 Transcript:
-${transcript}`;
-
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
-      messages: [{ role: 'user', content: prompt }]
+${transcript}`
+      }]
     });
 
     const raw = message.content[0].text

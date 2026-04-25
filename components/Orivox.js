@@ -715,7 +715,7 @@ function ReviewPrompt({onSubmit,initialName=""}){
 }
 
 // ── Share Card ───────────────────────────────────────────────────────────────
-function ShareCard({score,category,difficulty,strength,roastMode=false}){
+function ShareCard({score,category,difficulty,strength}){
   const [open,setOpen]=useState(false);
   const [copied,setCopied]=useState(false);
   const [previewUrl,setPreviewUrl]=useState('');
@@ -809,20 +809,6 @@ function ShareCard({score,category,difficulty,strength,roastMode=false}){
     ctx.fillStyle='#FF6B2B';
     ctx.font='bold 44px Arial,sans-serif';
     ctx.fillText('orivoxapp.vercel.app',cx,946);
-
-    // Roast Mode stamp
-    if(roastMode){
-      ctx.save();
-      ctx.translate(W*0.76,258);
-      ctx.rotate(Math.PI/9);
-      ctx.strokeStyle='#FF6B2B';ctx.lineWidth=5;
-      ctx.strokeRect(-95,-26,190,52);
-      ctx.fillStyle='#FF6B2B';
-      ctx.font='bold 32px Arial,sans-serif';
-      ctx.textAlign='center';ctx.textBaseline='middle';
-      ctx.fillText('ROAST MODE',0,0);
-      ctx.restore();
-    }
 
     // Bottom bar
     ctx.fillStyle='#FF6B2B';
@@ -1052,7 +1038,6 @@ export default function Orivox(){
   const audioCtxRef=useRef(null);
   const [analyserNode,setAnalyserNode]=useState(null);
   const [micStarting,setMicStarting]=useState(false);
-  const [roastMode,setRoastMode]=useState(false);
   const [retrySource,setRetrySource]=useState(null);
   const [voiceTypeData,setVoiceTypeData]=useState(null);
   const [showVoiceTypeModal,setShowVoiceTypeModal]=useState(false);
@@ -1332,7 +1317,7 @@ export default function Orivox(){
     let result=null;
     try{
       const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({transcript:text,topic,category:activeCat,difficulty:activeDiff,roastMode})});
+        body:JSON.stringify({transcript:text,topic,category:activeCat,difficulty:activeDiff})});
       if(res.ok){const d=await res.json();if(!d.error)result=d;}
     }catch{}
     if(!result){
@@ -1560,17 +1545,6 @@ export default function Orivox(){
                   </div>
                 </div>
                 )}
-                {/* Roast Mode toggle */}
-                <div style={{marginBottom:36,display:"flex",alignItems:"center",justifyContent:"space-between",gap:16,padding:"16px 20px",borderRadius:16,background:roastMode?"#1A1A2E":"var(--cream)",border:`2px solid ${roastMode?"var(--orange)":"var(--border)"}`,cursor:"pointer",transition:"all .2s"}} onClick={()=>setRoastMode(r=>!r)}>
-                  <div>
-                    <p className="fredoka" style={{fontSize:18,color:roastMode?"#FF6B2B":"var(--text)",transition:"color .2s"}}>Roast Mode</p>
-                    <p style={{fontSize:13,color:roastMode?"rgba(255,255,255,0.55)":"var(--muted)",transition:"color .2s"}}>Get brutally honest, comedic feedback</p>
-                  </div>
-                  <div style={{width:52,height:28,borderRadius:14,background:roastMode?"var(--orange)":"var(--border)",position:"relative",flexShrink:0,transition:"background .2s",pointerEvents:"none"}}>
-                    <span style={{position:"absolute",top:3,left:roastMode?26:3,width:22,height:22,borderRadius:"50%",background:"white",transition:"left .2s",boxShadow:"0 1px 3px rgba(0,0,0,0.25)"}}/>
-                  </div>
-                </div>
-
                 {/* Timers */}
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:28,marginBottom:40}}>
                   <div>
@@ -1649,10 +1623,6 @@ export default function Orivox(){
                   :<div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"9px 22px",borderRadius:50,background:"var(--orange-dim)",border:"2px solid var(--orange-border)",fontFamily:"Fredoka",fontSize:17,color:"var(--orange)"}}>Ready to record</div>
                 }
               </div>
-              {roastMode&&<div style={{display:"flex",justifyContent:"center",marginTop:-14,marginBottom:16}}>
-                <span style={{fontSize:12,fontWeight:700,padding:"4px 14px",borderRadius:50,background:"#1A1A2E",color:"#FF6B2B",border:"1.5px solid #FF6B2B",letterSpacing:".06em",textTransform:"uppercase",fontFamily:"Fredoka"}}>Roast Mode On</span>
-              </div>}
-
               <div className="card fadeUp d1" style={{textAlign:"left",padding:24,marginBottom:20}}>
                 <p style={{fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Your prompt</p>
                 <p className="fredoka" style={{fontSize:20,lineHeight:1.5,marginBottom:recording?0:14}}>"{displayedTopic}"</p>
@@ -1705,12 +1675,6 @@ export default function Orivox(){
 
               {!loading&&feedback&&!feedback.error&&(
                 <div>
-                  {/* Roast Mode banner */}
-                  {roastMode&&<div className="fadeUp" style={{marginBottom:20,padding:"16px 24px",borderRadius:16,background:"#1A1A2E",border:"2.5px solid #FF6B2B",textAlign:"center"}}>
-                    <span className="fredoka" style={{fontSize:22,color:"#FF6B2B",letterSpacing:".04em"}}>Roast Mode Results</span>
-                    <span style={{marginLeft:12,fontSize:15,color:"rgba(255,255,255,0.5)"}}>You asked for it...</span>
-                  </div>}
-
                   {/* Before & After comparison */}
                   {retrySource&&(()=>{
                     const curWords=(feedback.cleanedTranscript||transcript).trim().split(/\s+/).filter(Boolean).length;
@@ -1760,15 +1724,17 @@ export default function Orivox(){
                     <h2 className="fredoka" style={{fontSize:28,color:"var(--text)",marginBottom:16}}>
                       {feedback.totalScore>=80?"Crushed it":feedback.totalScore>=60?"Nice work":"Keep going — it gets easier"}
                     </h2>
-                    <div style={{display:"flex",justifyContent:"center",marginBottom:20}}><ScoreRing score={feedback.totalScore} size={160}/></div>
-                    <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:"10px 24px",borderRadius:50,
-                      background:feedback.totalScore>=80?"var(--green)":feedback.totalScore>=60?"var(--yellow-dim)":"var(--red-dim)",
-                      border:`2px solid ${feedback.totalScore>=80?"var(--green)":feedback.totalScore>=60?"var(--yellow)":"var(--red)"}`,
-                      color:feedback.totalScore>=80?"white":feedback.totalScore>=60?"#7A5500":"var(--red)",
-                      fontFamily:"Fredoka",fontSize:18,fontWeight:600,marginBottom:32}}>
-                      {feedback.totalScore>=80?"Excellent":feedback.totalScore>=60?"Good Job":"Keep Practicing"}
+                    <div style={{display:"flex",justifyContent:"center",marginBottom:28}}><ScoreRing score={feedback.totalScore} size={160}/></div>
+                    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:20}}>
+                      <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:"10px 28px",borderRadius:50,
+                        background:feedback.totalScore>=80?"var(--green)":feedback.totalScore>=60?"var(--yellow-dim)":"var(--red-dim)",
+                        border:`2px solid ${feedback.totalScore>=80?"var(--green)":feedback.totalScore>=60?"var(--yellow)":"var(--red)"}`,
+                        color:feedback.totalScore>=80?"white":feedback.totalScore>=60?"#7A5500":"var(--red)",
+                        fontFamily:"Fredoka",fontSize:18,fontWeight:600}}>
+                        {feedback.totalScore>=80?"Excellent":feedback.totalScore>=60?"Good Job":"Keep Practicing"}
+                      </div>
+                      <ShareCard score={feedback.totalScore} category={activeCat} difficulty={activeDiff} strength={feedback.strength||""}/>
                     </div>
-                    <ShareCard score={feedback.totalScore} category={activeCat} difficulty={activeDiff} strength={feedback.strength||""} roastMode={roastMode}/>
                   </div>
 
                   {/* Sub scores — 4 categories out of 25 */}
