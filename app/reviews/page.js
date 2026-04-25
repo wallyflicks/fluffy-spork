@@ -80,9 +80,11 @@ export default function Reviews() {
     supabase
       .from('Reviews')
       .select('id,rating,comment,Name,created_at')
-      .gte('rating', 4)
       .order('created_at', { ascending: false })
-      .then(({ data }) => setReviews(data || []))
+      .then(({ data, error }) => {
+        if (error) console.error('Reviews fetch error:', error.message)
+        setReviews(data || [])
+      })
   }, [])
 
   if (reviews === null) {

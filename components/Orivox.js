@@ -663,7 +663,7 @@ function ReviewPrompt({onSubmit,initialName=""}){
       Name:name.trim()||"Anonymous",
     });
     setLoading(false);
-    if(error){setErr("Couldn't submit — please try again.");return;}
+    if(error){console.error("Review submit error:",error.message,error);setErr("Couldn't submit — please try again.");return;}
     setSubmitted(true);
     onSubmit();
   };
@@ -1602,7 +1602,7 @@ export default function Orivox(){
 
               <div className="card fadeUp d1" style={{padding:28,marginBottom:20,borderLeft:"6px solid var(--orange)",position:"relative"}}>
                 <p style={{fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Your prompt</p>
-                <p className="fredoka" style={{fontSize:24,lineHeight:1.4,marginBottom:16}}>"{displayedTopic}"</p>
+                <p className="fredoka" style={{fontSize:24,lineHeight:1.4,marginBottom:16}}>"{activeCat==="Custom"?topic:displayedTopic}"</p>
                 {activeCat!=="Custom"&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={pickTopic}>↻ New topic</button>}
               </div>
 
@@ -1635,7 +1635,7 @@ export default function Orivox(){
               </div>
               <div className="card fadeUp d1" style={{textAlign:"left",padding:24,marginBottom:20}}>
                 <p style={{fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Your prompt</p>
-                <p className="fredoka" style={{fontSize:20,lineHeight:1.5,marginBottom:recording?0:14}}>"{displayedTopic}"</p>
+                <p className="fredoka" style={{fontSize:20,lineHeight:1.5,marginBottom:recording?0:14}}>"{activeCat==="Custom"?topic:displayedTopic}"</p>
                 {!recording&&activeCat!=="Custom"&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={pickTopic}>↻ New topic</button>}
               </div>
 
