@@ -23,18 +23,26 @@ const G = () => (
     ::-webkit-scrollbar-thumb{background:var(--orange-border);border-radius:3px}
     .review-card{
       background:var(--card);border:2.5px solid var(--border);border-radius:20px;
-      box-shadow:var(--shadow);padding:24px;display:flex;flex-direction:column;gap:12px;
-      transition:box-shadow .2s,transform .2s;
+      box-shadow:var(--shadow);padding:20px;display:flex;flex-direction:column;gap:10px;
+      cursor:pointer;transition:box-shadow .2s,transform .2s;
+      height:180px;overflow:hidden;
     }
     .review-card:hover{box-shadow:7px 7px 0 rgba(0,0,0,0.13);transform:translateY(-3px)}
+    .review-comment{
+      font-size:13px;line-height:1.6;color:var(--text);opacity:.85;
+      overflow:hidden;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;
+    }
     .dot-bg{
       position:fixed;inset:0;
       background-image:radial-gradient(circle,#E0CEBC 1px,transparent 1px);
       background-size:30px 30px;opacity:.55;pointer-events:none;z-index:0;
     }
     @media(max-width:600px){
-      .review-grid{grid-template-columns:1fr!important}
+      .review-grid{grid-template-columns:1fr 1fr!important}
       .bar-label{font-size:12px!important}
+    }
+    @media(max-width:400px){
+      .review-grid{grid-template-columns:1fr!important}
     }
   `}</style>
 )
@@ -66,6 +74,7 @@ function Stars({ rating, size = 18 }) {
 
 export default function Reviews() {
   const [reviews, setReviews] = useState(null)
+  const [active, setActive] = useState(null)
 
   useEffect(() => {
     supabase
@@ -97,12 +106,11 @@ export default function Reviews() {
       <div style={{ minHeight: '100vh', background: 'var(--bg)', position: 'relative' }}>
         <div className="dot-bg" />
 
-        {/* Header */}
         <PageNav active="/reviews" />
 
         <div style={{ maxWidth: 760, margin: '0 auto', padding: '56px 24px 80px', position: 'relative', zIndex: 1 }}>
 
-          {/* Page title */}
+          {/* Title */}
           <div className="fadeUp" style={{ marginBottom: 40, textAlign: 'center' }}>
             <h1 className="fredoka" style={{ fontSize: 'clamp(36px,6vw,52px)', color: 'var(--text)', marginBottom: 10 }}>
               Testimonials
@@ -118,7 +126,6 @@ export default function Reviews() {
           </div>
 
           {total === 0 ? (
-            /* Empty state */
             <div className="fadeUp d1" style={{
               background: 'var(--card)', border: '2.5px solid var(--border)',
               borderRadius: 22, boxShadow: 'var(--shadow)',
@@ -165,11 +172,9 @@ export default function Reviews() {
                         </div>
                         <div style={{ flex: 1, height: 10, background: 'var(--border)', borderRadius: 5, overflow: 'hidden' }}>
                           <div style={{
-                            height: '100%',
-                            width: `${pct}%`,
+                            height: '100%', width: `${pct}%`,
                             background: stars >= 4 ? 'var(--orange)' : stars === 3 ? 'var(--yellow)' : 'var(--red)',
-                            borderRadius: 5,
-                            transition: 'width .6s cubic-bezier(.22,.68,0,1.2)',
+                            borderRadius: 5, transition: 'width .6s cubic-bezier(.22,.68,0,1.2)',
                           }} />
                         </div>
                         <span style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 700, width: 38, textAlign: 'right', flexShrink: 0 }}>
@@ -181,24 +186,27 @@ export default function Reviews() {
                 </div>
               </div>
 
-              {/* Review grid */}
+              {/* Review grid — fixed-height cards, click to expand */}
               <div className="fadeUp d2 review-grid" style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                gap: 16,
+                gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                gap: 14,
               }}>
                 {reviews.map((r, i) => (
-                  <div key={r.id} className="review-card fadeUp" style={{ animationDelay: `${0.28 + i * 0.05}s` }}>
-                    <Stars rating={r.rating} size={18} />
-                    <p className="fredoka" style={{ fontSize: 14, color: 'var(--orange)' }}>
+                  <div
+                    key={r.id}
+                    className="review-card fadeUp"
+                    style={{ animationDelay: `${0.28 + i * 0.05}s` }}
+                    onClick={() => setActive(r)}
+                  >
+                    <Stars rating={r.rating} size={16} />
+                    <p className="fredoka" style={{ fontSize: 13, color: 'var(--orange)', flexShrink: 0 }}>
                       {r.Name || 'Anonymous'}
                     </p>
                     {r.comment && (
-                      <p style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text)', opacity: 0.85, flex: 1 }}>
-                        "{r.comment}"
-                      </p>
+                      <p className="review-comment">"{r.comment}"</p>
                     )}
-                    <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 'auto' }}>
+                    <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 'auto', flexShrink: 0 }}>
                       {timeAgo(r.created_at)}
                     </p>
                   </div>
@@ -225,6 +233,56 @@ export default function Reviews() {
           )}
         </div>
       </div>
+
+      {/* Full-review popup — click anywhere to close */}
+      {active && (
+        <div
+          onClick={() => setActive(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
+            zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--card)', borderRadius: 22, border: '2.5px solid var(--border)',
+              boxShadow: '8px 8px 0 rgba(0,0,0,0.18)', padding: '32px 28px',
+              maxWidth: 440, width: '100%', position: 'relative',
+            }}
+          >
+            {/* Close tap target — entire overlay closes it, but X is a visual cue */}
+            <button
+              onClick={() => setActive(null)}
+              style={{
+                position: 'absolute', top: 14, right: 14, background: 'none',
+                border: 'none', cursor: 'pointer', padding: 4, lineHeight: 0,
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            </button>
+
+            <Stars rating={active.rating} size={22} />
+            <p className="fredoka" style={{ fontSize: 17, color: 'var(--orange)', margin: '12px 0 4px' }}>
+              {active.Name || 'Anonymous'}
+            </p>
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 18 }}>
+              {timeAgo(active.created_at)}
+            </p>
+            {active.comment && (
+              <p style={{ fontSize: 15, lineHeight: 1.8, color: 'var(--text)' }}>
+                "{active.comment}"
+              </p>
+            )}
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 20, textAlign: 'center' }}>
+              Tap anywhere outside to close
+            </p>
+          </div>
+        </div>
+      )}
     </>
   )
 }
