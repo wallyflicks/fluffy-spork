@@ -1570,7 +1570,7 @@ export default function Orivox(){
                     </div>
                   </div>
                 </div>
-                <button className="btn btn-orange btn-bounce" style={{width:"100%",justifyContent:"center",padding:"18px",fontSize:22}} onClick={startSession}>Let's Go!</button>
+                <button className="btn btn-orange btn-bounce" style={{width:"100%",justifyContent:"center",padding:"18px",fontSize:22}} onClick={()=>startSession()}>Let's Go!</button>
               </div>
 
               {/* Feature strip */}
