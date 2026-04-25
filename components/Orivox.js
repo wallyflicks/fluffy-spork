@@ -1439,7 +1439,6 @@ export default function Orivox(){
                       fontFamily:"Fredoka",fontSize:18,fontWeight:600,marginBottom:20}}>
                       {feedback.totalScore>=80?"Excellent":feedback.totalScore>=60?"Good Job":"Keep Practicing"}
                     </div>
-                    <p style={{color:"var(--muted)",fontSize:16,maxWidth:460,margin:"0 auto",lineHeight:1.8}}>{feedback.feedback}</p>
                     <ShareCard score={feedback.totalScore} category={activeCat} difficulty={activeDiff} strength={feedback.strength||""}/>
                   </div>
 
@@ -1480,17 +1479,13 @@ export default function Orivox(){
                     </div>
                   </div>
 
-                  {/* Next session suggestion */}
-                  <div className="card fb5" style={{padding:28,marginBottom:20,background:"var(--yellow-dim)",border:"2.5px solid var(--yellow)",borderRadius:22}}>
-                    <p className="fredoka" style={{fontSize:18,color:"#7A5500",marginBottom:8}}>Coach's Note</p>
-                    <p style={{fontSize:15,lineHeight:1.8}}>
-                      {feedback.totalScore<60
-                        ?"Focus on slowing down and pausing instead of filling silence — try an Easy session next"
-                        :feedback.totalScore<=80
-                        ?"Good foundation — try pushing to a harder difficulty next time"
-                        :"Strong session — challenge yourself with Debate or Business next"}
-                    </p>
-                  </div>
+                  {/* Coach's Note — AI-generated specific feedback */}
+                  {feedback.feedback&&(
+                    <div className="card fb5" style={{padding:28,marginBottom:20,background:"var(--yellow-dim)",border:"2.5px solid var(--yellow)",borderRadius:22}}>
+                      <p className="fredoka" style={{fontSize:18,color:"#7A5500",marginBottom:8}}>Coach's Note</p>
+                      <p style={{fontSize:15,lineHeight:1.8}}>{feedback.feedback}</p>
+                    </div>
+                  )}
 
                   {/* Transcript */}
                   {transcript&&(
