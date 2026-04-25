@@ -122,6 +122,7 @@ function mostPracticed(sessions) {
 export default function Progress() {
   const [sessions, setSessions] = useState(null)
   const [expandedId, setExpandedId] = useState(null)
+  const [voiceType, setVoiceType] = useState(null)
   const chartRef = useRef(null)
   const chartInstance = useRef(null)
 
@@ -132,6 +133,10 @@ export default function Progress() {
     } catch {
       setSessions([])
     }
+    try {
+      const vt = localStorage.getItem('orivox_voice_type')
+      if (vt) setVoiceType(JSON.parse(vt))
+    } catch {}
   }, [])
 
   useEffect(() => {
@@ -306,6 +311,42 @@ export default function Progress() {
                 <div style={{ fontSize: 13, color: '#3A7A4F', marginTop: 2 }}>
                   {best.category} · {best.difficulty} · {fmt(best.date)}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Speaking Type */}
+          {voiceType && (
+            <div className="fadeUp d4" style={{
+              background: 'var(--card)', border: '2.5px solid var(--orange)',
+              borderRadius: 20, padding: '24px 28px', marginBottom: 20,
+              boxShadow: 'var(--shadow)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--orange)', marginBottom: 4, fontFamily: 'Fredoka, sans-serif' }}>Speaking Type</p>
+                  <h3 className="fredoka" style={{ fontSize: 26, color: 'var(--text)', marginBottom: 4 }}>{voiceType.type}</h3>
+                  <p style={{ fontSize: 14, color: 'var(--muted)', fontStyle: 'italic', marginBottom: 14 }}>"{voiceType.tagline}"</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+                    <div style={{ background: '#E8F7EE', borderRadius: 12, padding: '12px 14px' }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--green)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.06em' }}>Strength</p>
+                      <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{voiceType.strengths}</p>
+                    </div>
+                    <div style={{ background: 'var(--orange-dim)', borderRadius: 12, padding: '12px 14px' }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.06em' }}>Work On</p>
+                      <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{voiceType.weakness}</p>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}><strong style={{ color: 'var(--text)' }}>Tip:</strong> {voiceType.tip}</p>
+                </div>
+              </div>
+              <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                <p style={{ fontSize: 12, color: 'var(--muted)' }}>Unlocked after 5 sessions. Complete more sessions to retake.</p>
+                <button
+                  onClick={() => { localStorage.removeItem('orivox_voice_type'); setVoiceType(null); }}
+                  style={{ fontSize: 13, color: 'var(--orange)', background: 'none', border: '1.5px solid var(--orange-border)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontFamily: 'Nunito, sans-serif', fontWeight: 700 }}>
+                  Retake
+                </button>
               </div>
             </div>
           )}

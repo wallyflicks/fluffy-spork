@@ -596,6 +596,51 @@ function HighlightedTranscript({text,fillerWords}){
   )}</>;
 }
 
+function VoiceTypeCard({data}){
+  const [shareUrl,setShareUrl]=useState('');
+  const generate=()=>{
+    const W=1080,H=1080;
+    const c=document.createElement('canvas');
+    c.width=W;c.height=H;
+    const ctx=c.getContext('2d');
+    ctx.fillStyle='#1A1A2E';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='rgba(255,255,255,0.055)';
+    for(let x=27;x<W;x+=54)for(let y=27;y<H;y+=54){ctx.beginPath();ctx.arc(x,y,2.5,0,Math.PI*2);ctx.fill();}
+    ctx.fillStyle='#FF6B2B';ctx.fillRect(0,0,W,10);
+    ctx.font='bold 72px Fredoka,"Arial Rounded MT Bold",Arial';ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillStyle='#FF6B2B';
+    ctx.fillText('Orivox',W/2,104);
+    ctx.fillStyle='rgba(255,255,255,0.42)';ctx.font='30px Arial,sans-serif';
+    ctx.fillText('My Speaking Type',W/2,158);
+    ctx.strokeStyle='rgba(255,107,43,0.25)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(W*0.25,184);ctx.lineTo(W*0.75,184);ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.38)';ctx.font='34px Arial,sans-serif';ctx.textAlign='center';
+    ctx.fillText('I AM',W/2,370);
+    ctx.fillStyle='#FF6B2B';ctx.font='bold 112px Fredoka,"Arial Rounded MT Bold",Arial';
+    ctx.fillText(data.type,W/2,510);
+    ctx.fillStyle='rgba(255,255,255,0.65)';ctx.font='italic 36px Arial,sans-serif';
+    const tag=`"${data.tagline}"`;
+    const maxW=860;
+    if(ctx.measureText(tag).width<=maxW){ctx.fillText(tag,W/2,572);}
+    else{const mid=Math.floor(tag.length/2);ctx.fillText(tag.slice(0,mid),W/2,560);ctx.fillText(tag.slice(mid),W/2,606);}
+    ctx.strokeStyle='rgba(255,107,43,0.2)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(W*0.2,820);ctx.lineTo(W*0.8,820);ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.38)';ctx.font='27px Arial,sans-serif';
+    ctx.fillText('Try it at',W/2,874);
+    ctx.fillStyle='#FF6B2B';ctx.font='bold 44px Arial,sans-serif';
+    ctx.fillText('orivoxapp.vercel.app',W/2,944);
+    ctx.fillStyle='#FF6B2B';ctx.fillRect(0,H-10,W,10);
+    c.toBlob(b=>{if(shareUrl)URL.revokeObjectURL(shareUrl);setShareUrl(URL.createObjectURL(b));},'image/png');
+  };
+  const download=()=>{const a=document.createElement('a');a.href=shareUrl;a.download=`orivox-${data.type.toLowerCase().replace(/\s+/g,'-')}.png`;a.click();};
+  if(!shareUrl)return<button className="btn btn-orange" style={{flex:1,justifyContent:"center"}} onClick={generate}>Share my type</button>;
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:10}}>
+      <img src={shareUrl} alt="Type card" style={{width:"100%",borderRadius:12,border:"2px solid var(--border)"}}/>
+      <button className="btn btn-orange" style={{width:"100%",justifyContent:"center"}} onClick={download}>Download Image</button>
+    </div>
+  );
+}
+
 // ── Review Prompt ────────────────────────────────────────────────────────────
 function ReviewPrompt({onSubmit,initialName=""}){
   const [rating,setRating]=useState(0);
@@ -667,7 +712,7 @@ function ReviewPrompt({onSubmit,initialName=""}){
 }
 
 // ── Share Card ───────────────────────────────────────────────────────────────
-function ShareCard({score,category,difficulty,strength}){
+function ShareCard({score,category,difficulty,strength,roastMode=false}){
   const [open,setOpen]=useState(false);
   const [copied,setCopied]=useState(false);
   const [previewUrl,setPreviewUrl]=useState('');
@@ -761,6 +806,20 @@ function ShareCard({score,category,difficulty,strength}){
     ctx.fillStyle='#FF6B2B';
     ctx.font='bold 44px Arial,sans-serif';
     ctx.fillText('orivoxapp.vercel.app',cx,946);
+
+    // Roast Mode stamp
+    if(roastMode){
+      ctx.save();
+      ctx.translate(W*0.76,258);
+      ctx.rotate(Math.PI/9);
+      ctx.strokeStyle='#FF6B2B';ctx.lineWidth=5;
+      ctx.strokeRect(-95,-26,190,52);
+      ctx.fillStyle='#FF6B2B';
+      ctx.font='bold 32px Arial,sans-serif';
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('ROAST MODE',0,0);
+      ctx.restore();
+    }
 
     // Bottom bar
     ctx.fillStyle='#FF6B2B';
@@ -990,6 +1049,10 @@ export default function Orivox(){
   const audioCtxRef=useRef(null);
   const [analyserNode,setAnalyserNode]=useState(null);
   const [micStarting,setMicStarting]=useState(false);
+  const [roastMode,setRoastMode]=useState(false);
+  const [retrySource,setRetrySource]=useState(null);
+  const [voiceTypeData,setVoiceTypeData]=useState(null);
+  const [showVoiceTypeModal,setShowVoiceTypeModal]=useState(false);
   const [customText,setCustomText]=useState("");
   const [customErr,setCustomErr]=useState("");
   const [recentCustoms,setRecentCustoms]=useState([]);
@@ -1236,6 +1299,8 @@ export default function Orivox(){
       const existing=JSON.parse(localStorage.getItem("orivox_sessions")||"[]");
       existing.push(session);
       localStorage.setItem("orivox_sessions",JSON.stringify(existing));
+      const rs=localStorage.getItem("orivox_retry_source");
+      if(rs)try{setRetrySource(JSON.parse(rs));localStorage.removeItem("orivox_retry_source");}catch{}
     }catch{}
   };
 
@@ -1264,7 +1329,7 @@ export default function Orivox(){
     let result=null;
     try{
       const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({transcript:text,topic,category:activeCat,difficulty:activeDiff})});
+        body:JSON.stringify({transcript:text,topic,category:activeCat,difficulty:activeDiff,roastMode})});
       if(res.ok){const d=await res.json();if(!d.error)result=d;}
     }catch{}
     if(!result){
@@ -1272,6 +1337,55 @@ export default function Orivox(){
       result=analyzeTranscript(text,topic,activeDiff);
     }
     saveSession(result);setFeedback(result);setLoading(false);
+    checkVoiceType().catch(()=>{});
+  };
+
+  const checkVoiceType=async()=>{
+    if(localStorage.getItem("orivox_voice_type"))return;
+    const sessions=JSON.parse(localStorage.getItem("orivox_sessions")||"[]");
+    if(sessions.length<5)return;
+    const last5=sessions.slice(-5);
+    const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({classifyVoiceType:true,sessions:last5})});
+    if(res.ok){
+      const data=await res.json();
+      if(data.type){
+        localStorage.setItem("orivox_voice_type",JSON.stringify(data));
+        setVoiceTypeData(data);setShowVoiceTypeModal(true);
+      }
+    }
+  };
+
+  const tryAgain=()=>{
+    const words=(feedback?.cleanedTranscript||transcript).trim().split(/\s+/).filter(Boolean).length;
+    const dur=earlyStopRef.current&&earlyStopElapsedRef.current>0?earlyStopElapsedRef.current:speakTime;
+    const wpm=dur>0?Math.round((words/dur)*60):0;
+    localStorage.setItem("orivox_retry_source",JSON.stringify({
+      score:feedback?.totalScore||0,
+      fillerCount:Object.values(feedback?.fillerWordList||{}).reduce((a,b)=>a+b,0),
+      wpm,
+      improvement:feedback?.improvement||""
+    }));
+    setRetrySource(null);
+    setFeedback(null);setAudioBlob(null);setTranscript("");setAudioUrl(null);transcriptRef.current="";
+    earlyStopRef.current=false;earlyStopElapsedRef.current=0;
+    setPhase("prep");setTimer(prepTime);initialTimeRef.current=prepTime;
+    if(prepTime===0){setScreen("speak");setPhase("speak");setTimer(speakTime);initialTimeRef.current=speakTime;}
+    else setScreen("prep");
+  };
+
+  const newPrompt=()=>{
+    localStorage.removeItem("orivox_retry_source");setRetrySource(null);
+    setFeedback(null);setAudioBlob(null);setTranscript("");setAudioUrl(null);transcriptRef.current="";
+    earlyStopRef.current=false;earlyStopElapsedRef.current=0;
+    if(activeCat!=="Custom"){
+      const pool=activeCat==="Random"?ALL_PROMPTS:(TOPICS[activeCat]?.[activeDiff]||ALL_PROMPTS);
+      const picked=randNew(pool,lastTopicRef.current);
+      lastTopicRef.current=picked;setTopic(picked);
+    }
+    setPhase("prep");setTimer(prepTime);initialTimeRef.current=prepTime;
+    if(prepTime===0){setScreen("speak");setPhase("speak");setTimer(speakTime);initialTimeRef.current=speakTime;}
+    else setScreen("prep");
   };
 
   const reset=()=>{
@@ -1443,6 +1557,17 @@ export default function Orivox(){
                   </div>
                 </div>
                 )}
+                {/* Roast Mode toggle */}
+                <div style={{marginBottom:36,display:"flex",alignItems:"center",justifyContent:"space-between",gap:16,padding:"16px 20px",borderRadius:16,background:roastMode?"#1A1A2E":"var(--cream)",border:`2px solid ${roastMode?"var(--orange)":"var(--border)"}`,cursor:"pointer",transition:"all .2s"}} onClick={()=>setRoastMode(r=>!r)}>
+                  <div>
+                    <p className="fredoka" style={{fontSize:18,color:roastMode?"#FF6B2B":"var(--text)",transition:"color .2s"}}>Roast Mode</p>
+                    <p style={{fontSize:13,color:roastMode?"rgba(255,255,255,0.55)":"var(--muted)",transition:"color .2s"}}>Get brutally honest, comedic feedback</p>
+                  </div>
+                  <div style={{width:52,height:28,borderRadius:14,background:roastMode?"var(--orange)":"var(--border)",position:"relative",flexShrink:0,transition:"background .2s",pointerEvents:"none"}}>
+                    <span style={{position:"absolute",top:3,left:roastMode?26:3,width:22,height:22,borderRadius:"50%",background:"white",transition:"left .2s",boxShadow:"0 1px 3px rgba(0,0,0,0.25)"}}/>
+                  </div>
+                </div>
+
                 {/* Timers */}
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:28,marginBottom:40}}>
                   <div>
@@ -1521,6 +1646,9 @@ export default function Orivox(){
                   :<div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"9px 22px",borderRadius:50,background:"var(--orange-dim)",border:"2px solid var(--orange-border)",fontFamily:"Fredoka",fontSize:17,color:"var(--orange)"}}>Ready to record</div>
                 }
               </div>
+              {roastMode&&<div style={{display:"flex",justifyContent:"center",marginTop:-14,marginBottom:16}}>
+                <span style={{fontSize:12,fontWeight:700,padding:"4px 14px",borderRadius:50,background:"#1A1A2E",color:"#FF6B2B",border:"1.5px solid #FF6B2B",letterSpacing:".06em",textTransform:"uppercase",fontFamily:"Fredoka"}}>Roast Mode On</span>
+              </div>}
 
               <div className="card fadeUp d1" style={{textAlign:"left",padding:24,marginBottom:20}}>
                 <p style={{fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Your prompt</p>
@@ -1574,6 +1702,52 @@ export default function Orivox(){
 
               {!loading&&feedback&&!feedback.error&&(
                 <div>
+                  {/* Roast Mode banner */}
+                  {roastMode&&<div className="fadeUp" style={{marginBottom:20,padding:"16px 24px",borderRadius:16,background:"#1A1A2E",border:"2.5px solid #FF6B2B",textAlign:"center"}}>
+                    <span className="fredoka" style={{fontSize:22,color:"#FF6B2B",letterSpacing:".04em"}}>Roast Mode Results</span>
+                    <span style={{marginLeft:12,fontSize:15,color:"rgba(255,255,255,0.5)"}}>You asked for it...</span>
+                  </div>}
+
+                  {/* Before & After comparison */}
+                  {retrySource&&(()=>{
+                    const curWords=(feedback.cleanedTranscript||transcript).trim().split(/\s+/).filter(Boolean).length;
+                    const curDur=earlyStopRef.current&&earlyStopElapsedRef.current>0?earlyStopElapsedRef.current:speakTime;
+                    const curWpm=curDur>0?Math.round((curWords/curDur)*60):0;
+                    const curFill=Object.values(feedback.fillerWordList||{}).reduce((a,b)=>a+b,0);
+                    const scoreDiff=feedback.totalScore-retrySource.score;
+                    const fillDiff=curFill-retrySource.fillerCount;
+                    const wpmDiff=curWpm-retrySource.wpm;
+                    const improved=scoreDiff>=0;
+                    return(
+                      <div className="card fadeUp" style={{marginBottom:20,padding:28,border:`2.5px solid ${improved?"var(--green)":"var(--orange)"}`,borderTop:`5px solid ${improved?"var(--green)":"var(--orange)"}`}}>
+                        <p className="fredoka" style={{fontSize:18,marginBottom:16,color:improved?"var(--green)":"var(--orange)"}}>Before vs After</p>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+                          {[["Previous",retrySource.score,retrySource.fillerCount,retrySource.wpm],["This attempt",feedback.totalScore,curFill,curWpm]].map(([label,score,fill,wpm],i)=>(
+                            <div key={i} style={{background:"var(--cream)",borderRadius:12,padding:"14px 16px",border:"1.5px solid var(--border)"}}>
+                              <p style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:"var(--muted)",marginBottom:10}}>{label}</p>
+                              <p className="fredoka" style={{fontSize:28,color:i===1?(score>retrySource.score?"var(--green)":score<retrySource.score?"var(--red)":"var(--text)"):"var(--muted)",marginBottom:4}}>{score}</p>
+                              <p style={{fontSize:13,color:"var(--muted)"}}>{fill} filler{fill!==1?"s":""} · {wpm} WPM</p>
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:14}}>
+                          {[
+                            [scoreDiff,`Score ${scoreDiff>=0?"+":""}${scoreDiff} points`],
+                            [-fillDiff,`Filler words ${fillDiff<=0?"cut by "+Math.abs(fillDiff):"+"+fillDiff}`],
+                            [wpmDiff,`Pace ${wpmDiff>=0?"+":""}${wpmDiff} WPM`],
+                          ].map(([val,label],i)=>(
+                            <div key={i} style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:val>0?"var(--green)":val<0?"var(--red)":"var(--muted)"}}>
+                              <span style={{fontWeight:700}}>{val>0?"↑":val<0?"↓":"→"}</span>{label}
+                            </div>
+                          ))}
+                        </div>
+                        <p style={{fontSize:14,fontWeight:700,color:improved?"var(--green)":"var(--orange)"}}>
+                          {improved?"Real improvement in one attempt":"Scores fluctuate — the practice still counts"}
+                        </p>
+                      </div>
+                    );
+                  })()}
+
                   {/* Score hero */}
                   <div className="card fb1" style={{textAlign:"center",padding:"48px 32px",marginBottom:20,position:"relative",overflow:"visible",borderTop:`6px solid ${feedback.totalScore>=80?"var(--green)":feedback.totalScore>=60?"var(--yellow)":"var(--red)"}`}}>
                     <Confetti active={true}/>
@@ -1591,7 +1765,7 @@ export default function Orivox(){
                       fontFamily:"Fredoka",fontSize:18,fontWeight:600,marginBottom:20}}>
                       {feedback.totalScore>=80?"Excellent":feedback.totalScore>=60?"Good Job":"Keep Practicing"}
                     </div>
-                    <ShareCard score={feedback.totalScore} category={activeCat} difficulty={activeDiff} strength={feedback.strength||""}/>
+                    <ShareCard score={feedback.totalScore} category={activeCat} difficulty={activeDiff} strength={feedback.strength||""} roastMode={roastMode}/>
                   </div>
 
                   {/* Sub scores — 4 categories out of 25 */}
@@ -1703,9 +1877,10 @@ export default function Orivox(){
                   )}
 
                   {/* Actions */}
-                  <div className="fb7" style={{display:"flex",gap:14,marginBottom:20}}>
-                    <button className="btn btn-orange" style={{flex:1,justifyContent:"center",padding:"16px",fontSize:18}} onClick={()=>{setFeedback(null);setAudioBlob(null);setTranscript("");startSession();}}>Try Again</button>
-                    <button className="btn btn-cream" style={{flex:1,justifyContent:"center"}} onClick={reset}>Change Topic</button>
+                  <div className="fb7" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}}>
+                    <button className="btn btn-orange" style={{justifyContent:"center",padding:"15px",fontSize:17}} onClick={tryAgain}>Try Again</button>
+                    <button className="btn btn-cream" style={{justifyContent:"center",padding:"15px"}} onClick={newPrompt}>New Prompt</button>
+                    <button className="btn btn-cream" style={{justifyContent:"center",gridColumn:"1/-1"}} onClick={()=>{localStorage.removeItem("orivox_retry_source");setRetrySource(null);reset();}}>Change Category</button>
                   </div>
 
                 </div>
@@ -1745,6 +1920,36 @@ export default function Orivox(){
             <button style={{background:"none",border:"none",cursor:"pointer",fontSize:14,color:"var(--muted)",fontFamily:"Nunito,sans-serif",textDecoration:"underline",padding:"4px"}} onClick={()=>handleSaveName("Anonymous")}>
               Stay anonymous
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Voice Type reveal modal */}
+      {showVoiceTypeModal&&voiceTypeData&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.82)",zIndex:3000,display:"flex",alignItems:"center",justifyContent:"center",padding:20,overflowY:"auto"}}>
+          <div style={{background:"var(--card)",borderRadius:28,border:"3px solid var(--orange)",boxShadow:"12px 12px 0 rgba(0,0,0,0.28)",padding:"36px 28px",maxWidth:460,width:"100%",textAlign:"center",position:"relative",margin:"auto"}}>
+            <p style={{fontSize:11,fontWeight:700,letterSpacing:".1em",textTransform:"uppercase",color:"var(--orange)",marginBottom:10,fontFamily:"Fredoka"}}>Unlocked after 5 sessions</p>
+            <p style={{fontSize:14,color:"var(--muted)",marginBottom:6}}>Your Speaking Type</p>
+            <h2 className="fredoka" style={{fontSize:38,marginBottom:8,color:"var(--text)"}}>{voiceTypeData.type}</h2>
+            <p style={{fontSize:16,color:"var(--muted)",marginBottom:24,fontStyle:"italic",lineHeight:1.5}}>"{voiceTypeData.tagline}"</p>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14,textAlign:"left"}}>
+              <div style={{background:"#E8F7EE",borderRadius:14,padding:"14px 15px"}}>
+                <p style={{fontSize:11,fontWeight:700,color:"var(--green)",marginBottom:5,textTransform:"uppercase",letterSpacing:".07em"}}>Strength</p>
+                <p style={{fontSize:13,color:"var(--text)",lineHeight:1.5}}>{voiceTypeData.strengths}</p>
+              </div>
+              <div style={{background:"var(--orange-dim)",borderRadius:14,padding:"14px 15px"}}>
+                <p style={{fontSize:11,fontWeight:700,color:"var(--orange)",marginBottom:5,textTransform:"uppercase",letterSpacing:".07em"}}>Work On</p>
+                <p style={{fontSize:13,color:"var(--text)",lineHeight:1.5}}>{voiceTypeData.weakness}</p>
+              </div>
+            </div>
+            <div style={{background:"var(--yellow-dim)",border:"2px solid var(--yellow)",borderRadius:14,padding:"14px 15px",marginBottom:24,textAlign:"left"}}>
+              <p style={{fontSize:11,fontWeight:700,color:"#7A5500",marginBottom:5,textTransform:"uppercase",letterSpacing:".07em"}}>Your Tip</p>
+              <p style={{fontSize:14,color:"var(--text)",lineHeight:1.6}}>{voiceTypeData.tip}</p>
+            </div>
+            <div style={{display:"flex",gap:10}}>
+              <VoiceTypeCard data={voiceTypeData}/>
+              <button className="btn btn-cream" style={{flex:1,justifyContent:"center"}} onClick={()=>setShowVoiceTypeModal(false)}>Close</button>
+            </div>
           </div>
         </div>
       )}
