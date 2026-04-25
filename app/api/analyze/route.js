@@ -49,6 +49,29 @@ Session history: ${JSON.stringify(body.sessions)}`
       );
     }
 
+    const wordCount = transcript.trim().split(/\s+/).filter(Boolean).length;
+
+    // Under 10 words — skip AI entirely
+    if (wordCount < 10) {
+      return Response.json({
+        totalScore: 12, clarity: 4, structure: 2, fillerWords: 25, confidence: 3,
+        fillerWordList: {},
+        feedback: "Your response was too short to evaluate properly. A meaningful answer needs at least a few sentences — try to speak for the full time given.",
+        strength: "You did start speaking, which is the first step.",
+        improvement: "Aim for at least 5-6 full sentences. Use the prep time to plan what you want to say before you start recording.",
+        cleanedTranscript: transcript,
+      });
+    }
+
+    let lengthNote = '';
+    if (wordCount <= 25) {
+      lengthNote = `\nCRITICAL: This response is VERY SHORT — only ${wordCount} words. Score it harshly. It cannot score above 45 regardless of quality. Clarity, structure, and confidence should all be low.`;
+    } else if (wordCount <= 50) {
+      lengthNote = `\nIMPORTANT: This response is short — only ${wordCount} words. It cannot score above 62. Penalize structure and confidence accordingly.`;
+    } else if (wordCount <= 80) {
+      lengthNote = `\nNOTE: This response is below average length — ${wordCount} words. Maximum possible score is 75. Apply appropriate penalties.`;
+    }
+
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 2048,
@@ -68,6 +91,13 @@ Scoring must be honest and calibrated:
 - 66-79: Solid with clear areas to improve
 - 80-89: Strong delivery with minor issues
 - 90-100: Exceptional — only for truly outstanding responses
+
+IMPORTANT LENGTH RULES — these are hard limits, never exceed them:
+- Under 10 words: score 0-15 maximum
+- 10-25 words: score 0-45 maximum
+- 26-50 words: score 0-62 maximum
+- 51-80 words: score 0-75 maximum
+- 81+ words: score based purely on quality, no length cap${lengthNote}
 
 For the feedback field, write 3-4 sentences of SPECIFIC coaching based on what they actually said. Reference their actual words, ideas, or patterns. Do not write generic advice. If they rambled about a specific topic, name it. If their structure was weak, explain exactly where it broke down. If they had a strong opening, acknowledge it specifically.
 

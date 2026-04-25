@@ -1265,18 +1265,17 @@ export default function Orivox(){
       const session={
         id:Date.now().toString(),
         date:localDate,
-        category:activeCat,
-        difficulty:activeDiff,
-        score:feedbackData.totalScore,
+        category:activeCat||"Unknown",
+        difficulty:activeDiff||"Unknown",
+        score:feedbackData.totalScore||0,
         fillerWordCount:Object.values(fillerWordList).reduce((a,b)=>a+b,0),
         fillerWords:Object.keys(fillerWordList),
         pacingRating,
         speakDuration:actualDur,
-        // Rich detail fields
-        clarity:feedbackData.clarity,
-        structure:feedbackData.structure,
-        deliveryScore:feedbackData.fillerWords,
-        confidence:feedbackData.confidence,
+        clarity:feedbackData.clarity||0,
+        structure:feedbackData.structure||0,
+        deliveryScore:feedbackData.fillerWords||0,
+        confidence:feedbackData.confidence||0,
         fillerWordList,
         transcript:transcriptRef.current,
         strength:feedbackData.strength||"",
@@ -1286,6 +1285,18 @@ export default function Orivox(){
       const existing=JSON.parse(localStorage.getItem("orivox_sessions")||"[]");
       existing.push(session);
       localStorage.setItem("orivox_sessions",JSON.stringify(existing));
+      // Update streak using dedicated keys
+      const lastDate=localStorage.getItem("orivox_last_session_date")||"";
+      const prevStreak=parseInt(localStorage.getItem("orivox_streak_count")||"0",10);
+      let newStreak=1;
+      if(lastDate===localDate){
+        newStreak=prevStreak||1;
+      }else if(lastDate){
+        const diff=Math.round((new Date(localDate+"T12:00:00")-new Date(lastDate+"T12:00:00"))/86400000);
+        newStreak=diff===1?prevStreak+1:1;
+      }
+      localStorage.setItem("orivox_streak_count",String(newStreak));
+      localStorage.setItem("orivox_last_session_date",localDate);
       const rs=localStorage.getItem("orivox_retry_source");
       if(rs)try{setRetrySource(JSON.parse(rs));localStorage.removeItem("orivox_retry_source");}catch{}
     }catch{}

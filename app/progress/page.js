@@ -126,6 +126,7 @@ export default function Progress() {
   const [sessions, setSessions] = useState(null)
   const [expandedId, setExpandedId] = useState(null)
   const [voiceType, setVoiceType] = useState(null)
+  const [streak, setStreak] = useState(0)
   const chartRef = useRef(null)
   const chartInstance = useRef(null)
 
@@ -139,6 +140,15 @@ export default function Progress() {
     try {
       const vt = localStorage.getItem('orivox_voice_type')
       if (vt) setVoiceType(JSON.parse(vt))
+    } catch {}
+    // Load streak from dedicated keys — source of truth
+    try {
+      const count = parseInt(localStorage.getItem('orivox_streak_count') || '0', 10)
+      const lastDate = localStorage.getItem('orivox_last_session_date') || ''
+      const today = new Date().toLocaleDateString('en-CA')
+      const d = new Date(); d.setDate(d.getDate() - 1)
+      const yesterday = d.toLocaleDateString('en-CA')
+      setStreak((lastDate === today || lastDate === yesterday) ? count : 0)
     } catch {}
   }, [])
 
@@ -227,7 +237,6 @@ export default function Progress() {
     )
   }
 
-  const streak = calcStreak(sessions)
   const avgScore = sessions.length ? Math.round(sessions.reduce((a, s) => a + s.score, 0) / sessions.length) : 0
   const best = sessions.length ? sessions.reduce((a, s) => s.score > a.score ? s : a, sessions[0]) : null
   const topCat = mostPracticed(sessions)
@@ -423,16 +432,22 @@ export default function Progress() {
                             className={`data-row${isOpen ? ' expanded-row' : ''}`}
                             onClick={() => setExpandedId(isOpen ? null : s.id)}
                           >
-                            <td style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>{fmt(s.date)}</td>
-                            <td style={{ fontWeight: 600 }}>{s.category}</td>
+                            <td style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>{s.date && /^\d{4}-\d{2}-\d{2}$/.test(s.date) ? fmt(s.date) : '—'}</td>
+                            <td style={{ fontWeight: 600 }}>{s.category || 'Unknown'}</td>
                             <td className="hide-mobile">
-                              <span style={{
-                                padding: '3px 12px', borderRadius: 50, fontSize: 12,
-                                fontFamily: 'Fredoka, sans-serif', fontWeight: 600,
-                                background: s.difficulty === 'Easy' ? '#E8F7EE' : s.difficulty === 'Medium' ? '#FFF9E0' : '#FFECEC',
-                                color: s.difficulty === 'Easy' ? 'var(--green)' : s.difficulty === 'Medium' ? '#7A5500' : 'var(--red)',
-                                border: `1.5px solid ${s.difficulty === 'Easy' ? 'var(--green)' : s.difficulty === 'Medium' ? 'var(--yellow)' : 'var(--red)'}`,
-                              }}>{s.difficulty}</span>
+                              {(() => {
+                                const d = s.difficulty
+                                const known = d === 'Easy' || d === 'Medium' || d === 'Hard'
+                                return (
+                                  <span style={{
+                                    padding: '3px 12px', borderRadius: 50, fontSize: 12,
+                                    fontFamily: 'Fredoka, sans-serif', fontWeight: 600,
+                                    background: d === 'Easy' ? '#E8F7EE' : d === 'Medium' ? '#FFF9E0' : d === 'Hard' ? '#FFECEC' : '#F0F0F0',
+                                    color: d === 'Easy' ? 'var(--green)' : d === 'Medium' ? '#7A5500' : d === 'Hard' ? 'var(--red)' : 'var(--muted)',
+                                    border: `1.5px solid ${d === 'Easy' ? 'var(--green)' : d === 'Medium' ? 'var(--yellow)' : d === 'Hard' ? 'var(--red)' : 'var(--border)'}`,
+                                  }}>{known ? d : 'Unknown'}</span>
+                                )
+                              })()}
                             </td>
                             <td>
                               <span style={{
