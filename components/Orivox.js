@@ -935,7 +935,6 @@ export default function Orivox(){
   const earlyStopRef=useRef(false);
   const earlyStopElapsedRef=useRef(0);
   const lastTopicRef=useRef("");
-  const blobResolveRef=useRef(null);
   const [micStarting,setMicStarting]=useState(false);
 
   // On mount: load saved username; show name modal if first visit
@@ -1056,8 +1055,6 @@ export default function Orivox(){
         }
         setAudioBlob(blob);
         setAudioUrl(URL.createObjectURL(blob));
-        blobResolveRef.current?.(blob);
-        blobResolveRef.current=null;
         stream.getTracks().forEach(t=>t.stop());
       };
       mr.start(1000);startTimeRef.current=Date.now();setRecording(true);setRunning(true);
@@ -1159,33 +1156,14 @@ export default function Orivox(){
 
   const analyze=async()=>{
     setLoading(true);
-    let text=transcriptRef.current;
+    const text=transcriptRef.current;
     if(!text.trim()){
       const hadAudio=chunksRef.current.length>0&&chunksRef.current.some(c=>c.size>0);
-      if(hadAudio){
-        try{
-          // Wait up to 5s for MediaRecorder.onstop to finish assembling the blob
-          const blob=await new Promise(resolve=>{
-            const t=setTimeout(()=>resolve(null),5000);
-            blobResolveRef.current=b=>{clearTimeout(t);resolve(b);};
-          });
-          if(blob&&blob.size>=1000){
-            const ext=blob.type.includes('mp4')?'mp4':blob.type.includes('ogg')?'ogg':'webm';
-            const fd=new FormData();
-            fd.append('audio',blob,`recording.${ext}`);
-            const res=await fetch('/api/transcribe',{method:'POST',body:fd});
-            if(res.ok){const {transcript:t}=await res.json();if(t?.trim())text=t;}
-          }
-        }catch{}
-      }
-      if(!text.trim()){
-        setFeedback({error:hadAudio
-          ?"Audio could not be processed on your device. Try using Chrome on desktop for the best experience."
-          :"No speech detected. Make sure your microphone is working and try again."
-        });
-        setLoading(false);return;
-      }
-      transcriptRef.current=text;
+      setFeedback({error:hadAudio
+        ?"Audio could not be processed on your device. Try using Chrome on desktop for the best experience."
+        :"No speech detected. Make sure your microphone is working and try again."
+      });
+      setLoading(false);return;
     }
     let result=null;
     try{
