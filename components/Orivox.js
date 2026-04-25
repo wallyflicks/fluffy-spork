@@ -917,9 +917,10 @@ export default function Orivox(){
   const [loading,setLoading]=useState(false);
   const [micErr,setMicErr]=useState("");
   const [audioUrl,setAudioUrl]=useState(null);
-  const [sessionReviewed,setSessionReviewed]=useState(false);
-  const [lbName,setLbName]=useState("");
-  const [showLbModal,setShowLbModal]=useState(false);
+  const [username,setUsername]=useState("");
+  const [showNameModal,setShowNameModal]=useState(false);
+  const [nameInput,setNameInput]=useState("");
+  const [showReviewModal,setShowReviewModal]=useState(false);
   const typingRef=useRef(null);
   const timerCardRef=useRef(null);
   const mediaRef=useRef(null);
@@ -934,13 +935,33 @@ export default function Orivox(){
   const earlyStopElapsedRef=useRef(0);
   const [micStarting,setMicStarting]=useState(false);
 
-  // One-time device prompts
+  // On mount: load saved username; show name modal if first visit
   useEffect(()=>{
-    if(localStorage.getItem("orivox_review_prompted")) setSessionReviewed(true);
+    const saved=localStorage.getItem("orivox_username");
+    if(saved) setUsername(saved); else setShowNameModal(true);
   },[]);
+
+  // Auto-post to leaderboard + show review modal when a session finishes
   useEffect(()=>{
-    if(feedback&&!feedback.error&&!localStorage.getItem("orivox_leaderboard_prompted")) setShowLbModal(true);
-  },[feedback]);
+    if(!feedback||feedback.error) return;
+    const pname=localStorage.getItem("orivox_username")||"Anonymous";
+    const now=new Date();
+    const d=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+    const score=feedback.totalScore;
+    supabase.from("scores").select("id,score").eq("player_name",pname).maybeSingle()
+      .then(({data})=>{
+        if(data){
+          if(score>data.score){
+            supabase.from("scores").update({score,category:activeCat,difficulty:activeDiff,date:d}).eq("id",data.id)
+              .then(({error})=>{if(error)console.error("LB update failed:",error.message);});
+          }
+        }else{
+          supabase.from("scores").insert({player_name:pname,score,category:activeCat,difficulty:activeDiff,date:d})
+            .then(({error})=>{if(error)console.error("LB insert failed:",error.message);});
+        }
+      }).catch(e=>console.error("LB error:",e));
+    if(!localStorage.getItem("orivox_review_prompted")) setShowReviewModal(true);
+  },[feedback,activeCat,activeDiff]);
 
   useEffect(()=>{
     if(!topic){setDisplayedTopic("");return;}
@@ -1084,23 +1105,15 @@ export default function Orivox(){
     }catch{}
   };
 
-  const saveToLeaderboard=(name,scoreData)=>{
-    const displayName=(name||"").trim()||"Anonymous";
-    const now=new Date();
-    const localDate=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
-    supabase.from("scores").insert({
-      player_name:displayName,
-      score:scoreData.totalScore,
-      category:activeCat,
-      difficulty:activeDiff,
-      date:localDate,
-    }).then(({error})=>{
-      if(error){
-        console.error("Leaderboard full insert failed:",error.message);
-        supabase.from("scores").insert({player_name:displayName,score:scoreData.totalScore})
-          .then(({error:e2})=>{if(e2) console.error("Leaderboard minimal insert failed:",e2.message);});
-      }
-    }).catch(e=>console.error("Leaderboard insert error:",e));
+  const handleSaveName=(forced)=>{
+    const name=(forced!==undefined?forced:(nameInput||"").trim())||"Anonymous";
+    localStorage.setItem("orivox_username",name);
+    setUsername(name);setShowNameModal(false);
+  };
+
+  const closeReviewModal=()=>{
+    localStorage.setItem("orivox_review_prompted","1");
+    setShowReviewModal(false);
   };
 
   const analyze=async()=>{
@@ -1127,7 +1140,6 @@ export default function Orivox(){
   const reset=()=>{
     recognitionRef.current?.stop();recognitionRef.current=null;
     setScreen("home");setFeedback(null);setAudioBlob(null);setTranscript("");setRecording(false);setRunning(false);
-    setLbName("");
     clearInterval(ivRef.current);
     if(audioUrl){URL.revokeObjectURL(audioUrl);setAudioUrl(null);}
   };
@@ -1472,16 +1484,10 @@ export default function Orivox(){
 
                   {/* Actions */}
                   <div className="fb7" style={{display:"flex",gap:14,marginBottom:20}}>
-                    <button className="btn btn-orange" style={{flex:1,justifyContent:"center",padding:"16px",fontSize:18}} onClick={()=>{setFeedback(null);setAudioBlob(null);setTranscript("");setLbName("");startSession();}}>Try Again</button>
+                    <button className="btn btn-orange" style={{flex:1,justifyContent:"center",padding:"16px",fontSize:18}} onClick={()=>{setFeedback(null);setAudioBlob(null);setTranscript("");startSession();}}>Try Again</button>
                     <button className="btn btn-cream" style={{flex:1,justifyContent:"center"}} onClick={reset}>Change Topic</button>
                   </div>
 
-                  {/* Review prompt — once per device ever */}
-                  {!sessionReviewed&&(
-                    <div className="card fb7" style={{padding:28,marginBottom:48,borderTop:"4px solid var(--yellow)",background:"var(--yellow-dim)"}}>
-                      <ReviewPrompt onSubmit={()=>{localStorage.setItem("orivox_review_prompted","1");setSessionReviewed(true);}}/>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -1500,26 +1506,37 @@ export default function Orivox(){
         </div>
       </div>
 
-      {/* Leaderboard one-time modal */}
-      {showLbModal&&feedback&&!feedback.error&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={()=>{localStorage.setItem("orivox_leaderboard_prompted","1");setShowLbModal(false);}}>
-          <div style={{background:"var(--card)",borderRadius:24,border:"2.5px solid var(--border)",boxShadow:"8px 8px 0 rgba(0,0,0,0.18)",padding:32,maxWidth:420,width:"100%",position:"relative"}} onClick={e=>e.stopPropagation()}>
-            <button style={{position:"absolute",top:14,right:14,background:"none",border:"none",cursor:"pointer",padding:6,lineHeight:0}} onClick={()=>{localStorage.setItem("orivox_leaderboard_prompted","1");setShowLbModal(false);}}>
+      {/* First-visit name modal */}
+      {showNameModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div style={{background:"var(--card)",borderRadius:24,border:"2.5px solid var(--border)",boxShadow:"8px 8px 0 rgba(0,0,0,0.18)",padding:36,maxWidth:420,width:"100%",textAlign:"center"}}>
+            <div style={{width:56,height:56,borderRadius:"50%",background:"var(--orange-dim)",border:"2.5px solid var(--orange-border)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 18px"}}>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+            </div>
+            <h2 className="fredoka" style={{fontSize:24,marginBottom:8}}>What should we call you on the leaderboard?</h2>
+            <p style={{color:"var(--muted)",fontSize:14,marginBottom:24,lineHeight:1.6}}>Your name appears next to your scores. You can change it any time on the leaderboard page.</p>
+            <input value={nameInput} onChange={e=>setNameInput(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&handleSaveName()}
+              placeholder="Your name" maxLength={30} autoFocus
+              style={{width:"100%",padding:"12px 16px",borderRadius:12,border:"2px solid var(--border)",fontSize:16,fontFamily:"Nunito,sans-serif",outline:"none",background:"var(--bg)",color:"var(--text)",marginBottom:12,boxSizing:"border-box"}}/>
+            <button className="btn btn-orange" style={{width:"100%",justifyContent:"center",padding:"14px",fontSize:17,marginBottom:10}} onClick={()=>handleSaveName()}>
+              Let's go
+            </button>
+            <button style={{background:"none",border:"none",cursor:"pointer",fontSize:14,color:"var(--muted)",fontFamily:"Nunito,sans-serif",textDecoration:"underline",padding:"4px"}} onClick={()=>handleSaveName("Anonymous")}>
+              Stay anonymous
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* One-time review modal */}
+      {showReviewModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={closeReviewModal}>
+          <div style={{background:"var(--card)",borderRadius:24,border:"2.5px solid var(--border)",boxShadow:"8px 8px 0 rgba(0,0,0,0.18)",padding:32,maxWidth:440,width:"100%",position:"relative"}} onClick={e=>e.stopPropagation()}>
+            <button style={{position:"absolute",top:14,right:14,background:"none",border:"none",cursor:"pointer",padding:6,lineHeight:0}} onClick={closeReviewModal}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
-            <h2 className="fredoka" style={{fontSize:24,marginBottom:6,paddingRight:32}}>Post your score to the leaderboard</h2>
-            <p style={{color:"var(--muted)",fontSize:13,marginBottom:20}}>Your score will appear on the global leaderboard for everyone to see. This prompt only appears once.</p>
-            <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:20,padding:"14px 18px",background:"var(--orange-dim)",borderRadius:14,border:"1.5px solid var(--orange-border)"}}>
-              <div className="fredoka" style={{fontSize:32,color:"var(--orange)",lineHeight:1}}>{feedback.totalScore}<span style={{fontSize:14,opacity:.55}}>/100</span></div>
-              <div style={{fontSize:13,color:"var(--muted)",lineHeight:1.5}}>{activeCat}<br/>{activeDiff}</div>
-            </div>
-            <input value={lbName} onChange={e=>setLbName(e.target.value)}
-              onKeyDown={e=>e.key==="Enter"&&(()=>{localStorage.setItem("orivox_leaderboard_prompted","1");saveToLeaderboard(lbName,feedback);setShowLbModal(false);})()}
-              placeholder="Your name (optional)" maxLength={30} autoFocus
-              style={{width:"100%",padding:"11px 16px",borderRadius:12,border:"2px solid var(--border)",fontSize:15,fontFamily:"Nunito,sans-serif",outline:"none",background:"var(--bg)",color:"var(--text)",marginBottom:12,boxSizing:"border-box"}}/>
-            <button className="btn btn-orange" style={{width:"100%",justifyContent:"center",padding:"14px",fontSize:17}} onClick={()=>{localStorage.setItem("orivox_leaderboard_prompted","1");saveToLeaderboard(lbName,feedback);setShowLbModal(false);}}>
-              Post Score
-            </button>
+            <ReviewPrompt onSubmit={closeReviewModal}/>
           </div>
         </div>
       )}

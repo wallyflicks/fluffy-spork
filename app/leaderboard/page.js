@@ -67,6 +67,21 @@ function TrophyIcon() {
 export default function Leaderboard() {
   const [scores, setScores] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [savedName, setSavedName] = useState('')
+  const [editingName, setEditingName] = useState(false)
+  const [nameInput, setNameInput] = useState('')
+
+  useEffect(() => {
+    setSavedName(localStorage.getItem('orivox_username') || '')
+  }, [])
+
+  const saveName = () => {
+    const n = nameInput.trim() || 'Anonymous'
+    localStorage.setItem('orivox_username', n)
+    setSavedName(n)
+    setEditingName(false)
+    setNameInput('')
+  }
 
   useEffect(() => {
     supabase
@@ -181,8 +196,30 @@ export default function Leaderboard() {
             )}
           </div>
 
+          {/* Change name */}
+          <div style={{ marginTop:24, textAlign:'center' }}>
+            {!editingName ? (
+              <div style={{ fontSize:14, color:'var(--muted)' }}>
+                {savedName ? <>Posting as <strong style={{ color:'var(--text)' }}>{savedName}</strong> &nbsp;</> : null}
+                <button style={{ background:'none', border:'none', cursor:'pointer', fontSize:14, color:'var(--orange)', fontFamily:'Nunito,sans-serif', textDecoration:'underline', padding:0 }}
+                  onClick={() => { setNameInput(savedName); setEditingName(true) }}>
+                  Change name
+                </button>
+              </div>
+            ) : (
+              <div style={{ display:'flex', gap:8, justifyContent:'center', alignItems:'center', flexWrap:'wrap' }}>
+                <input value={nameInput} onChange={e => setNameInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && saveName()}
+                  placeholder="New name" maxLength={30} autoFocus
+                  style={{ padding:'9px 14px', borderRadius:12, border:'2px solid var(--border)', fontSize:14, fontFamily:'Nunito,sans-serif', outline:'none', background:'var(--card)', color:'var(--text)', width:180 }}/>
+                <button className="btn btn-orange" style={{ padding:'9px 18px', fontSize:14 }} onClick={saveName}>Save</button>
+                <button className="btn btn-cream" style={{ padding:'9px 14px', fontSize:14 }} onClick={() => setEditingName(false)}>Cancel</button>
+              </div>
+            )}
+          </div>
+
           {/* CTA */}
-          <div className="fadeUp d3" style={{ textAlign:'center', marginTop:40 }}>
+          <div className="fadeUp d3" style={{ textAlign:'center', marginTop:32 }}>
             <Link href="/" style={{
               display:'inline-flex', alignItems:'center', gap:8,
               padding:'14px 32px', borderRadius:50, fontFamily:'Fredoka,sans-serif',
