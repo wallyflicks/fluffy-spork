@@ -1261,8 +1261,7 @@ export default function Orivox(){
       const wpm=actualDur>0?Math.round((words/actualDur)*60):0;
       const pacingRating=wpm<110?"too slow":wpm<130?"slightly slow":wpm<=160?"ideal":wpm<=180?"slightly fast":"too fast";
       const fillerWordList=feedbackData.fillerWordList||{};
-      const now=new Date();
-      const localDate=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+      const localDate=new Date().toLocaleDateString("en-CA");
       const session={
         id:Date.now().toString(),
         date:localDate,

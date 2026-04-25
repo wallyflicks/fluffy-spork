@@ -87,25 +87,28 @@ function fmt(dateStr) {
   return `${months[parseInt(m,10)-1]} ${parseInt(d,10)}`
 }
 
-function localDateStr(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+function todayStr() {
+  return new Date().toLocaleDateString('en-CA')
+}
+
+function yesterdayStr() {
+  const d = new Date()
+  d.setDate(d.getDate() - 1)
+  return d.toLocaleDateString('en-CA')
 }
 
 function calcStreak(sessions) {
-  if (!sessions.length) return 0
-  const days = [...new Set(sessions.map(s => s.date))].sort().reverse()
-  const now = new Date()
-  const today = localDateStr(now)
-  const yest = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
-  const yesterday = localDateStr(yest)
+  const valid = sessions.filter(s => s && typeof s.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.date))
+  if (!valid.length) return 0
+  const days = [...new Set(valid.map(s => s.date))].sort().reverse()
+  const today = todayStr()
+  const yesterday = yesterdayStr()
   if (days[0] !== today && days[0] !== yesterday) return 0
   let streak = 1
   for (let i = 1; i < days.length; i++) {
-    const [py, pm, pd] = days[i-1].split('-').map(Number)
-    const [cy, cm, cd] = days[i].split('-').map(Number)
-    const prev = new Date(py, pm-1, pd)
-    const curr = new Date(cy, cm-1, cd)
-    const diff = Math.round((prev - curr) / 86400000)
+    const a = new Date(days[i-1] + 'T12:00:00')
+    const b = new Date(days[i] + 'T12:00:00')
+    const diff = Math.round((a - b) / 86400000)
     if (diff === 1) streak++
     else break
   }
