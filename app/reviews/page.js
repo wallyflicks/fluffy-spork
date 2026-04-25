@@ -277,9 +277,6 @@ export default function Reviews() {
                 "{active.comment}"
               </p>
             )}
-            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 20, textAlign: 'center' }}>
-              Tap anywhere outside to close
-            </p>
           </div>
         </div>
       )}
