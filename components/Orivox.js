@@ -118,6 +118,9 @@ const G = () => (
       .chip{font-size:13px;padding:7px 14px;}
       .card{border-radius:16px;}
     }
+    @media(max-width:640px){
+      .scores-grid{grid-template-columns:1fr 1fr!important;}
+    }
     .nav-links{display:flex;gap:8px;align-items:center;}
     .hamburger-btn{display:none;width:40px;height:40px;border-radius:12px;background:var(--card);border:2px solid var(--border);cursor:pointer;align-items:center;justify-content:center;box-shadow:2px 2px 0 var(--border);transition:all .15s;flex-shrink:0;}
     .hamburger-btn:hover{border-color:var(--orange);box-shadow:2px 2px 0 var(--orange);}
@@ -1762,14 +1765,14 @@ export default function Orivox(){
                       background:feedback.totalScore>=80?"var(--green)":feedback.totalScore>=60?"var(--yellow-dim)":"var(--red-dim)",
                       border:`2px solid ${feedback.totalScore>=80?"var(--green)":feedback.totalScore>=60?"var(--yellow)":"var(--red)"}`,
                       color:feedback.totalScore>=80?"white":feedback.totalScore>=60?"#7A5500":"var(--red)",
-                      fontFamily:"Fredoka",fontSize:18,fontWeight:600,marginBottom:20}}>
+                      fontFamily:"Fredoka",fontSize:18,fontWeight:600,marginBottom:32}}>
                       {feedback.totalScore>=80?"Excellent":feedback.totalScore>=60?"Good Job":"Keep Practicing"}
                     </div>
                     <ShareCard score={feedback.totalScore} category={activeCat} difficulty={activeDiff} strength={feedback.strength||""} roastMode={roastMode}/>
                   </div>
 
                   {/* Sub scores — 4 categories out of 25 */}
-                  <div className="fb2" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+                  <div className="fb2 scores-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
                     <SubBar label="Clarity" val={feedback.clarity} max={25} color="#3B82F6" bg="#EFF6FF"/>
                     <SubBar label="Structure" val={feedback.structure} max={25} color="var(--orange)" bg="var(--orange-dim)"/>
                     <SubBar label="Delivery" val={feedback.fillerWords} max={25} color="var(--green)" bg="#E8F7EE"/>
