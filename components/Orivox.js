@@ -225,8 +225,21 @@ const TOPICS = {
 const ALL_PROMPTS = Object.values(TOPICS).flatMap(cat=>Object.values(cat).flat());
 const CATS = Object.keys(TOPICS);
 const DIFFS = ["Easy","Medium","Hard"];
-const DIFF_COLOR = {Easy:"#2D7A4F",Medium:"#CC6600",Hard:"#E84040",Random:"#1A1A2E"};
-const DIFF_BG = {Easy:"#E8F7EE",Medium:"#FFF4E0",Hard:"#FFECEC",Random:"#F0F0F0"};
+const DIFF_COLOR = {Easy:"#2D7A4F",Medium:"#CC6600",Hard:"#E84040",Random:"#1A1A2E",Custom:"#6B7280"};
+const DIFF_BG = {Easy:"#E8F7EE",Medium:"#FFF4E0",Hard:"#FFECEC",Random:"#F0F0F0",Custom:"#F0F0F0"};
+
+// Deterministically pick today's prompt — same date → same prompt for all users
+const getDailyPrompt=()=>{
+  const now=new Date();
+  const ds=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+  let h=0;for(let i=0;i<ds.length;i++)h=((h<<5)-h+ds.charCodeAt(i))|0;
+  const pool=[];
+  Object.entries(TOPICS).forEach(([cat,diffs])=>Object.entries(diffs).forEach(([diff,ps])=>ps.forEach(p=>pool.push({text:p,cat,diff}))));
+  return pool[Math.abs(h)%pool.length];
+};
+const DAILY_PROMPT=getDailyPrompt();
+
+const msTilMidnight=()=>{const n=new Date(),m=new Date(n);m.setHours(24,0,0,0);return m-n;};
 const PREP_TIMES = [0,30,60,120];
 const SPEAK_TIMES = [30,60,120,180,300];
 const fmt = s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
@@ -977,11 +990,23 @@ export default function Orivox(){
   const audioCtxRef=useRef(null);
   const [analyserNode,setAnalyserNode]=useState(null);
   const [micStarting,setMicStarting]=useState(false);
+  const [customText,setCustomText]=useState("");
+  const [customErr,setCustomErr]=useState("");
+  const [recentCustoms,setRecentCustoms]=useState([]);
+  const [,tickMin]=useState(0);
 
   // On mount: load saved username; show name modal if first visit
   useEffect(()=>{
     const saved=localStorage.getItem("orivox_username");
     if(saved) setUsername(saved); else setShowNameModal(true);
+    const rc=JSON.parse(localStorage.getItem("orivox_custom_prompts")||"[]");
+    setRecentCustoms(rc);
+  },[]);
+
+  // Tick every minute so the "Next prompt in X" countdown stays current
+  useEffect(()=>{
+    const id=setInterval(()=>tickMin(n=>n+1),60000);
+    return()=>clearInterval(id);
   },[]);
 
   // Auto-post to leaderboard + show review modal when a session finishes
@@ -1031,23 +1056,39 @@ export default function Orivox(){
   },[running,phase]);
 
   const pickTopic=useCallback(()=>{
-    const pool=activeCat==="Random"?ALL_PROMPTS:TOPICS[activeCat][activeDiff];
+    if(activeCat==="Custom")return;
+    const pool=activeCat==="Random"?ALL_PROMPTS:(TOPICS[activeCat]?.[activeDiff]||ALL_PROMPTS);
     const t=randNew(pool,lastTopicRef.current);
     lastTopicRef.current=t;
     setTopic(t);
   },[activeCat,activeDiff]);
 
-  const startSession=()=>{
-    const resolvedCat=cat==="Random"?rand(CATS):cat;
-    const resolvedDiff=diff==="Random"?rand(DIFFS):diff;
+  const startSession=(overrideData=null)=>{
+    // Custom prompt flow
+    if(!overrideData&&cat==="Custom"){
+      if(!customText.trim()){setCustomErr("Please describe your scenario before starting");return;}
+      setCustomErr("");
+      const text=customText.trim();
+      const rc=JSON.parse(localStorage.getItem("orivox_custom_prompts")||"[]");
+      const updated=[text,...rc.filter(r=>r!==text)].slice(0,3);
+      localStorage.setItem("orivox_custom_prompts",JSON.stringify(updated));
+      setRecentCustoms(updated);
+      setActiveCat("Custom");setActiveDiff("Medium");
+      lastTopicRef.current=text;setTopic(text);
+      setFeedback(null);setAudioBlob(null);setTranscript("");setAudioUrl(null);transcriptRef.current="";
+      setPhase("prep");setTimer(prepTime);initialTimeRef.current=prepTime;
+      if(prepTime===0){setScreen("speak");setPhase("speak");setTimer(speakTime);initialTimeRef.current=speakTime;}
+      else setScreen("prep");
+      return;
+    }
+    // Daily prompt override or normal flow
+    const resolvedCat=overrideData?overrideData.cat:(cat==="Random"?rand(CATS):cat);
+    const resolvedDiff=overrideData?overrideData.diff:(diff==="Random"?rand(DIFFS):diff);
     setActiveCat(resolvedCat);setActiveDiff(resolvedDiff);
-    const pool=TOPICS[resolvedCat][resolvedDiff];
-    const picked=randNew(pool,lastTopicRef.current);
-    lastTopicRef.current=picked;
-    setTopic(picked);
+    const picked=overrideData?overrideData.text:randNew(TOPICS[resolvedCat][resolvedDiff],lastTopicRef.current);
+    lastTopicRef.current=picked;setTopic(picked);
     setFeedback(null);setAudioBlob(null);setTranscript("");setAudioUrl(null);transcriptRef.current="";
-    setPhase("prep");setTimer(prepTime);
-    initialTimeRef.current = prepTime;
+    setPhase("prep");setTimer(prepTime);initialTimeRef.current=prepTime;
     if(prepTime===0){setScreen("speak");setPhase("speak");setTimer(speakTime);initialTimeRef.current=speakTime;}
     else setScreen("prep");
   };
@@ -1322,6 +1363,28 @@ export default function Orivox(){
                 <p className="fadeUp" style={{color:"var(--muted)",fontSize:19,maxWidth:480,margin:"0 auto",lineHeight:1.8,animationDelay:".35s"}}>Practice any speaking scenario and get instant AI feedback on clarity, structure, and filler words.</p>
               </div>
 
+              {/* Prompt of the Day */}
+              {(()=>{
+                const ms=msTilMidnight();
+                const h=Math.floor(ms/3600000);const m=Math.floor((ms%3600000)/60000);
+                const countdown=h>0?`${h}h ${m}m`:`${m}m`;
+                return(
+                  <div className="card fadeUp d2" style={{padding:"clamp(16px,4vw,24px)",marginBottom:20,background:"var(--yellow-dim)",border:"2.5px solid var(--yellow)",position:"relative",overflow:"hidden"}}>
+                    <div style={{position:"absolute",top:0,right:0,width:72,height:72,background:"rgba(245,200,66,0.18)",borderRadius:"0 0 0 72px",pointerEvents:"none"}}/>
+                    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10,flexWrap:"wrap"}}>
+                      <span style={{fontSize:11,fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",color:"#7A5500",background:"var(--yellow)",padding:"4px 12px",borderRadius:50,fontFamily:"Fredoka",whiteSpace:"nowrap"}}>Today's challenge</span>
+                      <span style={{fontSize:12,color:"var(--muted)",marginLeft:"auto",whiteSpace:"nowrap"}}>Next in {countdown}</span>
+                    </div>
+                    <p className="fredoka" style={{fontSize:18,lineHeight:1.5,marginBottom:14,color:"var(--text)"}}>"{DAILY_PROMPT.text}"</p>
+                    <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                      <span style={{background:DIFF_BG[DAILY_PROMPT.diff],color:DIFF_COLOR[DAILY_PROMPT.diff],border:`1.5px solid ${DIFF_COLOR[DAILY_PROMPT.diff]}60`,borderRadius:50,padding:"3px 12px",fontSize:12,fontFamily:"Fredoka",fontWeight:600}}>{DAILY_PROMPT.diff}</span>
+                      <span style={{background:"var(--orange-dim)",color:"var(--orange)",border:"1.5px solid var(--orange-border)",borderRadius:50,padding:"3px 12px",fontSize:12,fontFamily:"Fredoka",fontWeight:600}}>{DAILY_PROMPT.cat}</span>
+                      <button className="btn btn-orange" style={{marginLeft:"auto",padding:"8px 18px",fontSize:14}} onClick={()=>startSession(DAILY_PROMPT)}>Try this prompt</button>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Setup card */}
               <div className="card fadeUp d3" style={{padding:"clamp(20px,5vw,40px)",marginBottom:20}}>
                 {/* Category */}
@@ -1331,11 +1394,44 @@ export default function Orivox(){
                     <Star size={20} color="#F5C842"/>
                   </div>
                   <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
-                    {CATS.map(c=><button key={c} className={`chip ${cat===c?"active":""}`} onClick={()=>setCat(c)}>{c}</button>)}
-                    <button className={`chip ${cat==="Random"?"active":""}`} onClick={()=>setCat("Random")}>Random</button>
+                    {CATS.map(c=><button key={c} className={`chip ${cat===c?"active":""}`} onClick={()=>{setCat(c);setCustomErr("");}}>{c}</button>)}
+                    <button className={`chip ${cat==="Random"?"active":""}`} onClick={()=>{setCat("Random");setCustomErr("");}}>Random</button>
+                    <button className={`chip ${cat==="Custom"?"active":""}`} onClick={()=>{setCat("Custom");setCustomErr("");}}>Custom</button>
                   </div>
                 </div>
-                {/* Difficulty */}
+                {/* Custom prompt textarea */}
+                {cat==="Custom"&&(
+                  <div style={{marginBottom:36}}>
+                    <div style={{position:"relative"}}>
+                      <textarea
+                        value={customText}
+                        onChange={e=>{if(e.target.value.length<=300){setCustomText(e.target.value);setCustomErr("");}}}
+                        placeholder="Describe your scenario, e.g. Explain my startup idea to a skeptical investor, or Practice asking my boss for a raise"
+                        rows={3}
+                        style={{width:"100%",padding:"12px 16px 28px",borderRadius:14,border:`2px solid ${customErr?"var(--red)":"var(--border)"}`,fontSize:15,fontFamily:"Nunito,sans-serif",outline:"none",background:"var(--bg)",color:"var(--text)",resize:"vertical",boxSizing:"border-box",lineHeight:1.6,transition:"border-color .2s"}}
+                      />
+                      <span style={{position:"absolute",bottom:10,right:14,fontSize:12,color:customText.length>270?"var(--red)":"var(--muted)",pointerEvents:"none"}}>{300-customText.length}</span>
+                    </div>
+                    {customErr&&<p style={{color:"var(--red)",fontSize:13,marginTop:6,fontWeight:600}}>{customErr}</p>}
+                    {recentCustoms.length>0&&(
+                      <div style={{marginTop:14}}>
+                        <p style={{fontSize:12,color:"var(--muted)",marginBottom:8,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em"}}>Recent custom prompts</p>
+                        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                          {recentCustoms.map((r,i)=>(
+                            <button key={i} onClick={()=>{setCustomText(r);setCustomErr("");}}
+                              style={{textAlign:"left",padding:"9px 14px",borderRadius:10,border:"1.5px solid var(--border)",background:"var(--cream)",fontSize:13,color:"var(--text)",cursor:"pointer",fontFamily:"Nunito,sans-serif",lineHeight:1.5,transition:"border-color .15s"}}
+                              onMouseOver={e=>e.currentTarget.style.borderColor="var(--orange)"}
+                              onMouseOut={e=>e.currentTarget.style.borderColor="var(--border)"}>
+                              {r.length>90?r.slice(0,90)+"…":r}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Difficulty — hidden for Custom */}
+                {cat!=="Custom"&&(
                 <div style={{marginBottom:36}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
                     <span className="fredoka" style={{fontSize:20}}>Difficulty</span>
@@ -1346,6 +1442,7 @@ export default function Orivox(){
                     <button className={`chip ${diff==="Random"?"active":""}`} onClick={()=>setDiff("Random")}>Random</button>
                   </div>
                 </div>
+                )}
                 {/* Timers */}
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:28,marginBottom:40}}>
                   <div>
@@ -1384,8 +1481,8 @@ export default function Orivox(){
                 <TimerDoodle size={68}/>
                 <div>
                   <div style={{display:"flex",gap:8,marginBottom:8}}>
-                    <span style={{background:DIFF_BG[activeDiff],color:DIFF_COLOR[activeDiff],border:`2px solid ${DIFF_COLOR[activeDiff]}50`,borderRadius:50,padding:"4px 14px",fontSize:13,fontFamily:"Fredoka",fontWeight:600}}>{activeDiff}</span>
-                    <span style={{background:"var(--orange-dim)",color:"var(--orange)",border:"2px solid var(--orange-border)",borderRadius:50,padding:"4px 14px",fontSize:13,fontFamily:"Fredoka",fontWeight:600}}>{cat}</span>
+                    {activeCat!=="Custom"&&<span style={{background:DIFF_BG[activeDiff],color:DIFF_COLOR[activeDiff],border:`2px solid ${DIFF_COLOR[activeDiff]}50`,borderRadius:50,padding:"4px 14px",fontSize:13,fontFamily:"Fredoka",fontWeight:600}}>{activeDiff}</span>}
+                    <span style={{background:"var(--orange-dim)",color:"var(--orange)",border:"2px solid var(--orange-border)",borderRadius:50,padding:"4px 14px",fontSize:13,fontFamily:"Fredoka",fontWeight:600}}>{activeCat}</span>
                   </div>
                   <h2 className="fredoka" style={{fontSize:30}}>Prep Time!</h2>
                 </div>
@@ -1394,7 +1491,7 @@ export default function Orivox(){
               <div className="card fadeUp d1" style={{padding:28,marginBottom:20,borderLeft:"6px solid var(--orange)",position:"relative"}}>
                 <p style={{fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Your prompt</p>
                 <p className="fredoka" style={{fontSize:24,lineHeight:1.4,marginBottom:16}}>"{displayedTopic}"</p>
-                <button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={pickTopic}>↻ New topic</button>
+                {activeCat!=="Custom"&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={pickTopic}>↻ New topic</button>}
               </div>
 
               <div className="card fadeUp d2" style={{textAlign:"center",padding:"44px 32px",marginBottom:20}}>
@@ -1428,7 +1525,7 @@ export default function Orivox(){
               <div className="card fadeUp d1" style={{textAlign:"left",padding:24,marginBottom:20}}>
                 <p style={{fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Your prompt</p>
                 <p className="fredoka" style={{fontSize:20,lineHeight:1.5,marginBottom:recording?0:14}}>"{displayedTopic}"</p>
-                {!recording&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={pickTopic}>↻ New topic</button>}
+                {!recording&&activeCat!=="Custom"&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={pickTopic}>↻ New topic</button>}
               </div>
 
               <div ref={timerCardRef} className="card fadeUp d2" style={{padding:"48px 32px",marginBottom:20,border:recording?"2.5px solid transparent":"2.5px solid var(--border)",transition:"border-color .3s",position:"relative",overflow:"visible"}}>
