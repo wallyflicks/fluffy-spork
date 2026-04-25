@@ -935,6 +935,7 @@ export default function Orivox(){
   const earlyStopRef=useRef(false);
   const earlyStopElapsedRef=useRef(0);
   const lastTopicRef=useRef("");
+  const blobResolveRef=useRef(null);
   const [micStarting,setMicStarting]=useState(false);
 
   // On mount: load saved username; show name modal if first visit
@@ -1032,13 +1033,16 @@ export default function Orivox(){
 
       const stream=await navigator.mediaDevices.getUserMedia({audio:true});
 
-      // Pick best supported MIME type — Safari/iOS needs mp4, others prefer webm
-      const mimeTypes=["audio/webm;codecs=opus","audio/webm","audio/mp4","audio/ogg;codecs=opus","audio/ogg",""];
-      const isSafari=/^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-      const preferredTypes=isSafari?["audio/mp4","audio/ogg","audio/webm",""]:mimeTypes;
-      const mimeType=preferredTypes.find(t=>t===""||MediaRecorder.isTypeSupported(t))||"";
+      // audio/mp4 first — required for iOS Safari; webm for Chrome/Firefox
+      const mimeType=
+        MediaRecorder.isTypeSupported('audio/mp4')?'audio/mp4':
+        MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':
+        MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':
+        MediaRecorder.isTypeSupported('audio/ogg')?'audio/ogg':
+        'audio/mp4';
+      console.log('[Orivox] Recording MIME type selected:',mimeType);
 
-      const mr=new MediaRecorder(stream,mimeType?{mimeType}:{});
+      const mr=new MediaRecorder(stream,{mimeType});
       mediaRef.current=mr;chunksRef.current=[];
       mr.ondataavailable=e=>{if(e.data&&e.data.size>0)chunksRef.current.push(e.data);};
       mr.onstop=()=>{
@@ -1052,6 +1056,8 @@ export default function Orivox(){
         }
         setAudioBlob(blob);
         setAudioUrl(URL.createObjectURL(blob));
+        blobResolveRef.current?.(blob);
+        blobResolveRef.current=null;
         stream.getTracks().forEach(t=>t.stop());
       };
       mr.start(1000);startTimeRef.current=Date.now();setRecording(true);setRunning(true);
@@ -1153,15 +1159,33 @@ export default function Orivox(){
 
   const analyze=async()=>{
     setLoading(true);
-    const text=transcriptRef.current;
+    let text=transcriptRef.current;
     if(!text.trim()){
-      // Check if we actually had audio data — if so, transcription failed rather than mic failing
       const hadAudio=chunksRef.current.length>0&&chunksRef.current.some(c=>c.size>0);
-      setFeedback({error:hadAudio
-        ?"We had trouble transcribing your audio — please speak clearly and try again."
-        :"No speech detected. Make sure your microphone is working and try again."
-      });
-      setLoading(false);return;
+      if(hadAudio){
+        try{
+          // Wait up to 5s for MediaRecorder.onstop to finish assembling the blob
+          const blob=await new Promise(resolve=>{
+            const t=setTimeout(()=>resolve(null),5000);
+            blobResolveRef.current=b=>{clearTimeout(t);resolve(b);};
+          });
+          if(blob&&blob.size>=1000){
+            const ext=blob.type.includes('mp4')?'mp4':blob.type.includes('ogg')?'ogg':'webm';
+            const fd=new FormData();
+            fd.append('audio',blob,`recording.${ext}`);
+            const res=await fetch('/api/transcribe',{method:'POST',body:fd});
+            if(res.ok){const {transcript:t}=await res.json();if(t?.trim())text=t;}
+          }
+        }catch{}
+      }
+      if(!text.trim()){
+        setFeedback({error:hadAudio
+          ?"Audio could not be processed on your device. Try using Chrome on desktop for the best experience."
+          :"No speech detected. Make sure your microphone is working and try again."
+        });
+        setLoading(false);return;
+      }
+      transcriptRef.current=text;
     }
     let result=null;
     try{
@@ -1173,7 +1197,6 @@ export default function Orivox(){
       await new Promise(r=>setTimeout(r,800));
       result=analyzeTranscript(text,topic,activeDiff);
     }
-    // No penalty for stopping early — score reflects what was actually said
     saveSession(result);setFeedback(result);setLoading(false);
   };
 
@@ -1336,7 +1359,6 @@ export default function Orivox(){
               </div>
 
               <div className="card fadeUp d1" style={{padding:28,marginBottom:20,borderLeft:"6px solid var(--orange)",position:"relative"}}>
-                <Star size={20} color="#F5C842" style={{position:"absolute",top:16,right:16}}/>
                 <p style={{fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Your prompt</p>
                 <p className="fredoka" style={{fontSize:24,lineHeight:1.4,marginBottom:16}}>"{displayedTopic}"</p>
                 <button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={pickTopic}>↻ New topic</button>
@@ -1349,8 +1371,8 @@ export default function Orivox(){
 
               <div className="fadeUp d3" style={{display:"flex",gap:12}}>
                 {!running
-                  ?<button className="btn btn-orange" style={{flex:1,justifyContent:"center",padding:"15px",fontSize:18}} onClick={()=>{startTimeRef.current=Date.now()-((initialTimeRef.current-timer)*1000);setRunning(true);}}>▶ Start Timer</button>
-                  :<button className="btn btn-cream" style={{flex:1,justifyContent:"center"}} onClick={()=>setRunning(false)}>⏸ Pause</button>
+                  ?<button className="btn btn-orange" style={{flex:1,justifyContent:"center",padding:"15px",fontSize:18}} onClick={()=>{startTimeRef.current=Date.now()-((initialTimeRef.current-timer)*1000);setRunning(true);}}>Start Timer</button>
+                  :<button className="btn btn-cream" style={{flex:1,justifyContent:"center"}} onClick={()=>setRunning(false)}>Pause</button>
                 }
                 <button className="btn btn-green" style={{flex:1,justifyContent:"center",padding:"15px",fontSize:18}} onClick={goSpeak} disabled={running}>Start Speaking →</button>
               </div>
