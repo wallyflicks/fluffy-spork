@@ -544,10 +544,10 @@ function WaveViz({active}){
 }
 
 // ── Review Prompt ────────────────────────────────────────────────────────────
-function ReviewPrompt({onSubmit}){
+function ReviewPrompt({onSubmit,initialName=""}){
   const [rating,setRating]=useState(0);
   const [hover,setHover]=useState(0);
-  const [name,setName]=useState("");
+  const [name,setName]=useState(initialName);
   const [comment,setComment]=useState("");
   const [submitted,setSubmitted]=useState(false);
   const [loading,setLoading]=useState(false);
@@ -947,17 +947,15 @@ export default function Orivox(){
     const pname=localStorage.getItem("orivox_username")||"Anonymous";
     const now=new Date();
     const d=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
-    const score=feedback.totalScore;
-    supabase.from("scores").select("id,score").eq("player_name",pname).maybeSingle()
-      .then(({data})=>{
-        if(data){
-          if(score>data.score){
-            supabase.from("scores").update({score,category:activeCat,difficulty:activeDiff,date:d}).eq("id",data.id)
-              .then(({error})=>{if(error)console.error("LB update failed:",error.message);});
-          }
-        }else{
-          supabase.from("scores").insert({player_name:pname,score,category:activeCat,difficulty:activeDiff,date:d})
-            .then(({error})=>{if(error)console.error("LB insert failed:",error.message);});
+    // Always insert — leaderboard page deduplicates client-side per player
+    supabase.from("scores")
+      .insert({player_name:pname,score:feedback.totalScore,category:activeCat,difficulty:activeDiff,date:d})
+      .then(({error})=>{
+        if(error){
+          console.error("LB insert failed:",error.message);
+          // Fallback: try with minimal columns in case table has fewer columns
+          supabase.from("scores").insert({player_name:pname,score:feedback.totalScore})
+            .then(({error:e2})=>{if(e2)console.error("LB minimal insert failed:",e2.message);});
         }
       }).catch(e=>console.error("LB error:",e));
     if(!localStorage.getItem("orivox_review_prompted")) setShowReviewModal(true);
@@ -1513,7 +1511,7 @@ export default function Orivox(){
             <div style={{width:56,height:56,borderRadius:"50%",background:"var(--orange-dim)",border:"2.5px solid var(--orange-border)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 18px"}}>
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
             </div>
-            <h2 className="fredoka" style={{fontSize:24,marginBottom:8}}>What should we call you on the leaderboard?</h2>
+            <h2 className="fredoka" style={{fontSize:24,marginBottom:8}}>What should we call you?</h2>
             <p style={{color:"var(--muted)",fontSize:14,marginBottom:24,lineHeight:1.6}}>Your name appears next to your scores. You can change it any time on the leaderboard page.</p>
             <input value={nameInput} onChange={e=>setNameInput(e.target.value)}
               onKeyDown={e=>e.key==="Enter"&&handleSaveName()}
@@ -1536,7 +1534,7 @@ export default function Orivox(){
             <button style={{position:"absolute",top:14,right:14,background:"none",border:"none",cursor:"pointer",padding:6,lineHeight:0}} onClick={closeReviewModal}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
-            <ReviewPrompt onSubmit={closeReviewModal}/>
+            <ReviewPrompt onSubmit={closeReviewModal} initialName={username}/>
           </div>
         </div>
       )}

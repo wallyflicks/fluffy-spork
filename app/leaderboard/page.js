@@ -88,7 +88,7 @@ export default function Leaderboard() {
       .from('scores')
       .select('id, player_name, score, category, difficulty, date, created_at')
       .order('score', { ascending: false })
-      .limit(50)
+      .limit(500)
       .then(({ data, error }) => {
         if (!error && data) { setScores(data); setLoading(false); return }
         // Fallback: minimal columns
@@ -96,14 +96,25 @@ export default function Leaderboard() {
           .from('scores')
           .select('id, player_name, score, created_at')
           .order('score', { ascending: false })
-          .limit(50)
+          .limit(500)
           .then(({ data: d2, error: e2 }) => { setScores(e2 ? null : (d2 || [])); setLoading(false) })
           .catch(() => { setScores(null); setLoading(false) })
       })
       .catch(() => { setScores(null); setLoading(false) })
   }, [])
 
-  const allTimeHigh = scores && scores.length > 0 ? scores[0] : null
+  // Deduplicate: keep highest score per player (rows already sorted desc)
+  const deduped = scores ? (() => {
+    const seen = new Set()
+    return scores.filter(s => {
+      const key = (s.player_name || 'Anonymous').toLowerCase()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  })() : []
+
+  const allTimeHigh = deduped.length > 0 ? deduped[0] : null
 
   return (
     <>
@@ -167,12 +178,12 @@ export default function Leaderboard() {
               <div style={{ padding:'32px 24px', textAlign:'center' }}>
                 <p style={{ color:'var(--muted)', fontSize:14 }}>Could not load scores. Make sure the Supabase <code>scores</code> table exists with RLS disabled.</p>
               </div>
-            ) : scores.length === 0 ? (
+            ) : deduped.length === 0 ? (
               <div style={{ padding:'40px 24px', textAlign:'center' }}>
                 <p style={{ color:'var(--muted)', fontSize:15 }}>No scores yet — be the first to post.</p>
               </div>
             ) : (
-              scores.map((entry, i) => {
+              deduped.map((entry, i) => {
                 const b = scoreBadge(entry.score)
                 return (
                   <div key={entry.id} className="lb-row">
