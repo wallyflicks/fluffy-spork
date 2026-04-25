@@ -523,25 +523,64 @@ function CelebStars({show}){
   );
 }
 
-const WAVE_HEIGHTS=[55,80,40,95,60,100,45,85,55,75,35,90,65,50];
-function WaveViz({active}){
+function WaveViz({active,analyserNode}){
+  const canvasRef=useRef(null);
+  const rafRef=useRef(null);
+  useEffect(()=>{
+    const canvas=canvasRef.current;
+    if(!canvas)return;
+    const ctx=canvas.getContext('2d');
+    if(!active||!analyserNode){
+      cancelAnimationFrame(rafRef.current);
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      return;
+    }
+    const bufLen=analyserNode.fftSize;
+    const data=new Uint8Array(bufLen);
+    const draw=()=>{
+      rafRef.current=requestAnimationFrame(draw);
+      analyserNode.getByteTimeDomainData(data);
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.beginPath();
+      ctx.strokeStyle='#FF6B2B';
+      ctx.lineWidth=2.5;
+      ctx.lineJoin='round';
+      const sw=canvas.width/bufLen;
+      let x=0;
+      for(let i=0;i<bufLen;i++){
+        const y=(data[i]/128)*canvas.height/2;
+        i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+        x+=sw;
+      }
+      ctx.stroke();
+    };
+    draw();
+    return()=>cancelAnimationFrame(rafRef.current);
+  },[active,analyserNode]);
+  if(!active)return null;
   return(
-    <div style={{display:"flex",gap:4,alignItems:"center",height:48}}>
-      {WAVE_HEIGHTS.map((h,i)=>(
-        <div key={i} style={{
-          width:5,height:`${h}%`,borderRadius:3,
-          background:active?"var(--orange)":"var(--orange-border)",
-          transformOrigin:"center",
-          animationName:active?"waveBar":"none",
-          animationDuration:`${0.4+(i%5)*0.11}s`,
-          animationTimingFunction:"ease-in-out",
-          animationIterationCount:"infinite",
-          animationDelay:`${(i*0.06).toFixed(2)}s`,
-          opacity:active?1:0.4,transition:"background .3s,opacity .3s",
-        }}/>
-      ))}
-    </div>
+    <canvas ref={canvasRef} width={280} height={56}
+      style={{display:'block',maxWidth:'100%',borderRadius:8,background:'rgba(255,107,43,0.07)',marginTop:8}}
+    />
   );
+}
+
+function HighlightedTranscript({text,fillerWords}){
+  const fillers=Object.keys(fillerWords||{});
+  if(!fillers.length)return<span>{text}</span>;
+  const pattern=fillers.map(w=>w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|');
+  const regex=new RegExp(`\\b(${pattern})\\b`,'gi');
+  const parts=[];let last=0,m;
+  while((m=regex.exec(text))!==null){
+    if(m.index>last)parts.push({t:text.slice(last,m.index),h:false});
+    parts.push({t:m[0],h:true});
+    last=m.index+m[0].length;
+  }
+  if(last<text.length)parts.push({t:text.slice(last),h:false});
+  return<>{parts.map((p,i)=>p.h
+    ?<mark key={i} style={{background:'#FFF3CD',color:'#7A5500',fontWeight:700,borderRadius:3,padding:'0 2px'}}>{p.t}</mark>
+    :<span key={i}>{p.t}</span>
+  )}</>;
 }
 
 // ── Review Prompt ────────────────────────────────────────────────────────────
@@ -935,6 +974,8 @@ export default function Orivox(){
   const earlyStopRef=useRef(false);
   const earlyStopElapsedRef=useRef(0);
   const lastTopicRef=useRef("");
+  const audioCtxRef=useRef(null);
+  const [analyserNode,setAnalyserNode]=useState(null);
   const [micStarting,setMicStarting]=useState(false);
 
   // On mount: load saved username; show name modal if first visit
@@ -1032,6 +1073,16 @@ export default function Orivox(){
 
       const stream=await navigator.mediaDevices.getUserMedia({audio:true});
 
+      // Set up Web Audio API analyser for the waveform visualizer
+      try{
+        const audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+        const analyser=audioCtx.createAnalyser();
+        analyser.fftSize=512;
+        audioCtx.createMediaStreamSource(stream).connect(analyser);
+        audioCtxRef.current=audioCtx;
+        setAnalyserNode(analyser);
+      }catch{}
+
       // audio/mp4 first — required for iOS Safari; webm for Chrome/Firefox
       const mimeType=
         MediaRecorder.isTypeSupported('audio/mp4')?'audio/mp4':
@@ -1103,6 +1154,9 @@ export default function Orivox(){
     earlyStopRef.current=early;
     if(early&&startTimeRef.current) earlyStopElapsedRef.current=Math.floor((Date.now()-startTimeRef.current)/1000);
     stoppingRef.current=true;
+    setAnalyserNode(null);
+    audioCtxRef.current?.close().catch(()=>{});
+    audioCtxRef.current=null;
     recognitionRef.current?.stop();recognitionRef.current=null;
     if(mediaRef.current?.state!=="inactive")mediaRef.current?.stop();
     setRecording(false);setRunning(false);setScreen("feedback");analyze();
@@ -1111,8 +1165,9 @@ export default function Orivox(){
   const saveSession=(feedbackData)=>{
     try{
       const words=transcriptRef.current.trim().split(/\s+/).filter(Boolean).length;
-      const wpm=speakTime>0?(words/speakTime)*60:0;
-      const pacingRating=wpm<100?"slow":wpm<170?"good":"fast";
+      const actualDur=earlyStopRef.current&&earlyStopElapsedRef.current>0?earlyStopElapsedRef.current:speakTime;
+      const wpm=actualDur>0?Math.round((words/actualDur)*60):0;
+      const pacingRating=wpm<110?"too slow":wpm<130?"slightly slow":wpm<=160?"ideal":wpm<=180?"slightly fast":"too fast";
       const fillerWordList=feedbackData.fillerWordList||{};
       const now=new Date();
       const localDate=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
@@ -1125,7 +1180,7 @@ export default function Orivox(){
         fillerWordCount:Object.values(fillerWordList).reduce((a,b)=>a+b,0),
         fillerWords:Object.keys(fillerWordList),
         pacingRating,
-        speakDuration:speakTime,
+        speakDuration:actualDur,
         // Rich detail fields
         clarity:feedbackData.clarity,
         structure:feedbackData.structure,
@@ -1391,7 +1446,7 @@ export default function Orivox(){
                 )}
                 <div style={{fontSize:96,fontWeight:700,fontFamily:"Fredoka",lineHeight:1,letterSpacing:"-0.03em",color:timer<10?"var(--red)":timer<30?"#CC6600":"var(--text)"}}>{fmt(timer)}</div>
                 <div style={{color:"var(--muted)",fontFamily:"Fredoka",fontSize:17,margin:"10px 0 22px"}}>speaking time remaining</div>
-                <div style={{display:"flex",justifyContent:"center"}}><WaveViz active={recording}/></div>
+                <div style={{display:"flex",justifyContent:"center"}}><WaveViz active={recording} analyserNode={analyserNode}/></div>
               </div>
 
               <div className="fadeUp d3">
@@ -1450,6 +1505,34 @@ export default function Orivox(){
                     <SubBar label="Confidence" val={feedback.confidence} max={25} color="#8B5CF6" bg="#F5F3FF"/>
                   </div>
 
+                  {/* WPM metric */}
+                  {(()=>{
+                    const words=(feedback.cleanedTranscript||transcript).trim().split(/\s+/).filter(Boolean).length;
+                    const dur=earlyStopRef.current&&earlyStopElapsedRef.current>0?earlyStopElapsedRef.current:speakTime;
+                    const wpm=dur>0?Math.round((words/dur)*60):0;
+                    if(!wpm)return null;
+                    const pace=wpm<110?{label:"Too slow — try to speak more naturally",color:"var(--red)"}
+                      :wpm<130?{label:"Slightly slow — good for clarity",color:"#CC6600"}
+                      :wpm<=160?{label:"Ideal pace — clear and engaging",color:"var(--green)"}
+                      :wpm<=180?{label:"Slightly fast — slow down a little",color:"#CC6600"}
+                      :{label:"Too fast — your audience will struggle to follow",color:"var(--red)"};
+                    return(
+                      <div className="card fb3" style={{padding:28,marginBottom:20,borderLeft:`5px solid ${pace.color}`}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12}}>
+                          <div>
+                            <p className="fredoka" style={{fontSize:19,marginBottom:4}}>Speaking Pace</p>
+                            <p style={{fontSize:13,color:"var(--muted)"}}>Ideal: 130–160 WPM</p>
+                          </div>
+                          <div style={{textAlign:"right"}}>
+                            <span className="fredoka" style={{fontSize:38,color:pace.color,lineHeight:1}}>{wpm}</span>
+                            <span style={{fontSize:14,color:"var(--muted)",marginLeft:4}}>WPM</span>
+                          </div>
+                        </div>
+                        <p style={{marginTop:10,fontSize:14,color:pace.color,fontWeight:600}}>{pace.label}</p>
+                      </div>
+                    );
+                  })()}
+
                   {/* Filler word callouts */}
                   <div className="card fb3" style={{padding:28,marginBottom:20,borderLeft:`5px solid ${Object.keys(feedback.fillerWordList||{}).length===0?"var(--green)":"var(--red)"}`}}>
                     <p className="fredoka" style={{fontSize:19,marginBottom:16}}>Filler Words</p>
@@ -1492,8 +1575,13 @@ export default function Orivox(){
                     <details className="card fb6" style={{marginBottom:20,padding:28,cursor:"pointer"}}>
                       <summary className="fredoka" style={{fontSize:16,color:"var(--muted)",userSelect:"none"}}>View transcript ▾</summary>
                       <div style={{marginTop:16}}>
+                        {Object.keys(feedback.fillerWordList||{}).length>0&&(
+                          <p style={{fontSize:12,color:"var(--muted)",marginBottom:12,fontStyle:"italic"}}>Highlighted words are filler words detected in your speech</p>
+                        )}
                         {(feedback.cleanedTranscript||transcript).split(/\n+/).map((para,i)=>(
-                          <p key={i} style={{fontSize:14,lineHeight:1.9,opacity:.85,marginBottom:12}}>{para}</p>
+                          <p key={i} style={{fontSize:14,lineHeight:1.9,opacity:.85,marginBottom:12}}>
+                            <HighlightedTranscript text={para} fillerWords={feedback.fillerWordList}/>
+                          </p>
                         ))}
                       </div>
                     </details>
