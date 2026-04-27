@@ -437,8 +437,6 @@ export default function Progress() {
                             <td className="hide-mobile">
                               {(() => {
                                 const d = s.difficulty
-                                const caseLabels = {Easy:'Warm-up', Medium:'Judge Round', Hard:'Final Round'}
-                                const label = s.category === 'Case Competition' ? (caseLabels[d] || d) : d
                                 const known = d === 'Easy' || d === 'Medium' || d === 'Hard'
                                 return (
                                   <span style={{
@@ -447,7 +445,7 @@ export default function Progress() {
                                     background: d === 'Easy' ? '#E8F7EE' : d === 'Medium' ? '#FFF9E0' : d === 'Hard' ? '#FFECEC' : '#F0F0F0',
                                     color: d === 'Easy' ? 'var(--green)' : d === 'Medium' ? '#7A5500' : d === 'Hard' ? 'var(--red)' : 'var(--muted)',
                                     border: `1.5px solid ${d === 'Easy' ? 'var(--green)' : d === 'Medium' ? 'var(--yellow)' : d === 'Hard' ? 'var(--red)' : 'var(--border)'}`,
-                                  }}>{known ? label : 'Unknown'}</span>
+                                  }}>{known ? d : 'Unknown'}</span>
                                 )
                               })()}
                             </td>
