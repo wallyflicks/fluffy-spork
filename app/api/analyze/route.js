@@ -72,14 +72,24 @@ Session history: ${JSON.stringify(body.sessions)}`
       lengthNote = `\nNOTE: This response is below average length — ${wordCount} words. Maximum possible score is 75. Apply appropriate penalties.`;
     }
 
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
-      messages: [{
-        role: 'user',
-        content: `You are an expert speaking coach with years of experience helping people communicate clearly and confidently. Analyze the following speech transcript in detail and provide genuinely useful, specific coaching.
+    const isCaseComp = category === 'Case Competition';
+
+    const scoringBlock = isCaseComp
+      ? `This is a case competition judge Q&A round. The user was given a mini business case and a specific judge question. Evaluate using the following criteria:
 
 Score across these four categories:
+- Clarity (0-25): Were ideas expressed clearly and concisely? Could a senior executive follow the argument without effort? Penalize for vague generalizations without supporting reasoning.
+- Structure (0-25): Did they directly answer the judge question? Did they show structured logical reasoning (direct answer → supporting reasoning → clear takeaway) and business judgment? This is the most heavily weighted category. Penalize heavily for not answering the question asked, wandering without getting to a point, or lacking a clear conclusion.
+- Filler words (0-25): Standard filler word detection and count. Weighted less than structure and clarity in the final score.
+- Confidence & delivery (0-25): Did they sound credible and confident under pressure? Did they commit to a clear position? Penalize heavily for hedging excessively, trailing off, or sounding uncertain about their own recommendation.
+
+CASE COMPETITION SCORING — use this exact formula for totalScore:
+totalScore = round((structure × 1.2) + (clarity × 1.2) + confidence + (fillerWords × 0.6))
+This weights structure at 30%, clarity at 30%, confidence at 25%, filler words at 15%.
+
+Penalize heavily for: not directly answering the judge question, vague generalizations without supporting logic, hedging excessively, or trailing off without a clear conclusion. A great answer leads with a direct answer, follows with reasoning, and closes with a clear takeaway.${lengthNote}`
+
+      : `Score across these four categories:
 - Clarity (0-25): Can the listener easily follow the message? Are ideas expressed clearly or muddled?
 - Structure (0-25): Does the response have a clear sense of direction and flow? A well-structured response does NOT have to use "first, second, third" signposting. Award full marks for ANY of these valid structures: Problem → Solution → Example; Story arc (setup, conflict, resolution); Opinion → Reasoning → Evidence → Conclusion; What → Why → How; Past → Present → Future; numbered signposting; or any other coherent logical flow where the listener can follow the progression of ideas. Penalize structure ONLY when: the response jumps between unrelated ideas with no connection; there is no clear beginning or ending — it just starts mid-thought or trails off; the same point is repeated multiple times without development; or the response is purely stream of consciousness with no discernible logic. Do NOT penalize for: using a narrative or story structure instead of a list structure; not using signpost words explicitly (flow can be implicit); short responses that make one clear point well; or conversational transitions like "and the reason for that is" or "which means that". A response that tells a coherent story, makes a clear argument, or walks through a logical progression should score 18-25 even without explicit signposting.
 - Filler words (0-25): Penalize for um, uh, like, you know, sort of, kind of, basically, literally, right, so, actually, honestly. List every filler word and exact count.
@@ -97,9 +107,18 @@ IMPORTANT LENGTH RULES — these are hard limits, never exceed them:
 - 10-25 words: score 0-45 maximum
 - 26-50 words: score 0-62 maximum
 - 51-80 words: score 0-75 maximum
-- 81+ words: score based purely on quality, no length cap${lengthNote}
+- 81+ words: score based purely on quality, no length cap${lengthNote}`;
 
-For the feedback field, write 3-4 sentences of SPECIFIC coaching based on what they actually said. Reference their actual words, ideas, or patterns. Do not write generic advice. If they rambled about a specific topic, name it. If their structure was weak, explain exactly where it broke down. If they had a strong opening, acknowledge it specifically.
+    const message = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2048,
+      messages: [{
+        role: 'user',
+        content: `You are an expert speaking coach with years of experience helping people communicate clearly and confidently. Analyze the following speech transcript in detail and provide genuinely useful, specific coaching.
+
+${scoringBlock}
+
+For the feedback field, write 3-4 sentences of SPECIFIC coaching based on what they actually said. Reference their actual words, ideas, or patterns. Do not write generic advice. If they rambled about a specific topic, name it. If their structure was weak, explain exactly where it broke down. If they had a strong opening, acknowledge it specifically.${isCaseComp ? ' For case competition specifically: did they answer the judge question directly? Did they show business judgment? Did they sound credible?' : ''}
 
 For strength: write one specific thing they did well, referencing their actual content.
 For improvement: write the single most important thing to work on, with a concrete tip for how to do it next time.
