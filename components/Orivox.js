@@ -303,7 +303,7 @@ function analyzeTranscript(text, topic, difficulty) {
     const maxF=Object.values(freqM).length?Math.max(...Object.values(freqM)):0;
     const flags=[uniqueR<0.4&&wordCount<60, noiseR>0.3, wordCount<50&&maxF>4].filter(Boolean).length;
     if(flags>=2)return{
-      totalScore:8,clarity:3,structure:1,fillerWords:8,confidence:4,
+      totalScore:16,clarity:3,structure:1,fillerWords:8,confidence:4,
       fillerWordList:{},
       feedback:"This response did not contain a meaningful answer to the prompt. Real feedback requires real sentences.",
       strength:"You attempted to speak — that is the first step.",
@@ -337,23 +337,14 @@ function analyzeTranscript(text, topic, difficulty) {
     const totalScore=Math.max(20,Math.min(100,clarity+structure+fillerWordsScore+confidence));
     const topFiller=Object.entries(fillerWordList).sort((a,b)=>b[1]-a[1])[0];
     const hasFiller=totalFillers>0;
-    const feedbackStr=totalScore>=80
-      ?`Strong response — clear, structured, and delivered with confidence on a ${difficulty} prompt.`
-      :totalScore>=60
-      ?`Solid effort on a ${difficulty} prompt.${hasFiller?` Watch the "${topFiller[0]}" habit — it appeared ${topFiller[1]} time${topFiller[1]>1?"s":""}.`:""}`
-      :`Keep working at it — the specifics below show exactly what to fix first.`;
-    const strength=structCount>1
-      ?`Used ${structCount} signpost words — your response had clear direction and was easy to follow`
-      :wordCount>100
-      ?`Good depth — ${wordCount} words shows you developed the idea rather than giving a surface-level answer`
-      :`Completed the full response without stopping — the discipline to speak to the end builds real skill`;
+    const feedbackStr="Score calculated offline — retry for full AI-powered coaching on your specific response.";
+    const strength=hasFiller&&totalFillers===0
+      ?`Clean delivery with no detected filler words — that is a real strength.`
+      :wordCount>80?`You spoke at length and gave the prompt time — good foundation to build on.`
+      :`You completed the session.`;
     const improvement=hasFiller&&fillerRate>0.04
-      ?`Cut "${topFiller[0]}" (appeared ${topFiller[1]} time${topFiller[1]>1?"s":""}) — replace it with a deliberate one-second pause instead`
-      :structCount<2
-      ?`Add signpost words — try opening with "I'll cover two things: first… and second…" to give your response immediate structure`
-      :totalHedges>2
-      ?`Remove hedging language like "I think" or "maybe" — state your points directly and they instantly sound more authoritative`
-      :`Push for more depth — try hitting ${Math.min(wordCount+60,200)} words next time by adding one concrete example`;
+      ?`Watch the "${topFiller[0]}" habit — it appeared ${topFiller[1]} time${topFiller[1]>1?"s":""}. Replace it with a deliberate pause.`
+      :`Retry to get specific AI coaching on the clearest area for you to improve.`;
     return{totalScore,clarity,structure,fillerWords:fillerWordsScore,confidence,fillerWordList,feedback:feedbackStr,strength,improvement};
   }
   // (unreachable — kept for linter)
@@ -1749,7 +1740,9 @@ export default function Orivox(){
                 </div>
               )}
 
-              {!loading&&feedback&&!feedback.error&&(
+              {!loading&&feedback&&!feedback.error&&(()=>{
+                const displayScore=Math.min(100,(feedback.clarity||0)+(feedback.structure||0)+(feedback.fillerWords||0)+(feedback.confidence||0));
+                return(
                 <div>
                   {/* Before & After comparison */}
                   {retrySource&&(()=>{
@@ -1757,7 +1750,7 @@ export default function Orivox(){
                     const curDur=earlyStopRef.current&&earlyStopElapsedRef.current>0?earlyStopElapsedRef.current:speakTime;
                     const curWpm=curDur>0?Math.round((curWords/curDur)*60):0;
                     const curFill=Object.values(feedback.fillerWordList||{}).reduce((a,b)=>a+b,0);
-                    const scoreDiff=feedback.totalScore-retrySource.score;
+                    const scoreDiff=displayScore-retrySource.score;
                     const fillDiff=curFill-retrySource.fillerCount;
                     const wpmDiff=curWpm-retrySource.wpm;
                     const improved=scoreDiff>=0;
@@ -1765,7 +1758,7 @@ export default function Orivox(){
                       <div className="card fadeUp" style={{marginBottom:20,padding:28,border:`2.5px solid ${improved?"var(--green)":"var(--orange)"}`,borderTop:`5px solid ${improved?"var(--green)":"var(--orange)"}`}}>
                         <p className="fredoka" style={{fontSize:18,marginBottom:16,color:improved?"var(--green)":"var(--orange)"}}>Before vs After</p>
                         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
-                          {[["Previous",retrySource.score,retrySource.fillerCount,retrySource.wpm],["This attempt",feedback.totalScore,curFill,curWpm]].map(([label,score,fill,wpm],i)=>(
+                          {[["Previous",retrySource.score,retrySource.fillerCount,retrySource.wpm],["This attempt",displayScore,curFill,curWpm]].map(([label,score,fill,wpm],i)=>(
                             <div key={i} style={{background:"var(--cream)",borderRadius:12,padding:"14px 16px",border:"1.5px solid var(--border)"}}>
                               <p style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:"var(--muted)",marginBottom:10}}>{label}</p>
                               <p className="fredoka" style={{fontSize:28,color:i===1?(score>retrySource.score?"var(--green)":score<retrySource.score?"var(--red)":"var(--text)"):"var(--muted)",marginBottom:4}}>{score}</p>
@@ -1792,24 +1785,24 @@ export default function Orivox(){
                   })()}
 
                   {/* Score hero */}
-                  <div className="card fb1" style={{textAlign:"center",padding:"48px 32px",marginBottom:20,position:"relative",overflow:"visible",borderTop:`6px solid ${feedback.totalScore>=80?"var(--green)":feedback.totalScore>=60?"var(--yellow)":"var(--red)"}`}}>
+                  <div className="card fb1" style={{textAlign:"center",padding:"48px 32px",marginBottom:20,position:"relative",overflow:"visible",borderTop:`6px solid ${displayScore>=80?"var(--green)":displayScore>=60?"var(--yellow)":"var(--red)"}`}}>
                     <Confetti active={true}/>
-                    <CelebStars show={feedback.totalScore>=80}/>
+                    <CelebStars show={displayScore>=80}/>
                     <div style={{position:"absolute",top:16,right:16}}><Star size={32} color="#F5C842"/></div>
                     <div style={{position:"absolute",top:20,left:20}}><Sparkle size={26} color="var(--orange)"/></div>
                     <h2 className="fredoka" style={{fontSize:28,color:"var(--text)",marginBottom:16}}>
-                      {feedback.totalScore>=80?"Crushed it":feedback.totalScore>=60?"Nice work":"Keep going — it gets easier"}
+                      {displayScore>=80?"Crushed it":displayScore>=60?"Nice work":"Keep going — it gets easier"}
                     </h2>
-                    <div style={{display:"flex",justifyContent:"center",marginBottom:28}}><ScoreRing score={feedback.totalScore} size={160}/></div>
+                    <div style={{display:"flex",justifyContent:"center",marginBottom:28}}><ScoreRing score={displayScore} size={160}/></div>
                     <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:20}}>
                       <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:"10px 28px",borderRadius:50,
-                        background:feedback.totalScore>=80?"var(--green)":feedback.totalScore>=60?"var(--yellow-dim)":"var(--red-dim)",
-                        border:`2px solid ${feedback.totalScore>=80?"var(--green)":feedback.totalScore>=60?"var(--yellow)":"var(--red)"}`,
-                        color:feedback.totalScore>=80?"white":feedback.totalScore>=60?"#7A5500":"var(--red)",
+                        background:displayScore>=80?"var(--green)":displayScore>=60?"var(--yellow-dim)":"var(--red-dim)",
+                        border:`2px solid ${displayScore>=80?"var(--green)":displayScore>=60?"var(--yellow)":"var(--red)"}`,
+                        color:displayScore>=80?"white":displayScore>=60?"#7A5500":"var(--red)",
                         fontFamily:"Fredoka",fontSize:18,fontWeight:600}}>
-                        {feedback.totalScore>=80?"Excellent":feedback.totalScore>=60?"Good Job":"Keep Practicing"}
+                        {displayScore>=80?"Excellent":displayScore>=60?"Good Job":"Keep Practicing"}
                       </div>
-                      <ShareCard score={feedback.totalScore} category={activeCat} difficulty={activeDiff} strength={feedback.strength||""}/>
+                      <ShareCard score={displayScore} category={activeCat} difficulty={activeDiff} strength={feedback.strength||""}/>
                     </div>
                   </div>
 
@@ -1929,7 +1922,8 @@ export default function Orivox(){
                   </div>
 
                 </div>
-              )}
+                );
+              })()}
 
               {!loading&&feedback?.error&&(
                 <div className="card fadeUp" style={{textAlign:"center",padding:48}}>

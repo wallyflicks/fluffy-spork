@@ -54,7 +54,7 @@ Session history: ${JSON.stringify(body.sessions)}`
     // Under 10 words — skip AI entirely
     if (wordCount < 10) {
       return Response.json({
-        totalScore: 12, clarity: 4, structure: 2, fillerWords: 25, confidence: 3,
+        totalScore: 14, clarity: 4, structure: 2, fillerWords: 5, confidence: 3,
         fillerWordList: {},
         feedback: "Your response was too short to evaluate properly. A meaningful answer needs at least a few sentences — try to speak for the full time given.",
         strength: "You did start speaking, which is the first step.",
@@ -112,7 +112,7 @@ Penalize heavily for: not directly answering the judge question, vague generaliz
 
       : `Score across these four categories:
 - Clarity (0-25): Can the listener easily follow the message? Are ideas expressed clearly or muddled?
-- Structure (0-25): Does the response have a clear sense of direction? Score 18-25 when the user has a clear point they are making, tells a coherent story, builds a logical argument, or answers the question and supports it with reasoning — even without signpost words. ANY valid structure qualifies: problem-solution, story arc, point-evidence-conclusion, what-why-how, or any other logical flow. Score below 15 ONLY when the response is genuinely disorganized — jumping between unrelated ideas, repeating the same point multiple times with no development, or having no discernible logic at all. Do NOT penalize for conversational or narrative structure, implicit flow, or short responses that make one clear point well.
+- Structure (0-25): STRUCTURE SCORING — FINAL VERSION: A score of 10/25 means the response was nearly incoherent with no logical flow. Do NOT give 10/25 to a response that states a clear position, gives at least one supporting reason, provides an example or evidence, and reaches a conclusion — that is a complete argument and must score 18-22/25 minimum regardless of whether they said "first" or "second." Reserve scores below 15/25 ONLY for responses where you genuinely cannot follow what point the person is trying to make — contradicting ideas, no conclusion, or pure stream of consciousness. A conversational argument that makes a clear point and supports it deserves 18+ on structure. Period. ANY valid flow qualifies: problem-solution, story arc, point-evidence-conclusion, what-why-how, or any logical progression. Do NOT penalize for lack of signpost words.
 - Filler words (0-25): Penalize for um, uh, like, you know, sort of, kind of, basically, literally, right, so, actually, honestly. List every filler word and exact count.
 - Confidence & delivery (0-25): Does it sound assured and natural? Any rambling, trailing off, or lack of commitment to ideas?
 
@@ -139,12 +139,14 @@ IMPORTANT LENGTH RULES — these are hard limits, never exceed them:
 
 COHERENCE RULE: Before scoring, ask yourself — did this person actually say something meaningful? If the transcript is mostly filler words, repeated sounds, gibberish, or does not form real sentences that address the prompt, the total score cannot exceed 25 regardless of any other factor. A real response requires real words forming real ideas.
 
+CRITICAL MATH RULE: The totalScore field must ALWAYS equal exactly the sum of clarity + structure + fillerWords + confidence. Double check your addition before returning. If clarity is 4, structure is 2, fillerWords is 25, and confidence is 3, the totalScore must be 34. Never return a totalScore that differs from the sum of the four subscores.
+
 ${scoringBlock}
 
 For the feedback field, write 3-4 sentences of SPECIFIC coaching based on what they actually said. Reference their actual words, ideas, or patterns. Do not write generic advice. If they rambled about a specific topic, name it. If their structure was weak, explain exactly where it broke down. If they had a strong opening, acknowledge it specifically.${isCaseComp ? ' For case competition specifically: did they answer the judge question directly? Did they show business judgment? Did they sound credible?' : ''}
 
 For strength: write one specific thing they did well, referencing their actual content.
-For improvement: look at ALL four scores and identify the genuinely weakest area. Focus the improvement tip on whatever actually needs the most work — filler words, clarity, confidence, or content depth. Do NOT mention signpost words or structure unless the structure score is the single lowest score AND the response was genuinely disorganized. Never recommend adding "first, second, third" unless structure is critically broken.
+For improvement: look at ALL four scores and identify the genuinely weakest area. Focus the improvement tip on whatever actually needs the most work — filler words, clarity, confidence, or content depth. NEVER mention signpost words or suggest "first, second, third" unless the structure score is below 12/25. If structure is 15 or above, do not mention structure at all in the improvement field.
 
 Also produce a "cleanedTranscript": take the raw transcript and add punctuation, capitalize sentences, and break into paragraphs at natural pauses. Do NOT change, remove, or reorder any spoken words — every word must appear exactly as said, just made readable.
 
