@@ -72,6 +72,27 @@ Session history: ${JSON.stringify(body.sessions)}`
       lengthNote = `\nNOTE: This response is below average length — ${wordCount} words. Maximum possible score is 75. Apply appropriate penalties.`;
     }
 
+    // Coherence pre-screening
+    const wordArr = transcript.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const uniqueRatio = wordArr.length > 0 ? new Set(wordArr).size / wordArr.length : 1;
+    const NOISE_WORDS = new Set(['yada','ya','yeah','yep','boo','hey','yo','hmm','hm','ha','haha','woah','wow','whoa','dunno','nah','nope','ugh','buddy','dude','whatever','lol','huh']);
+    const noiseCount = wordArr.filter(w => NOISE_WORDS.has(w)).length;
+    const noiseRate = wordArr.length > 0 ? noiseCount / wordArr.length : 0;
+    const freqMap = {}; wordArr.forEach(w => { freqMap[w] = (freqMap[w]||0)+1; });
+    const maxFreq = Object.values(freqMap).length ? Math.max(...Object.values(freqMap)) : 0;
+    const incoherentFlagCount = [
+      uniqueRatio < 0.4 && wordCount < 60,
+      noiseRate > 0.3,
+      wordCount < 50 && maxFreq > 4,
+    ].filter(Boolean).length;
+
+    const coherenceAlert = incoherentFlagCount >= 2 ? `CRITICAL ALERT: This transcript appears to be incoherent, mumbled, or nonsensical. The speaker did not give a real response. Look at the actual words — if they do not form real sentences or meaningful ideas, score accordingly. Scores for incoherent or gibberish responses must be:
+- Clarity: 2-5 out of 25 maximum
+- Structure: 0-3 out of 25 maximum
+- Confidence: 3-6 out of 25 maximum
+- Total score must not exceed 20 out of 100
+Do not be generous. A person saying "yada yada yeah yeah whatever" did not give a speech. Score it as what it is.\n\n` : '';
+
     const isCaseComp = category === 'Case Competition';
 
     const scoringBlock = isCaseComp
@@ -114,7 +135,9 @@ IMPORTANT LENGTH RULES — these are hard limits, never exceed them:
       max_tokens: 2048,
       messages: [{
         role: 'user',
-        content: `You are an expert speaking coach with years of experience helping people communicate clearly and confidently. Analyze the following speech transcript in detail and provide genuinely useful, specific coaching.
+        content: `${coherenceAlert}You are an expert speaking coach with years of experience helping people communicate clearly and confidently. Analyze the following speech transcript in detail and provide genuinely useful, specific coaching.
+
+COHERENCE RULE: Before scoring, ask yourself — did this person actually say something meaningful? If the transcript is mostly filler words, repeated sounds, gibberish, or does not form real sentences that address the prompt, the total score cannot exceed 25 regardless of any other factor. A real response requires real words forming real ideas.
 
 ${scoringBlock}
 

@@ -293,6 +293,23 @@ function analyzeTranscript(text, topic, difficulty) {
   const wordCount = words.length;
   const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 3);
   const sentenceCount = sentences.length;
+  // ── coherence check — catch gibberish before scoring ──────────────────────
+  {
+    const wArr=words.map(w=>w.toLowerCase().replace(/[^a-z]/g,''));
+    const uniqueR=wordCount>0?new Set(wArr).size/wordCount:1;
+    const NOISE=new Set(['yada','ya','yeah','yep','boo','hey','yo','hmm','hm','ha','haha','woah','wow','whoa','dunno','nah','nope','ugh','buddy','dude','whatever','lol','huh','nah']);
+    const noiseR=wordCount>0?wArr.filter(w=>NOISE.has(w)).length/wordCount:0;
+    const freqM={};wArr.forEach(w=>{freqM[w]=(freqM[w]||0)+1;});
+    const maxF=Object.values(freqM).length?Math.max(...Object.values(freqM)):0;
+    const flags=[uniqueR<0.4&&wordCount<60, noiseR>0.3, wordCount<50&&maxF>4].filter(Boolean).length;
+    if(flags>=2)return{
+      totalScore:8,clarity:3,structure:1,fillerWords:8,confidence:4,
+      fillerWordList:{},
+      feedback:"This response did not contain a meaningful answer to the prompt. Real feedback requires real sentences.",
+      strength:"You attempted to speak — that is the first step.",
+      improvement:"Give a real answer next time. Even 3-4 clear sentences directly addressing the prompt will score much higher.",
+    };
+  }
   // ── new-format local fallback ──────────────────────────────────────────────
   {
     const FILLERS=[
