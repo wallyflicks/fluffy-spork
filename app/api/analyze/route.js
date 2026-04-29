@@ -2,6 +2,87 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic();
 
+// ── Local filler + hedge detection ───────────────────────────────────────────
+const FILLER_DEFS = [
+  { word: 'um',        re: /\bum\b/gi },
+  { word: 'uh',        re: /\buh\b/gi },
+  { word: 'like',      re: /\blike\b/gi },
+  { word: 'you know',  re: /\byou\s+know\b/gi },
+  { word: 'sort of',   re: /\bsort\s+of\b/gi },
+  { word: 'kind of',   re: /\bkind\s+of\b/gi },
+  { word: 'basically', re: /\bbasically\b/gi },
+  { word: 'literally', re: /\bliterally\b/gi },
+  { word: 'right',     re: /\bright\b/gi },
+  { word: 'so',        re: /\bso\b/gi },
+  { word: 'actually',  re: /\bactually\b/gi },
+  { word: 'honestly',  re: /\bhonestly\b/gi },
+];
+const HEDGE_RES = [
+  /\bi\s+think\b/gi, /\bi\s+guess\b/gi, /\bmaybe\b/gi,
+  /\bprobably\b/gi, /\bi\s+feel\s+like\b/gi, /\bi'?m\s+not\s+sure\b/gi,
+];
+
+function extractMetrics(transcript) {
+  const words = transcript.trim().split(/\s+/).filter(Boolean);
+  const wordCount = words.length;
+  const sentences = transcript.split(/[.!?]+/).filter(s => s.trim().length > 3);
+  const sentenceCount = sentences.length;
+  const avgWPS = sentenceCount > 0 ? wordCount / sentenceCount : wordCount;
+
+  const fillerWordList = {};
+  let totalFillers = 0;
+  for (const { word, re } of FILLER_DEFS) {
+    const n = (transcript.match(re) || []).length;
+    if (n > 0) { fillerWordList[word] = n; totalFillers += n; }
+  }
+  const topFiller = Object.entries(fillerWordList).sort((a, b) => b[1] - a[1])[0];
+  const totalHedges = HEDGE_RES.reduce((s, re) => s + (transcript.match(re) || []).length, 0);
+
+  return { wordCount, sentenceCount, avgWPS, fillerWordList, totalFillers, topFiller, totalHedges };
+}
+
+function generateStrength(scores) {
+  const highest = Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0];
+  const msgs = {
+    fillerWords: 'Clean delivery — you kept filler words to a minimum which makes your speech much easier to follow',
+    clarity:     'Your sentences were clear and well-paced making your ideas easy to understand',
+    structure:   'Good use of connective language — your response had a clear flow from point to point',
+    confidence:  'Strong commitment to your answer — you spoke with length and conviction',
+  };
+  return msgs[highest];
+}
+
+function generateImprovement(scores, metrics) {
+  const lowest = Object.entries(scores).sort((a, b) => a[1] - b[1])[0][0];
+  const { totalFillers, topFiller, wordCount, avgWPS, totalHedges } = metrics;
+
+  if (lowest === 'fillerWords') {
+    return `You used ${totalFillers} filler word${totalFillers !== 1 ? 's' : ''} — the most common was "${topFiller?.[0] || 'um'}". Try pausing silently instead of filling the gap with sound`;
+  }
+  if (lowest === 'clarity') {
+    return avgWPS > 20
+      ? `Your average sentence was ${Math.round(avgWPS)} words long — try breaking your ideas into shorter cleaner sentences`
+      : 'You repeated similar words a lot — try varying your vocabulary to keep your listener engaged';
+  }
+  if (lowest === 'structure') {
+    return 'Your response lacked connecting words — try using phrases like because, therefore, or for example to link your ideas';
+  }
+  // confidence
+  return wordCount < 100
+    ? `Your response was only ${wordCount} words — aim for at least 100 words to fully develop your answer`
+    : `You used hedging phrases like I think and I guess ${totalHedges} time${totalHedges !== 1 ? 's' : ''} — try committing more directly to your statements`;
+}
+
+function generateFeedback(strength, improvement, lowestCategory) {
+  const tips = {
+    fillerWords: 'Next time, replace that word with a deliberate pause — silence sounds more confident than a filler.',
+    clarity:     'Aim to keep each sentence to one clear idea — if you need a breath mid-sentence, split it in two.',
+    structure:   "Try opening your next answer with 'There are two key points — first... and second...' to anchor your listener from the start.",
+    confidence:  "Use 'for example' as a trigger — each time you make a point, follow it immediately with one specific real-world example.",
+  };
+  return `${strength}. ${improvement}. ${tips[lowestCategory]}`;
+}
+
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -86,12 +167,21 @@ Session history: ${JSON.stringify(body.sessions)}`
       wordCount < 50 && maxFreq > 4,
     ].filter(Boolean).length;
 
-    const coherenceAlert = incoherentFlagCount >= 2 ? `CRITICAL ALERT: This transcript appears to be incoherent, mumbled, or nonsensical. The speaker did not give a real response. Look at the actual words — if they do not form real sentences or meaningful ideas, score accordingly. Scores for incoherent or gibberish responses must be:
-- Clarity: 2-5 out of 25 maximum
-- Structure: 0-3 out of 25 maximum
-- Confidence: 3-6 out of 25 maximum
-- Total score must not exceed 20 out of 100
-Do not be generous. A person saying "yada yada yeah yeah whatever" did not give a speech. Score it as what it is.\n\n` : '';
+    if (incoherentFlagCount >= 2) {
+      return Response.json({
+        totalScore: 16, clarity: 3, structure: 1, fillerWords: 8, confidence: 4,
+        fillerWordList: {},
+        feedback: "This response did not contain a meaningful answer to the prompt. Real feedback requires real sentences.",
+        strength: "You attempted to speak — that is the first step.",
+        improvement: "Give a real answer next time. Even 3-4 clear sentences directly addressing the prompt will score much higher.",
+        cleanedTranscript: transcript,
+      });
+    }
+
+    // Extract metrics for rule-based feedback
+    const metrics = extractMetrics(transcript);
+
+    const coherenceAlert = `COHERENCE RULE: Before scoring, ask yourself — did this person actually say something meaningful? If the transcript is mostly filler words, repeated sounds, gibberish, or does not form real sentences that address the prompt, the total score cannot exceed 25 regardless of any other factor. A real response requires real words forming real ideas.\n\n`;
 
     const isCaseComp = category === 'Case Competition';
 
@@ -101,7 +191,7 @@ Do not be generous. A person saying "yada yada yeah yeah whatever" did not give 
 Score across these four categories:
 - Clarity (0-25): Were ideas expressed clearly and concisely? Could a senior executive follow the argument without effort? Penalize for vague generalizations without supporting reasoning.
 - Structure (0-25): Did they directly answer the judge question? Did they show structured logical reasoning (direct answer → supporting reasoning → clear takeaway) and business judgment? This is the most heavily weighted category. Penalize heavily for not answering the question asked, wandering without getting to a point, or lacking a clear conclusion.
-- Filler words (0-25): Standard filler word detection and count. Weighted less than structure and clarity in the final score.
+- Filler words (0-25): Standard filler word detection. Weighted less than structure and clarity in the final score.
 - Confidence & delivery (0-25): Did they sound credible and confident under pressure? Did they commit to a clear position? Penalize heavily for hedging excessively, trailing off, or sounding uncertain about their own recommendation.
 
 CASE COMPETITION SCORING — use this exact formula for totalScore:
@@ -113,7 +203,7 @@ Penalize heavily for: not directly answering the judge question, vague generaliz
       : `Score across these four categories:
 - Clarity (0-25): Can the listener easily follow the message? Are ideas expressed clearly or muddled?
 - Structure (0-25): STRUCTURE SCORING — FINAL VERSION: A score of 10/25 means the response was nearly incoherent with no logical flow. Do NOT give 10/25 to a response that states a clear position, gives at least one supporting reason, provides an example or evidence, and reaches a conclusion — that is a complete argument and must score 18-22/25 minimum regardless of whether they said "first" or "second." Reserve scores below 15/25 ONLY for responses where you genuinely cannot follow what point the person is trying to make — contradicting ideas, no conclusion, or pure stream of consciousness. A conversational argument that makes a clear point and supports it deserves 18+ on structure. Period. ANY valid flow qualifies: problem-solution, story arc, point-evidence-conclusion, what-why-how, or any logical progression. Do NOT penalize for lack of signpost words.
-- Filler words (0-25): Penalize for um, uh, like, you know, sort of, kind of, basically, literally, right, so, actually, honestly. List every filler word and exact count.
+- Filler words (0-25): Penalize for um, uh, like, you know, sort of, kind of, basically, literally, right, so, actually, honestly.
 - Confidence & delivery (0-25): Does it sound assured and natural? Any rambling, trailing off, or lack of commitment to ideas?
 
 Scoring must be honest and calibrated:
@@ -132,21 +222,14 @@ IMPORTANT LENGTH RULES — these are hard limits, never exceed them:
 
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
+      max_tokens: 1024,
       messages: [{
         role: 'user',
-        content: `${coherenceAlert}You are an expert speaking coach with years of experience helping people communicate clearly and confidently. Analyze the following speech transcript in detail and provide genuinely useful, specific coaching.
+        content: `${coherenceAlert}You are an expert speaking coach. Analyze the following speech transcript and score it.
 
-COHERENCE RULE: Before scoring, ask yourself — did this person actually say something meaningful? If the transcript is mostly filler words, repeated sounds, gibberish, or does not form real sentences that address the prompt, the total score cannot exceed 25 regardless of any other factor. A real response requires real words forming real ideas.
-
-CRITICAL MATH RULE: The totalScore field must ALWAYS equal exactly the sum of clarity + structure + fillerWords + confidence. Double check your addition before returning. If clarity is 4, structure is 2, fillerWords is 25, and confidence is 3, the totalScore must be 34. Never return a totalScore that differs from the sum of the four subscores.
+CRITICAL MATH RULE: The totalScore field must ALWAYS equal exactly the sum of clarity + structure + fillerWords + confidence. Double check your addition before returning.
 
 ${scoringBlock}
-
-For the feedback field, write 3-4 sentences of SPECIFIC coaching based on what they actually said. Reference their actual words, ideas, or patterns. Do not write generic advice. If they rambled about a specific topic, name it. If their structure was weak, explain exactly where it broke down. If they had a strong opening, acknowledge it specifically.${isCaseComp ? ' For case competition specifically: did they answer the judge question directly? Did they show business judgment? Did they sound credible?' : ''}
-
-For strength: write one specific thing they did well, referencing their actual content.
-For improvement: look at ALL four scores and identify the genuinely weakest area. Focus the improvement tip on whatever actually needs the most work — filler words, clarity, confidence, or content depth. NEVER mention signpost words or suggest "first, second, third" unless the structure score is below 12/25. If structure is 15 or above, do not mention structure at all in the improvement field.
 
 Also produce a "cleanedTranscript": take the raw transcript and add punctuation, capitalize sentences, and break into paragraphs at natural pauses. Do NOT change, remove, or reorder any spoken words — every word must appear exactly as said, just made readable.
 
@@ -157,10 +240,6 @@ Return ONLY this JSON with no extra text:
   "structure": 17,
   "fillerWords": 20,
   "confidence": 19,
-  "fillerWordList": {"um": 3, "like": 5},
-  "feedback": "Your specific 3-4 sentence coaching here based on what they actually said",
-  "strength": "One specific thing they did well referencing their actual content",
-  "improvement": "The single most important thing to work on with a concrete actionable tip",
   "cleanedTranscript": "The full transcript with punctuation and paragraphs added, words unchanged."
 }
 
@@ -178,7 +257,25 @@ ${transcript}`
       .trim();
 
     const data = JSON.parse(raw);
-    return Response.json(data);
+
+    const scores = {
+      fillerWords: data.fillerWords,
+      clarity:     data.clarity,
+      structure:   data.structure,
+      confidence:  data.confidence,
+    };
+    const lowestCat  = Object.entries(scores).sort((a, b) => a[1] - b[1])[0][0];
+    const strength   = generateStrength(scores);
+    const improvement = generateImprovement(scores, metrics);
+    const feedback   = generateFeedback(strength, improvement, lowestCat);
+
+    return Response.json({
+      ...data,
+      fillerWordList: metrics.fillerWordList,
+      strength,
+      improvement,
+      feedback,
+    });
 
   } catch (err) {
     console.error('analyze error:', err);

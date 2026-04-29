@@ -336,16 +336,39 @@ function analyzeTranscript(text, topic, difficulty) {
     const confidence=Math.max(5,Math.min(25,22-totalHedges*3+(wordCount>100?2:0)));
     const totalScore=Math.max(20,Math.min(100,clarity+structure+fillerWordsScore+confidence));
     const topFiller=Object.entries(fillerWordList).sort((a,b)=>b[1]-a[1])[0];
-    const hasFiller=totalFillers>0;
-    const feedbackStr="Score calculated offline — retry for full AI-powered coaching on your specific response.";
-    const strength=hasFiller&&totalFillers===0
-      ?`Clean delivery with no detected filler words — that is a real strength.`
-      :wordCount>80?`You spoke at length and gave the prompt time — good foundation to build on.`
-      :`You completed the session.`;
-    const improvement=hasFiller&&fillerRate>0.04
-      ?`Watch the "${topFiller[0]}" habit — it appeared ${topFiller[1]} time${topFiller[1]>1?"s":""}. Replace it with a deliberate pause.`
-      :`Retry to get specific AI coaching on the clearest area for you to improve.`;
-    return{totalScore,clarity,structure,fillerWords:fillerWordsScore,confidence,fillerWordList,feedback:feedbackStr,strength,improvement};
+    const avgWPS=sentenceCount>0?wordCount/sentenceCount:wordCount;
+    const fbScores={fillerWords:fillerWordsScore,clarity,structure,confidence};
+    const lowestCat=Object.entries(fbScores).sort((a,b)=>a[1]-b[1])[0][0];
+    const highestCat=Object.entries(fbScores).sort((a,b)=>b[1]-a[1])[0][0];
+    const strengthMsgs={
+      fillerWords:'Clean delivery — you kept filler words to a minimum which makes your speech much easier to follow',
+      clarity:'Your sentences were clear and well-paced making your ideas easy to understand',
+      structure:'Good use of connective language — your response had a clear flow from point to point',
+      confidence:'Strong commitment to your answer — you spoke with length and conviction',
+    };
+    const strength=strengthMsgs[highestCat];
+    let improvement;
+    if(lowestCat==='fillerWords'){
+      improvement=`You used ${totalFillers} filler word${totalFillers!==1?'s':''} — the most common was "${topFiller?.[0]||'um'}". Try pausing silently instead of filling the gap with sound`;
+    }else if(lowestCat==='clarity'){
+      improvement=avgWPS>20
+        ?`Your average sentence was ${Math.round(avgWPS)} words long — try breaking your ideas into shorter cleaner sentences`
+        :'You repeated similar words a lot — try varying your vocabulary to keep your listener engaged';
+    }else if(lowestCat==='structure'){
+      improvement='Your response lacked connecting words — try using phrases like because, therefore, or for example to link your ideas';
+    }else{
+      improvement=wordCount<100
+        ?`Your response was only ${wordCount} words — aim for at least 100 words to fully develop your answer`
+        :`You used hedging phrases like I think and I guess ${totalHedges} time${totalHedges!==1?'s':''} — try committing more directly to your statements`;
+    }
+    const tipMap={
+      fillerWords:'Next time, replace that word with a deliberate pause — silence sounds more confident than a filler.',
+      clarity:'Aim to keep each sentence to one clear idea — if you need a breath mid-sentence, split it in two.',
+      structure:"Try opening your next answer with 'There are two key points — first... and second...' to anchor your listener from the start.",
+      confidence:"Use 'for example' as a trigger — each time you make a point, follow it immediately with one specific real-world example.",
+    };
+    const feedback=`${strength}. ${improvement}. ${tipMap[lowestCat]}`;
+    return{totalScore,clarity,structure,fillerWords:fillerWordsScore,confidence,fillerWordList,feedback,strength,improvement};
   }
   // (unreachable — kept for linter)
   const FILLER_DEFS = [
