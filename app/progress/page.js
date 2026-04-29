@@ -122,11 +122,21 @@ function mostPracticed(sessions) {
   return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0]
 }
 
+function streakLostMessage(count) {
+  if (count <= 1)  return 'You missed a day — streaks are built one session at a time'
+  if (count <= 5)  return `Your ${count} day streak ended — you were building momentum, get back to it`
+  if (count <= 13) return `Your ${count} day streak is gone — that one hurt. Start a new one today`
+  if (count <= 29) return `Your ${count} day streak ended — that was a real run. Rebuild it`
+  return `Your ${count} day streak is over — that was exceptional. You know you can do it again`
+}
+
 export default function Progress() {
   const [sessions, setSessions] = useState(null)
   const [expandedId, setExpandedId] = useState(null)
   const [voiceType, setVoiceType] = useState(null)
   const [streak, setStreak] = useState(0)
+  const [streakLost, setStreakLost] = useState(false)
+  const [lostStreakCount, setLostStreakCount] = useState(0)
   const chartRef = useRef(null)
   const chartInstance = useRef(null)
 
@@ -148,7 +158,20 @@ export default function Progress() {
       const today = new Date().toLocaleDateString('en-CA')
       const d = new Date(); d.setDate(d.getDate() - 1)
       const yesterday = d.toLocaleDateString('en-CA')
-      setStreak((lastDate === today || lastDate === yesterday) ? count : 0)
+      const isActive = lastDate === today || lastDate === yesterday
+      if (!isActive && lastDate && count > 0) {
+        // Streak broken — gap is 2+ days
+        const lostShown = localStorage.getItem('orivox_streak_lost_shown') || ''
+        localStorage.setItem('orivox_streak_count', '0')
+        if (lostShown !== today) {
+          setLostStreakCount(count)
+          setStreakLost(true)
+          localStorage.setItem('orivox_streak_lost_shown', today)
+        }
+        setStreak(0)
+      } else {
+        setStreak(isActive ? count : 0)
+      }
     } catch {}
   }, [])
 
@@ -259,34 +282,61 @@ export default function Progress() {
           </div>
 
           {/* Streak */}
-          <div className="fadeUp d1" style={{
-            background: streak > 0 ? 'var(--yellow-dim)' : 'var(--card)',
-            border: `2.5px solid ${streak > 0 ? 'var(--yellow)' : 'var(--border)'}`,
-            borderRadius: 20, padding: '20px 28px', marginBottom: 20,
-            boxShadow: 'var(--shadow)', display: 'flex', alignItems: 'center', gap: 16,
-          }}>
-            {streak > 0
-              ? <div style={{ width:44,height:44,borderRadius:'50%',background:'#FFF0E8',border:'2.5px solid var(--orange)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="var(--orange)" stroke="none"><path d="M12 23c-4.4 0-8-3.6-8-8 0-2.8 1.4-5.5 3-7.5.5 1.5 1.5 2.5 2.5 3C9 8.5 10 6 12 2c1.5 3.5 4 5.5 4 9.5.5-1 .5-2 .3-3C18 10.5 20 13 20 15c0 4.4-3.6 8-8 8z"/></svg>
-                </div>
-              : <div style={{ width:44,height:44,borderRadius:'50%',background:'var(--border)',border:'2.5px solid var(--muted)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                </div>
-            }
-            <div>
-              {streak > 0 ? (
-                <>
-                  <div className="fredoka" style={{ fontSize: 24, color: '#7A5500' }}>{streak} day streak</div>
-                  <div style={{ fontSize: 13, color: '#A07820', marginTop: 2 }}>Keep it up — practice again today to extend it</div>
-                </>
-              ) : (
-                <>
-                  <div className="fredoka" style={{ fontSize: 20, color: 'var(--muted)' }}>No streak yet — practice today to start one</div>
-                  <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>Complete one session daily to build your streak</div>
-                </>
-              )}
+          {streakLost ? (
+            <div className="fadeUp d1" style={{
+              background: '#FFF1F1', border: '2.5px solid var(--red)',
+              borderRadius: 20, padding: '20px 28px', marginBottom: 20,
+              boxShadow: 'var(--shadow)', display: 'flex', alignItems: 'center', gap: 16,
+            }}>
+              <div style={{ width:44,height:44,borderRadius:'50%',background:'#FFECEC',border:'2.5px solid var(--red)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E84040" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 17H7A5 5 0 0 1 7 7h2"/>
+                  <path d="M15 7h2a5 5 0 1 1 0 10h-2"/>
+                  <line x1="4" y1="20" x2="20" y2="4"/>
+                </svg>
+              </div>
+              <div>
+                <div className="fredoka" style={{ fontSize: 24, color: 'var(--red)' }}>Streak lost</div>
+                <div style={{ fontSize: 13, color: '#9A3030', marginTop: 2 }}>{streakLostMessage(lostStreakCount)}</div>
+                <Link href="/" style={{
+                  display: 'inline-block', marginTop: 12,
+                  background: 'var(--red)', color: '#fff',
+                  borderRadius: 12, padding: '8px 18px',
+                  fontSize: 13, fontFamily: 'Fredoka, sans-serif', fontWeight: 600,
+                  textDecoration: 'none',
+                }}>Start a new streak</Link>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="fadeUp d1" style={{
+              background: streak > 0 ? 'var(--yellow-dim)' : 'var(--card)',
+              border: `2.5px solid ${streak > 0 ? 'var(--yellow)' : 'var(--border)'}`,
+              borderRadius: 20, padding: '20px 28px', marginBottom: 20,
+              boxShadow: 'var(--shadow)', display: 'flex', alignItems: 'center', gap: 16,
+            }}>
+              {streak > 0
+                ? <div style={{ width:44,height:44,borderRadius:'50%',background:'#FFF0E8',border:'2.5px solid var(--orange)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="var(--orange)" stroke="none"><path d="M12 23c-4.4 0-8-3.6-8-8 0-2.8 1.4-5.5 3-7.5.5 1.5 1.5 2.5 2.5 3C9 8.5 10 6 12 2c1.5 3.5 4 5.5 4 9.5.5-1 .5-2 .3-3C18 10.5 20 13 20 15c0 4.4-3.6 8-8 8z"/></svg>
+                  </div>
+                : <div style={{ width:44,height:44,borderRadius:'50%',background:'var(--border)',border:'2.5px solid var(--muted)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                  </div>
+              }
+              <div>
+                {streak > 0 ? (
+                  <>
+                    <div className="fredoka" style={{ fontSize: 24, color: '#7A5500' }}>{streak} day streak</div>
+                    <div style={{ fontSize: 13, color: '#A07820', marginTop: 2 }}>Keep it up — practice again today to extend it</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="fredoka" style={{ fontSize: 20, color: 'var(--muted)' }}>No streak yet — practice today to start one</div>
+                    <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>Complete one session daily to build your streak</div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Stats row */}
           <div className="fadeUp d2 stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 20 }}>

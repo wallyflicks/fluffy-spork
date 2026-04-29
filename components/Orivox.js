@@ -1352,6 +1352,7 @@ export default function Orivox(){
       }
       localStorage.setItem("orivox_streak_count",String(newStreak));
       localStorage.setItem("orivox_last_session_date",localDate);
+      localStorage.removeItem("orivox_streak_lost_shown");
       const rs=localStorage.getItem("orivox_retry_source");
       if(rs)try{setRetrySource(JSON.parse(rs));localStorage.removeItem("orivox_retry_source");}catch{}
     }catch{}
