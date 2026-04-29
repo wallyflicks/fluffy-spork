@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "../lib/supabase";
+import { detectFillers } from "../lib/fillerDetection";
 
 const G = () => (
   <style>{`
@@ -312,19 +313,7 @@ function analyzeTranscript(text, topic, difficulty) {
   }
   // ── new-format local fallback ──────────────────────────────────────────────
   {
-    const FILLERS=[
-      {word:"um",re:/\bum\b/gi},{word:"uh",re:/\buh\b/gi},
-      {word:"like",re:/\blike\b/gi},{word:"you know",re:/\byou\s+know\b/gi},
-      {word:"basically",re:/\bbasically\b/gi},{word:"literally",re:/\bliterally\b/gi},
-      {word:"right",re:/\bright\b/gi},{word:"so",re:/\bso\b/gi},
-      {word:"kind of",re:/\bkind\s+of\b/gi},{word:"sort of",re:/\bsort\s+of\b/gi},
-    ];
-    const fillerWordList={};
-    let totalFillers=0;
-    for(const {word,re} of FILLERS){
-      const n=(text.match(re)||[]).length;
-      if(n>0){fillerWordList[word]=n;totalFillers+=n;}
-    }
+    const {fillerWordList,totalFillers,topFiller}=detectFillers(text);
     const fillerRate=wordCount>0?totalFillers/wordCount:0;
     const STRUCT=["first","second","third","finally","furthermore","however","therefore","additionally","for example","in conclusion"];
     const structCount=STRUCT.filter(w=>lower.includes(w)).length;
@@ -335,7 +324,6 @@ function analyzeTranscript(text, topic, difficulty) {
     const fillerWordsScore=Math.max(5,Math.min(25,25-Math.round(fillerRate*160)));
     const confidence=Math.max(5,Math.min(25,22-totalHedges*3+(wordCount>100?2:0)));
     const totalScore=Math.max(20,Math.min(100,clarity+structure+fillerWordsScore+confidence));
-    const topFiller=Object.entries(fillerWordList).sort((a,b)=>b[1]-a[1])[0];
     const avgWPS=sentenceCount>0?wordCount/sentenceCount:wordCount;
     const fbScores={fillerWords:fillerWordsScore,clarity,structure,confidence};
     const lowestCat=Object.entries(fbScores).sort((a,b)=>a[1]-b[1])[0][0];

@@ -1,22 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { detectFillers } from '../../../lib/fillerDetection.js';
 
 const client = new Anthropic();
 
-// ── Local filler + hedge detection ───────────────────────────────────────────
-const FILLER_DEFS = [
-  { word: 'um',        re: /\bum\b/gi },
-  { word: 'uh',        re: /\buh\b/gi },
-  { word: 'like',      re: /\blike\b/gi },
-  { word: 'you know',  re: /\byou\s+know\b/gi },
-  { word: 'sort of',   re: /\bsort\s+of\b/gi },
-  { word: 'kind of',   re: /\bkind\s+of\b/gi },
-  { word: 'basically', re: /\bbasically\b/gi },
-  { word: 'literally', re: /\bliterally\b/gi },
-  { word: 'right',     re: /\bright\b/gi },
-  { word: 'so',        re: /\bso\b/gi },
-  { word: 'actually',  re: /\bactually\b/gi },
-  { word: 'honestly',  re: /\bhonestly\b/gi },
-];
 const HEDGE_RES = [
   /\bi\s+think\b/gi, /\bi\s+guess\b/gi, /\bmaybe\b/gi,
   /\bprobably\b/gi, /\bi\s+feel\s+like\b/gi, /\bi'?m\s+not\s+sure\b/gi,
@@ -28,16 +14,8 @@ function extractMetrics(transcript) {
   const sentences = transcript.split(/[.!?]+/).filter(s => s.trim().length > 3);
   const sentenceCount = sentences.length;
   const avgWPS = sentenceCount > 0 ? wordCount / sentenceCount : wordCount;
-
-  const fillerWordList = {};
-  let totalFillers = 0;
-  for (const { word, re } of FILLER_DEFS) {
-    const n = (transcript.match(re) || []).length;
-    if (n > 0) { fillerWordList[word] = n; totalFillers += n; }
-  }
-  const topFiller = Object.entries(fillerWordList).sort((a, b) => b[1] - a[1])[0];
+  const { fillerWordList, totalFillers, topFiller } = detectFillers(transcript);
   const totalHedges = HEDGE_RES.reduce((s, re) => s + (transcript.match(re) || []).length, 0);
-
   return { wordCount, sentenceCount, avgWPS, fillerWordList, totalFillers, topFiller, totalHedges };
 }
 
