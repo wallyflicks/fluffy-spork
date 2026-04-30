@@ -329,20 +329,29 @@ function analyzeTranscript(text, topic, difficulty) {
     // ── Filler words score (25 for 0 fillers, penalty per filler rate) ───────
     const fillerWordsScore=Math.max(0,Math.min(25,25-Math.round(fillerRate*160)));
 
-    // ── Clarity score (penalty-from-25) ──────────────────────────────────────
-    let clarityPenalty=0;
-    if(avgWPS>25)      clarityPenalty+=8;
-    else if(avgWPS>18) clarityPenalty+=3;
-    else if(avgWPS<8&&sentenceCount>2) clarityPenalty+=4;
-    if(vocabRatio<0.45)      clarityPenalty+=7;
-    else if(vocabRatio<0.65) clarityPenalty+=3;
-    if(fillerRate>0.10)      clarityPenalty+=5;
-    else if(fillerRate>0.05) clarityPenalty+=2;
-    const clarity=Math.max(5,25-clarityPenalty);
+    // ── Clarity score — no sentence length (STT adds no punctuation) ─────────
+    // Band floor from vocab ratio
+    const clarityBand=vocabRatio>=0.55?20:vocabRatio>=0.45?15:vocabRatio>=0.35?10:5;
+    // Word count bonus
+    const wcBonus=wordCount>=200?5:wordCount>=100?3:wordCount<50?-3:0;
+    // Specific content bonus: capitalized proper nouns + number tokens (each +1, max +5)
+    const properNounCount=(text.match(/\b[A-Z][a-zA-Z]{2,}\b/g)||[]).length;
+    const numericCount=(text.match(/\b\d[\d,.%]*\b/g)||[]).length;
+    const contentBonus=Math.min(5,properNounCount+numericCount);
+    const clarity=Math.max(5,Math.min(25,clarityBand+wcBonus+contentBonus));
 
     // ── Structure score (criteria-based, no signpost words) ──────────────────
-    const EVIDENCE_WORDS=['because','for example','for instance','this means','which means','the reason','shows that','proves','such as','consider','imagine','think about','like when','as seen in'];
-    const hasEvidence=EVIDENCE_WORDS.some(w=>lower.includes(w));
+    // Evidence detection: check 6 pattern types — need 3+ for hasEvidence
+    const EVIDENCE_GROUPS=[
+      [/\bbecause\b/,/\bsince\b/,/\bas\b/,/\bgiven\s+that\b/],                                   // causal
+      [/\bfor\s+example\b/,/\bfor\s+instance\b/,/\bsuch\s+as\b/,/\blike\s+when\b/,/\bconsider\b/,/\bimagine\b/,/\btake\b/], // examples
+      [/\bfirst\b/,/\bsecond\b/,/\bthird\b/,/\bfirstly\b/,/\bsecondly\b/],                       // enumeration
+      [/\btherefore\b/,/\bthus\b/,/\bso\b/,/\bwhich\s+means\b/,/\bthis\s+means\b/,/\bas\s+a\s+result\b/], // conclusions
+      [/\bmost\s+people\b/,/\ba\s+lot\s+of\b/,/\bmany\b/,/\bresearch\b/,/\bstudies\b/,/\bdata\b/,/\bstatistics\b/], // generalizations
+      [/\b\d+%?\b/],                                                                               // numbers
+    ];
+    const evidenceTypesFound=EVIDENCE_GROUPS.filter(g=>g.some(re=>re.test(lower))).length;
+    const hasEvidence=evidenceTypesFound>=3;
 
     // Coherence: common content words (len > 4, freq >= 2) appear in both halves
     const wordFreq={};
@@ -414,8 +423,6 @@ function analyzeTranscript(text, topic, difficulty) {
       improvement=`You hedged ${totalHedges} times with phrases like 'I think' and 'maybe'. Pick a position and commit to it. Instead of 'I think this might be good' say 'This is good because...'. Confidence in delivery starts with confident language.`;
     }else if(!hasEvidence){
       improvement=`Your response made claims but did not explain the reasoning behind them. After every point you make, add 'because' and explain why. One well-supported point is stronger than three unsupported ones.`;
-    }else if(avgWPS>25){
-      improvement=`Your sentences averaged ${Math.round(avgWPS)} words which is too long — ideas get lost in run-on sentences. After every two or three thoughts, end the sentence and start fresh. Shorter sentences land harder.`;
     }else if(hasRepetition){
       improvement=`You repeated the word '${topRepeated[0]}' ${topRepeated[1]} times. Varied vocabulary makes your speech more engaging — try finding two or three different ways to express the same idea.`;
     }else if(vocabRatio<0.45){
