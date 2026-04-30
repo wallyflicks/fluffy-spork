@@ -321,62 +321,61 @@ function analyzeTranscript(text, topic, difficulty) {
     const totalHedges=HEDGE_RES.reduce((s,re)=>s+(text.match(re)||[]).length,0);
 
     // Word metrics
-    const avgWPS=sentenceCount>0?wordCount/sentenceCount:wordCount;
     const cleanWords=words.map(w=>w.toLowerCase().replace(/[^a-z]/g,''));
     const uniqueWordSet=new Set(cleanWords.filter(w=>w.length>3));
     const vocabRatio=wordCount>0?uniqueWordSet.size/wordCount:0;
 
-    // ── Filler words score (25 for 0 fillers, penalty per filler rate) ───────
+    // ── Filler words score ────────────────────────────────────────────────────
     const fillerWordsScore=Math.max(0,Math.min(25,25-Math.round(fillerRate*160)));
 
-    // ── Clarity score — no sentence length (STT adds no punctuation) ─────────
-    // Band floor from vocab ratio
-    const clarityBand=vocabRatio>=0.55?20:vocabRatio>=0.45?15:vocabRatio>=0.35?10:5;
-    // Word count bonus
-    const wcBonus=wordCount>=200?5:wordCount>=100?3:wordCount<50?-3:0;
-    // Specific content bonus: capitalized proper nouns + number tokens (each +1, max +5)
+    // ── Clarity (base 18 for 80+ words; no sentence-length dependency) ────────
+    let clarity=wordCount>=80?18:wordCount>=50?14:10;
+    if(wordCount>=150) clarity+=2;                       // length bonus
+    if(vocabRatio>0.7)      clarity+=4;                  // vocab bonus tiers
+    else if(vocabRatio>0.6) clarity+=3;
     const properNounCount=(text.match(/\b[A-Z][a-zA-Z]{2,}\b/g)||[]).length;
     const numericCount=(text.match(/\b\d[\d,.%]*\b/g)||[]).length;
-    const contentBonus=Math.min(5,properNounCount+numericCount);
-    const clarity=Math.max(5,Math.min(25,clarityBand+wcBonus+contentBonus));
+    clarity+=Math.min(3,properNounCount+numericCount);   // specific content +1 each, max +3
+    const vagueCount=(text.match(/\b(yeah|whatever|stuff|things|something|anything|everything)\b/gi)||[]).length;
+    if(vagueCount>wordCount*0.5) clarity-=5;             // heavy vague-vocab penalty
+    clarity=Math.max(3,Math.min(25,clarity));
 
-    // ── Structure score (criteria-based, no signpost words) ──────────────────
-    // Evidence detection: check 6 pattern types — need 3+ for hasEvidence
+    // ── Structure (base 15, criteria-based) ───────────────────────────────────
+    // Hard-evidence words: any one of these = "because"-level proof, disable evidence feedback
+    const HARD_EVIDENCE=['because','therefore','since','which means','as a result'];
+    const hasHardEvidence=HARD_EVIDENCE.some(w=>lower.includes(w));
     const EVIDENCE_GROUPS=[
-      [/\bbecause\b/,/\bsince\b/,/\bas\b/,/\bgiven\s+that\b/],                                   // causal
-      [/\bfor\s+example\b/,/\bfor\s+instance\b/,/\bsuch\s+as\b/,/\blike\s+when\b/,/\bconsider\b/,/\bimagine\b/,/\btake\b/], // examples
-      [/\bfirst\b/,/\bsecond\b/,/\bthird\b/,/\bfirstly\b/,/\bsecondly\b/],                       // enumeration
-      [/\btherefore\b/,/\bthus\b/,/\bso\b/,/\bwhich\s+means\b/,/\bthis\s+means\b/,/\bas\s+a\s+result\b/], // conclusions
-      [/\bmost\s+people\b/,/\ba\s+lot\s+of\b/,/\bmany\b/,/\bresearch\b/,/\bstudies\b/,/\bdata\b/,/\bstatistics\b/], // generalizations
-      [/\b\d+%?\b/],                                                                               // numbers
+      [/\bbecause\b/,/\bsince\b/,/\bgiven\s+that\b/],
+      [/\bfor\s+example\b/,/\bfor\s+instance\b/,/\bsuch\s+as\b/,/\blike\s+when\b/,/\bconsider\b/,/\bimagine\b/,/\btake\b/],
+      [/\bfirst\b/,/\bsecond\b/,/\bthird\b/,/\bfirstly\b/,/\bsecondly\b/],
+      [/\btherefore\b/,/\bthus\b/,/\bwhich\s+means\b/,/\bthis\s+means\b/,/\bas\s+a\s+result\b/],
+      [/\bmost\s+people\b/,/\ba\s+lot\s+of\b/,/\bmany\b/,/\bresearch\b/,/\bstudies\b/,/\bdata\b/,/\bstatistics\b/],
+      [/\b\d+%?\b/],
     ];
     const evidenceTypesFound=EVIDENCE_GROUPS.filter(g=>g.some(re=>re.test(lower))).length;
-    const hasEvidence=evidenceTypesFound>=3;
+    const hasEvidence=hasHardEvidence||evidenceTypesFound>=3;
 
-    // Coherence: common content words (len > 4, freq >= 2) appear in both halves
-    const wordFreq={};
-    cleanWords.forEach(w=>{if(w.length>4)wordFreq[w]=(wordFreq[w]||0)+1;});
-    const topContentWords=Object.entries(wordFreq).filter(([,c])=>c>=2).map(([w])=>w).slice(0,3);
-    const midIdx=Math.floor(lower.length/2);
-    const firstHalf=lower.slice(0,midIdx);
-    const secondHalf=lower.slice(midIdx);
-    const isCoherent=topContentWords.length>=1&&topContentWords.some(w=>firstHalf.includes(w)&&secondHalf.includes(w));
+    // Incoherence check (>60% noise → override to 3)
+    const NOISE_WORDS=new Set(['yada','ya','yeah','yep','boo','hey','yo','hmm','hm','ha','haha','woah','wow','whoa','dunno','nah','nope','ugh','whatever','lol','huh']);
+    const noiseRate=cleanWords.filter(w=>NOISE_WORDS.has(w)).length/(wordCount||1);
+    const isIncoherent=noiseRate>0.6;
 
-    // Conclusion: last sentence has a closing marker OR is shorter than average
-    const lastSent=(sentences[sentences.length-1]||'').toLowerCase().trim();
-    const CONCLUSION_WORDS=['therefore','ultimately','in the end','which is why','that is why','overall','in conclusion','to conclude','in summary','i believe','my view','this shows','this means'];
-    const hasConcluder=CONCLUSION_WORDS.some(w=>lastSent.includes(w));
-    const lastSentLen=lastSent.split(/\s+/).filter(Boolean).length;
-    const hasConclusion=hasConcluder||(lastSentLen>2&&avgWPS>0&&lastSentLen<avgWPS*0.75);
+    let structure=isIncoherent?3:15;
+    if(!isIncoherent){
+      const CONTRAST=['on the other hand','however','but ','whereas','while ','unlike','in contrast','compared to'];
+      if(CONTRAST.some(w=>lower.includes(w)))      structure+=4;
+      const CAUSAL=['because','since','therefore','which means','as a result','thus'];
+      if(CAUSAL.some(w=>lower.includes(w)))        structure+=3;
+      if((lower.match(/\bbecause\b/g)||[]).length>=3) structure+=1;
+      const EXAMPLE=['for example','for instance','such as','like when','imagine','take the'];
+      if(EXAMPLE.some(w=>lower.includes(w)))       structure+=3;
+      const last20=words.slice(-20).join(' ').toLowerCase();
+      const CLOSING=['so ','therefore','ultimately','in the end','which is why','that is why','overall','this shows','this means','the point is'];
+      if(CLOSING.some(w=>last20.includes(w)))      structure+=3;
+      structure=Math.min(25,structure);
+    }
 
-    let structure=0;
-    if(sentenceCount>2) structure+=5;
-    if(isCoherent)      structure+=8;
-    if(hasEvidence)     structure+=7;
-    if(hasConclusion)   structure+=5;
-    structure=Math.min(25,structure);
-
-    // ── Confidence score (penalty-from-25) ───────────────────────────────────
+    // ── Confidence (penalty from 25) ──────────────────────────────────────────
     let confidence=25;
     if(totalHedges>=5)      confidence-=10;
     else if(totalHedges>=3) confidence-=6;
@@ -386,30 +385,27 @@ function analyzeTranscript(text, topic, difficulty) {
     else if(wordCount<150)  confidence-=1;
     confidence=Math.max(5,confidence);
 
-    const totalScore=Math.max(20,Math.min(100,clarity+structure+fillerWordsScore+confidence));
+    // Quality bonus: clean delivery + high confidence + substantial length
+    const qualityBonus=(fillerWordsScore===25&&confidence>=20&&wordCount>=100)?5:0;
+    const totalScore=Math.max(20,Math.min(100,clarity+structure+fillerWordsScore+confidence+qualityBonus));
 
-    // ── Strength (highest category) ───────────────────────────────────────────
-    const fbScores={fillerWords:fillerWordsScore,clarity,structure,confidence};
-    const lowestCat=Object.entries(fbScores).sort((a,b)=>a[1]-b[1])[0][0];
-    const highestCat=Object.entries(fbScores).sort((a,b)=>b[1]-a[1])[0][0];
+    // ── Strength: find actual highest scoring category via reduce ─────────────
+    const allScores=[['fillerWords',fillerWordsScore],['clarity',clarity],['structure',structure],['confidence',confidence]];
+    const highestCat=allScores.reduce((a,b)=>b[1]>a[1]?b:a)[0];
+    const lowestCat=allScores.reduce((a,b)=>b[1]<a[1]?b:a)[0];
     const strengthMsgs={
       fillerWords:'Clean delivery — you kept filler words to a minimum which makes your speech much easier to follow',
-      clarity:'Your sentences were clear and well-paced making your ideas easy to understand',
-      structure:'Good use of connective language — your response had a clear flow from point to point',
+      clarity:'Your ideas came through clearly — strong vocabulary and specific content made your argument easy to follow',
+      structure:'Good logical flow — your response moved from point to point with clear reasoning and support',
       confidence:'Strong commitment to your answer — you spoke with length and conviction',
     };
     const strength=strengthMsgs[highestCat];
 
     // ── Improvement (priority-based, specific) ────────────────────────────────
     const topFillers=Object.entries(fillerWordList).sort((a,b)=>b[1]-a[1]).slice(0,2).map(([w])=>w);
-
-    // Repetitive content word (4+ occurrences, excluding common stop words)
     const STOP=new Set(['the','and','that','this','with','have','from','they','what','been','will','when','your','said','each','which','there','would','their','about','more','many','some','also','into','than','then','only','most','over','just','well','were','very','even','back','make','take','know','come','look','want','need','such','does','here','made','much','same','has','had','not','are','for','out','but','its','who','him','her','our','you','all','any','can','did','get','got','how','let','may','now','put','see','set','she','was','we']);
     const contentFreq={};
-    cleanWords.forEach(w=>{
-      if(w.length>3&&!STOP.has(w)&&!fillerWordList[w])
-        contentFreq[w]=(contentFreq[w]||0)+1;
-    });
+    cleanWords.forEach(w=>{if(w.length>3&&!STOP.has(w)&&!fillerWordList[w])contentFreq[w]=(contentFreq[w]||0)+1;});
     const topRepeated=Object.entries(contentFreq).sort((a,b)=>b[1]-a[1])[0];
     const hasRepetition=topRepeated&&topRepeated[1]>=4;
 
