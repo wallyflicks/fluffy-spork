@@ -1182,23 +1182,32 @@ export default function Orivox(){
     return()=>clearInterval(id);
   },[]);
 
-  // Auto-post to leaderboard + show review modal when a session finishes
+  // Auto-post to leaderboard only when it's a new personal best
   useEffect(()=>{
     if(!feedback||feedback.error) return;
     const pname=localStorage.getItem("orivox_username")||"Anonymous";
     const now=new Date();
     const d=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
-    // Always insert — leaderboard page deduplicates client-side per player
+    // Fetch existing best before inserting — only post if it's a new personal best
     supabase.from("scores")
-      .insert({player_name:pname,score:feedback.totalScore,category:activeCat,difficulty:activeDiff,date:d})
-      .then(({error})=>{
-        if(error){
-          console.error("LB insert failed:",error.message);
-          // Fallback: try with minimal columns in case table has fewer columns
-          supabase.from("scores").insert({player_name:pname,score:feedback.totalScore})
-            .then(({error:e2})=>{if(e2)console.error("LB minimal insert failed:",e2.message);});
+      .select("score")
+      .eq("player_name",pname)
+      .order("score",{ascending:false})
+      .limit(1)
+      .then(({data})=>{
+        const existingBest=(data&&data[0])?data[0].score:0;
+        if(feedback.totalScore>existingBest){
+          supabase.from("scores")
+            .insert({player_name:pname,score:feedback.totalScore,category:activeCat,difficulty:activeDiff,date:d})
+            .then(({error})=>{
+              if(error){
+                console.error("LB insert failed:",error.message);
+                supabase.from("scores").insert({player_name:pname,score:feedback.totalScore})
+                  .then(({error:e2})=>{if(e2)console.error("LB minimal insert failed:",e2.message);});
+              }
+            }).catch(e=>console.error("LB error:",e));
         }
-      }).catch(e=>console.error("LB error:",e));
+      }).catch(e=>console.error("LB best-score check error:",e));
     if(!localStorage.getItem("orivox_review_prompted")) setShowReviewModal(true);
   },[feedback,activeCat,activeDiff]);
 
