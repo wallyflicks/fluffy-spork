@@ -313,18 +313,73 @@ function analyzeTranscript(text, topic, difficulty) {
   }
   // ── new-format local fallback ──────────────────────────────────────────────
   {
-    const {fillerWordList,totalFillers,topFiller}=detectFillers(text);
+    const {fillerWordList,totalFillers}=detectFillers(text);
     const fillerRate=wordCount>0?totalFillers/wordCount:0;
-    const STRUCT=["first","second","third","finally","furthermore","however","therefore","additionally","for example","in conclusion"];
-    const structCount=STRUCT.filter(w=>lower.includes(w)).length;
-    const HEDGE_RES=[/\bi\s+think\b/gi,/\bmaybe\b/gi,/\bi\s+guess\b/gi,/\bprobably\b/gi,/\bi\s+feel\b/gi];
+
+    // Hedge detection
+    const HEDGE_RES=[/\bi\s+think\b/gi,/\bmaybe\b/gi,/\bi\s+guess\b/gi,/\bprobably\b/gi,/\bi\s+feel\b/gi,/\bperhaps\b/gi,/\bi'?m\s+not\s+sure\b/gi];
     const totalHedges=HEDGE_RES.reduce((s,re)=>s+(text.match(re)||[]).length,0);
-    const clarity=Math.max(5,Math.min(25,20-Math.round(fillerRate*80)+(wordCount>80?3:0)+(sentenceCount>3?2:0)));
-    const structure=Math.max(5,Math.min(25,8+Math.min(structCount*4,12)+(sentenceCount>3?3:0)+(wordCount>100?2:0)));
-    const fillerWordsScore=Math.max(5,Math.min(25,25-Math.round(fillerRate*160)));
-    const confidence=Math.max(5,Math.min(25,22-totalHedges*3+(wordCount>100?2:0)));
-    const totalScore=Math.max(20,Math.min(100,clarity+structure+fillerWordsScore+confidence));
+
+    // Word metrics
     const avgWPS=sentenceCount>0?wordCount/sentenceCount:wordCount;
+    const cleanWords=words.map(w=>w.toLowerCase().replace(/[^a-z]/g,''));
+    const uniqueWordSet=new Set(cleanWords.filter(w=>w.length>3));
+    const vocabRatio=wordCount>0?uniqueWordSet.size/wordCount:0;
+
+    // ── Filler words score (25 for 0 fillers, penalty per filler rate) ───────
+    const fillerWordsScore=Math.max(0,Math.min(25,25-Math.round(fillerRate*160)));
+
+    // ── Clarity score (penalty-from-25) ──────────────────────────────────────
+    let clarityPenalty=0;
+    if(avgWPS>25)      clarityPenalty+=8;
+    else if(avgWPS>18) clarityPenalty+=3;
+    else if(avgWPS<8&&sentenceCount>2) clarityPenalty+=4;
+    if(vocabRatio<0.45)      clarityPenalty+=7;
+    else if(vocabRatio<0.65) clarityPenalty+=3;
+    if(fillerRate>0.10)      clarityPenalty+=5;
+    else if(fillerRate>0.05) clarityPenalty+=2;
+    const clarity=Math.max(5,25-clarityPenalty);
+
+    // ── Structure score (criteria-based, no signpost words) ──────────────────
+    const EVIDENCE_WORDS=['because','for example','for instance','this means','which means','the reason','shows that','proves','such as','consider','imagine','think about','like when','as seen in'];
+    const hasEvidence=EVIDENCE_WORDS.some(w=>lower.includes(w));
+
+    // Coherence: common content words (len > 4, freq >= 2) appear in both halves
+    const wordFreq={};
+    cleanWords.forEach(w=>{if(w.length>4)wordFreq[w]=(wordFreq[w]||0)+1;});
+    const topContentWords=Object.entries(wordFreq).filter(([,c])=>c>=2).map(([w])=>w).slice(0,3);
+    const midIdx=Math.floor(lower.length/2);
+    const firstHalf=lower.slice(0,midIdx);
+    const secondHalf=lower.slice(midIdx);
+    const isCoherent=topContentWords.length>=1&&topContentWords.some(w=>firstHalf.includes(w)&&secondHalf.includes(w));
+
+    // Conclusion: last sentence has a closing marker OR is shorter than average
+    const lastSent=(sentences[sentences.length-1]||'').toLowerCase().trim();
+    const CONCLUSION_WORDS=['therefore','ultimately','in the end','which is why','that is why','overall','in conclusion','to conclude','in summary','i believe','my view','this shows','this means'];
+    const hasConcluder=CONCLUSION_WORDS.some(w=>lastSent.includes(w));
+    const lastSentLen=lastSent.split(/\s+/).filter(Boolean).length;
+    const hasConclusion=hasConcluder||(lastSentLen>2&&avgWPS>0&&lastSentLen<avgWPS*0.75);
+
+    let structure=0;
+    if(sentenceCount>2) structure+=5;
+    if(isCoherent)      structure+=8;
+    if(hasEvidence)     structure+=7;
+    if(hasConclusion)   structure+=5;
+    structure=Math.min(25,structure);
+
+    // ── Confidence score (penalty-from-25) ───────────────────────────────────
+    let confidence=25;
+    if(totalHedges>=5)      confidence-=10;
+    else if(totalHedges>=3) confidence-=6;
+    else if(totalHedges>=1) confidence-=3;
+    if(wordCount<60)        confidence-=8;
+    else if(wordCount<100)  confidence-=4;
+    else if(wordCount<150)  confidence-=1;
+    confidence=Math.max(5,confidence);
+
+    const totalScore=Math.max(20,Math.min(100,clarity+structure+fillerWordsScore+confidence));
+
+    // ── Strength (highest category) ───────────────────────────────────────────
     const fbScores={fillerWords:fillerWordsScore,clarity,structure,confidence};
     const lowestCat=Object.entries(fbScores).sort((a,b)=>a[1]-b[1])[0][0];
     const highestCat=Object.entries(fbScores).sort((a,b)=>b[1]-a[1])[0][0];
@@ -335,24 +390,46 @@ function analyzeTranscript(text, topic, difficulty) {
       confidence:'Strong commitment to your answer — you spoke with length and conviction',
     };
     const strength=strengthMsgs[highestCat];
+
+    // ── Improvement (priority-based, specific) ────────────────────────────────
+    const topFillers=Object.entries(fillerWordList).sort((a,b)=>b[1]-a[1]).slice(0,2).map(([w])=>w);
+
+    // Repetitive content word (4+ occurrences, excluding common stop words)
+    const STOP=new Set(['the','and','that','this','with','have','from','they','what','been','will','when','your','said','each','which','there','would','their','about','more','many','some','also','into','than','then','only','most','over','just','well','were','very','even','back','make','take','know','come','look','want','need','such','does','here','made','much','same','has','had','not','are','for','out','but','its','who','him','her','our','you','all','any','can','did','get','got','how','let','may','now','put','see','set','she','was','we']);
+    const contentFreq={};
+    cleanWords.forEach(w=>{
+      if(w.length>3&&!STOP.has(w)&&!fillerWordList[w])
+        contentFreq[w]=(contentFreq[w]||0)+1;
+    });
+    const topRepeated=Object.entries(contentFreq).sort((a,b)=>b[1]-a[1])[0];
+    const hasRepetition=topRepeated&&topRepeated[1]>=4;
+
     let improvement;
-    if(lowestCat==='fillerWords'){
-      improvement=`You used ${totalFillers} filler word${totalFillers!==1?'s':''} — the most common was "${topFiller?.[0]||'um'}". Try pausing silently instead of filling the gap with sound`;
-    }else if(lowestCat==='clarity'){
-      improvement=avgWPS>20
-        ?`Your average sentence was ${Math.round(avgWPS)} words long — try breaking your ideas into shorter cleaner sentences`
-        :'You repeated similar words a lot — try varying your vocabulary to keep your listener engaged';
-    }else if(lowestCat==='structure'){
-      improvement='Your response lacked connecting words — try using phrases like because, therefore, or for example to link your ideas';
+    if(lowestCat==='fillerWords'&&totalFillers>=8){
+      const twoFillers=topFillers.length>=2?`"${topFillers[0]}" and "${topFillers[1]}"`:`"${topFillers[0]||'um'}"`;
+      improvement=`You used ${totalFillers} filler words in this response — ${twoFillers} were the most frequent. Practice pausing silently for half a second instead of reaching for a filler sound. Record yourself and count them — awareness is the first fix.`;
+    }else if(wordCount<60){
+      improvement=`Your response was only ${wordCount} words — that is not enough to fully make your point. Aim for at least 100 words. After your main statement, ask yourself why, then answer that too. That alone usually doubles your word count.`;
+    }else if(totalHedges>=3){
+      improvement=`You hedged ${totalHedges} times with phrases like 'I think' and 'maybe'. Pick a position and commit to it. Instead of 'I think this might be good' say 'This is good because...'. Confidence in delivery starts with confident language.`;
+    }else if(!hasEvidence){
+      improvement=`Your response made claims but did not explain the reasoning behind them. After every point you make, add 'because' and explain why. One well-supported point is stronger than three unsupported ones.`;
+    }else if(avgWPS>25){
+      improvement=`Your sentences averaged ${Math.round(avgWPS)} words which is too long — ideas get lost in run-on sentences. After every two or three thoughts, end the sentence and start fresh. Shorter sentences land harder.`;
+    }else if(hasRepetition){
+      improvement=`You repeated the word '${topRepeated[0]}' ${topRepeated[1]} times. Varied vocabulary makes your speech more engaging — try finding two or three different ways to express the same idea.`;
+    }else if(vocabRatio<0.45){
+      improvement=`Your vocabulary was quite repetitive in this response. Challenge yourself to avoid repeating the same word more than twice — a richer vocabulary makes your argument more compelling.`;
+    }else if(lowestCat==='confidence'){
+      improvement=`Develop your ideas further — after making a point, add a concrete example or real-world scenario to make it stick. Abstract points are forgettable, specific ones are not.`;
     }else{
-      improvement=wordCount<100
-        ?`Your response was only ${wordCount} words — aim for at least 100 words to fully develop your answer`
-        :`You used hedging phrases like I think and I guess ${totalHedges} time${totalHedges!==1?'s':''} — try committing more directly to your statements`;
+      improvement=`Push yourself to speak for longer next time — the more you develop your ideas the more natural and confident you will sound.`;
     }
+
     const tipMap={
       fillerWords:'Next time, replace that word with a deliberate pause — silence sounds more confident than a filler.',
       clarity:'Aim to keep each sentence to one clear idea — if you need a breath mid-sentence, split it in two.',
-      structure:"Try opening your next answer with 'There are two key points — first... and second...' to anchor your listener from the start.",
+      structure:'After your next main point, add "because" and give a specific reason — that single word forces you to develop your ideas.',
       confidence:"Use 'for example' as a trigger — each time you make a point, follow it immediately with one specific real-world example.",
     };
     const feedback=`${strength}. ${improvement}. ${tipMap[lowestCat]}`;
