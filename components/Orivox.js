@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "../lib/supabase";
 import { detectFillers } from "../lib/fillerDetection";
+import { checkNewAchievements, ACHIEVEMENTS } from "../lib/achievements";
 
 const G = () => (
   <style>{`
@@ -49,6 +50,7 @@ const G = () => (
     @keyframes pulseRing{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.8);opacity:0}}
     @keyframes waveBar{0%,100%{transform:scaleY(.15)}50%{transform:scaleY(1)}}
     @keyframes float{0%,100%{transform:translateY(0) rotate(-5deg)}50%{transform:translateY(-22px) rotate(5deg)}}
+    @keyframes fadeInRight{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
     @keyframes bounceBtn{0%,100%{transform:translate(0,0);box-shadow:4px 4px 0 var(--text)}45%{transform:translate(-2px,-5px);box-shadow:6px 9px 0 var(--text)}}
     @keyframes chipPop{0%{transform:scale(1)}40%{transform:scale(1.18)}70%{transform:scale(.96)}100%{transform:scale(1)}}
     @keyframes ripple{0%{transform:scale(0);opacity:.5}100%{transform:scale(4);opacity:0}}
@@ -1141,6 +1143,7 @@ export default function Orivox(){
   const [audioUrl,setAudioUrl]=useState(null);
   const [username,setUsername]=useState("");
   const [showNameModal,setShowNameModal]=useState(false);
+  const [toastQueue,setToastQueue]=useState([]);
   const [nameInput,setNameInput]=useState("");
   const [showReviewModal,setShowReviewModal]=useState(false);
   const typingRef=useRef(null);
@@ -1183,6 +1186,13 @@ export default function Orivox(){
     return()=>clearInterval(id);
   },[]);
 
+  // Achievement toast auto-advance
+  useEffect(()=>{
+    if(toastQueue.length===0)return;
+    const t=setTimeout(()=>setToastQueue(prev=>prev.slice(1)),3200);
+    return()=>clearTimeout(t);
+  },[toastQueue]);
+
   // Auto-post to leaderboard only when it's a new personal best
   useEffect(()=>{
     if(!feedback||feedback.error) return;
@@ -1205,6 +1215,13 @@ export default function Orivox(){
                 console.error("LB insert failed:",error.message);
                 supabase.from("scores").insert({player_name:pname,score:feedback.totalScore})
                   .then(({error:e2})=>{if(e2)console.error("LB minimal insert failed:",e2.message);});
+              }else{
+                // Mark leaderboard achievement
+                if(!localStorage.getItem("orivox_leaderboard_posted")){
+                  localStorage.setItem("orivox_leaderboard_posted","1");
+                  const ach=ACHIEVEMENTS.find(a=>a.id==="leaderboard");
+                  if(ach)setToastQueue(prev=>[...prev,ach]);
+                }
               }
             }).catch(e=>console.error("LB error:",e));
         }
@@ -1407,12 +1424,15 @@ export default function Orivox(){
       const pacingRating=wpm<110?"too slow":wpm<130?"slightly slow":wpm<=160?"ideal":wpm<=180?"slightly fast":"too fast";
       const fillerWordList=feedbackData.fillerWordList||{};
       const localDate=new Date().toLocaleDateString("en-CA");
+      const displayScore=Math.min(100,(feedbackData.totalScore||0)+(feedbackData.qualityBonus||0));
       const session={
         id:Date.now().toString(),
         date:localDate,
         category:activeCat||"Unknown",
         difficulty:activeDiff||"Unknown",
         score:feedbackData.totalScore||0,
+        displayScore,
+        wpm,
         fillerWordCount:Object.values(fillerWordList).reduce((a,b)=>a+b,0),
         fillerWords:Object.keys(fillerWordList),
         pacingRating,
@@ -1430,6 +1450,7 @@ export default function Orivox(){
       const existing=JSON.parse(localStorage.getItem("orivox_sessions")||"[]");
       existing.push(session);
       localStorage.setItem("orivox_sessions",JSON.stringify(existing));
+      return session;
       // Update streak using dedicated keys
       const lastDate=localStorage.getItem("orivox_last_session_date")||"";
       const prevStreak=parseInt(localStorage.getItem("orivox_streak_count")||"0",10);
@@ -1480,7 +1501,13 @@ export default function Orivox(){
       await new Promise(r=>setTimeout(r,800));
       result=analyzeTranscript(text,topic,activeDiff);
     }
-    saveSession(result);setFeedback(result);setLoading(false);
+    const savedSession=saveSession(result);setFeedback(result);setLoading(false);
+    // Achievement checking
+    try{
+      const allSessions=JSON.parse(localStorage.getItem("orivox_sessions")||"[]");
+      const unlocked=checkNewAchievements(allSessions,savedSession||{});
+      if(unlocked.length>0)setToastQueue(prev=>[...prev,...unlocked]);
+    }catch{}
     checkVoiceType().catch(()=>{});
   };
 
@@ -2041,6 +2068,33 @@ export default function Orivox(){
 
         </div>
       </div>
+
+      {/* Achievement toast */}
+      {toastQueue.length>0&&(()=>{
+        const ach=toastQueue[0];
+        const paths=Array.isArray(ach.path)?ach.path:[ach.path];
+        return(
+          <div style={{position:"fixed",top:20,right:20,zIndex:4000,display:"flex",flexDirection:"column",gap:10,pointerEvents:"none"}}>
+            <div style={{
+              background:"#1A1A2E",color:"#fff",borderRadius:16,padding:"14px 18px",
+              boxShadow:"0 8px 32px rgba(0,0,0,0.35)",display:"flex",alignItems:"center",gap:14,
+              border:"2px solid var(--orange)",minWidth:260,maxWidth:320,
+              animation:"fadeInRight .35s ease",
+            }}>
+              <div style={{width:44,height:44,borderRadius:"50%",background:"rgba(255,107,43,.15)",border:"2px solid var(--orange)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {paths.map((d,i)=><path key={i} d={d}/>)}
+                </svg>
+              </div>
+              <div>
+                <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".1em",color:"var(--orange)",marginBottom:2}}>Achievement Unlocked</div>
+                <div style={{fontFamily:"Fredoka, sans-serif",fontSize:17,fontWeight:600,color:"#fff"}}>{ach.name}</div>
+                <div style={{fontSize:12,color:"rgba(255,255,255,.65)",marginTop:1}}>{ach.desc}</div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* First-visit name modal */}
       {showNameModal&&(

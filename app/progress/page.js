@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import Link from 'next/link'
 import PageNav from '../../components/PageNav'
+import { ACHIEVEMENTS } from '../../lib/achievements'
 
 const G = () => (
   <style>{`
@@ -130,6 +131,67 @@ function streakLostMessage(count) {
   return `Your ${count} day streak is over — that was exceptional. You know you can do it again`
 }
 
+// ── Weekly report helpers ─────────────────────────────────────────────────────
+function getMondayOf(date) {
+  const d = new Date(date)
+  const day = d.getDay()
+  const diff = (day === 0 ? -6 : 1) - day
+  d.setDate(d.getDate() + diff)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+function weekBounds(monday) {
+  const start = monday.toLocaleDateString('en-CA')
+  const end = new Date(monday); end.setDate(monday.getDate() + 6)
+  return { start, end: end.toLocaleDateString('en-CA') }
+}
+function sessionsInRange(sessions, start, end) {
+  return sessions.filter(s => s.date >= start && s.date <= end)
+}
+function avgScore(sess) {
+  if (!sess.length) return 0
+  return Math.round(sess.reduce((a, s) => a + (s.displayScore ?? s.score ?? 0), 0) / sess.length)
+}
+function buildWeeklyReport(sessions) {
+  const today = new Date()
+  const thisMonday = getMondayOf(today)
+  const lastMonday = new Date(thisMonday); lastMonday.setDate(thisMonday.getDate() - 7)
+  const twoMondaysAgo = new Date(lastMonday); twoMondaysAgo.setDate(lastMonday.getDate() - 7)
+  const lastWeekRange = weekBounds(lastMonday)
+  const prevWeekRange = weekBounds(twoMondaysAgo)
+  const lastWeek = sessionsInRange(sessions, lastWeekRange.start, lastWeekRange.end)
+  const prevWeek = sessionsInRange(sessions, prevWeekRange.start, prevWeekRange.end)
+  const hasCompare = prevWeek.length > 0
+  const best = lastWeek.length ? lastWeek.reduce((a, s) => (s.displayScore ?? s.score ?? 0) > (a.displayScore ?? a.score ?? 0) ? s : a, lastWeek[0]) : null
+  const catCounts = {}; lastWeek.forEach(s => { catCounts[s.category] = (catCounts[s.category] || 0) + 1 })
+  const topCat = Object.entries(catCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '—'
+  // Most improved subscore
+  const subkeys = ['clarity', 'structure', 'deliveryScore', 'confidence']
+  const subLabels = { clarity: 'Clarity', structure: 'Structure', deliveryScore: 'Delivery', confidence: 'Confidence' }
+  let bestSubkey = null, bestSubImprovement = -Infinity
+  if (hasCompare && lastWeek.length) {
+    const thisAvg = k => lastWeek.reduce((a, s) => a + (s[k] || 0), 0) / lastWeek.length
+    const prevAvg = k => prevWeek.reduce((a, s) => a + (s[k] || 0), 0) / prevWeek.length
+    subkeys.forEach(k => { const diff = thisAvg(k) - prevAvg(k); if (diff > bestSubImprovement) { bestSubImprovement = diff; bestSubkey = k } })
+  }
+  const totalFillers = lastWeek.reduce((a, s) => a + (s.fillerWordCount || 0), 0)
+  const prevFillers = prevWeek.reduce((a, s) => a + (s.fillerWordCount || 0), 0)
+  const lw = lastWeekRange; const fmt = d => { const [, m, day] = d.split('-'); const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return `${months[+m-1]} ${+day}` }
+  return {
+    dateRange: `${fmt(lw.start)} – ${fmt(lw.end)}`,
+    sessionCount: lastWeek.length,
+    avgThisWeek: avgScore(lastWeek),
+    avgLastWeek: hasCompare ? avgScore(prevWeek) : null,
+    best,
+    topCat,
+    mostImprovedLabel: bestSubkey ? subLabels[bestSubkey] : null,
+    mostImprovedDelta: bestSubImprovement > 0 ? Math.round(bestSubImprovement * 10) / 10 : null,
+    totalFillers,
+    prevFillers,
+    hasCompare,
+  }
+}
+
 export default function Progress() {
   const [sessions, setSessions] = useState(null)
   const [expandedId, setExpandedId] = useState(null)
@@ -137,6 +199,10 @@ export default function Progress() {
   const [streak, setStreak] = useState(0)
   const [streakLost, setStreakLost] = useState(false)
   const [lostStreakCount, setLostStreakCount] = useState(0)
+  const [unlockedIds, setUnlockedIds] = useState(new Set())
+  const [showWeeklyReport, setShowWeeklyReport] = useState(false)
+  const [weeklyReport, setWeeklyReport] = useState(null)
+  const [hoveredBadge, setHoveredBadge] = useState(null)
   const chartRef = useRef(null)
   const chartInstance = useRef(null)
 
@@ -150,6 +216,26 @@ export default function Progress() {
     try {
       const vt = localStorage.getItem('orivox_voice_type')
       if (vt) setVoiceType(JSON.parse(vt))
+    } catch {}
+    // Achievements
+    try {
+      const stored = JSON.parse(localStorage.getItem('orivox_achievements') || '[]')
+      setUnlockedIds(new Set(stored.map(a => a.id)))
+    } catch {}
+    // Weekly report — show every Monday
+    try {
+      const allSess = JSON.parse(localStorage.getItem('orivox_sessions') || '[]')
+      const todayStr = new Date().toLocaleDateString('en-CA')
+      const isMonday = new Date().getDay() === 1
+      const lastShown = localStorage.getItem('orivox_last_report_shown') || ''
+      if (isMonday && lastShown !== todayStr && allSess.length > 0) {
+        const report = buildWeeklyReport(allSess)
+        if (report.sessionCount > 0 || report.avgThisWeek > 0) {
+          setWeeklyReport(report)
+          setShowWeeklyReport(true)
+          localStorage.setItem('orivox_last_report_shown', todayStr)
+        }
+      }
     } catch {}
     // Load streak from dedicated keys — source of truth
     try {
@@ -413,6 +499,49 @@ export default function Progress() {
             </div>
           )}
 
+          {/* Achievements */}
+          {(() => {
+            const groups = [...new Set(ACHIEVEMENTS.map(a => a.group))]
+            return (
+              <div className="fadeUp d4" style={{ background: 'var(--card)', border: '2.5px solid var(--border)', borderRadius: 22, boxShadow: 'var(--shadow)', padding: '24px 28px', marginBottom: 20 }}>
+                <div className="fredoka" style={{ fontSize: 20, color: 'var(--text)', marginBottom: 4 }}>Achievements</div>
+                <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>{unlockedIds.size} of {ACHIEVEMENTS.length} unlocked</div>
+                {groups.map(group => (
+                  <div key={group} style={{ marginBottom: 24 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--orange)', marginBottom: 12, fontFamily: 'Fredoka, sans-serif' }}>{group}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(80px,1fr))', gap: 10 }}>
+                      {ACHIEVEMENTS.filter(a => a.group === group).map(ach => {
+                        const unlocked = unlockedIds.has(ach.id)
+                        const paths = Array.isArray(ach.path) ? ach.path : [ach.path]
+                        return (
+                          <div key={ach.id} onMouseEnter={() => setHoveredBadge(ach.id)} onMouseLeave={() => setHoveredBadge(null)}
+                            style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 4px', borderRadius: 14, background: unlocked ? 'var(--orange-dim)' : 'var(--bg)', border: `2px solid ${unlocked ? 'var(--orange-border)' : 'var(--border)'}`, cursor: 'default', transition: 'border-color .15s' }}>
+                            <div style={{ width: 42, height: 42, borderRadius: '50%', background: unlocked ? 'rgba(255,107,43,.15)' : 'rgba(0,0,0,.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={unlocked ? 'var(--orange)' : '#C4B8AF'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                {paths.map((d, i) => <path key={i} d={d} />)}
+                              </svg>
+                              {!unlocked && (
+                                <div style={{ position: 'absolute', bottom: -2, right: -2, width: 16, height: 16, borderRadius: '50%', background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#8A7E74" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: unlocked ? 'var(--orange)' : 'var(--muted)', textAlign: 'center', lineHeight: 1.3, fontFamily: 'Fredoka, sans-serif' }}>{ach.name}</div>
+                            {hoveredBadge === ach.id && (
+                              <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)', background: '#1A1A2E', color: '#fff', borderRadius: 10, padding: '8px 12px', fontSize: 11, whiteSpace: 'nowrap', maxWidth: 200, whiteSpace: 'normal', textAlign: 'center', zIndex: 50, lineHeight: 1.5, pointerEvents: 'none' }}>
+                                {unlocked ? ach.desc : ach.condition}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
+
           {/* Chart */}
           <div className="fadeUp d4" style={{
             background: 'var(--card)', border: '2.5px solid var(--border)',
@@ -618,6 +747,102 @@ export default function Progress() {
           )}
         </div>
       </div>
+
+      {/* Weekly Report Modal */}
+      {showWeeklyReport && weeklyReport && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => setShowWeeklyReport(false)}>
+          <div style={{ background: 'var(--card)', borderRadius: 24, padding: '32px 28px', maxWidth: 480, width: '100%', boxShadow: '0 24px 80px rgba(0,0,0,0.35)', border: '2.5px solid var(--border)', maxHeight: '90vh', overflowY: 'auto' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--orange)', marginBottom: 4, fontFamily: 'Fredoka, sans-serif' }}>Weekly Review</div>
+                <h2 className="fredoka" style={{ fontSize: 26, color: 'var(--text)', marginBottom: 2 }}>Your week in review</h2>
+                <div style={{ fontSize: 13, color: 'var(--muted)' }}>{weeklyReport.dateRange}</div>
+              </div>
+              <button onClick={() => setShowWeeklyReport(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 4 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+
+            {/* Stats grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+              <div style={{ background: 'var(--orange-dim)', borderRadius: 14, padding: '16px 14px' }}>
+                <div className="fredoka" style={{ fontSize: 32, color: 'var(--orange)', lineHeight: 1 }}>{weeklyReport.sessionCount}</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4, fontWeight: 600 }}>Sessions last week</div>
+              </div>
+              <div style={{ background: weeklyReport.avgLastWeek !== null && weeklyReport.avgThisWeek >= weeklyReport.avgLastWeek ? '#E8F7EE' : 'var(--red-dim)', borderRadius: 14, padding: '16px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                  <span className="fredoka" style={{ fontSize: 32, color: weeklyReport.avgLastWeek !== null && weeklyReport.avgThisWeek >= weeklyReport.avgLastWeek ? 'var(--green)' : 'var(--red)', lineHeight: 1 }}>{weeklyReport.avgThisWeek}</span>
+                  {weeklyReport.hasCompare && weeklyReport.avgLastWeek !== null && (
+                    <span style={{ fontSize: 12, fontWeight: 700, color: weeklyReport.avgThisWeek >= weeklyReport.avgLastWeek ? 'var(--green)' : 'var(--red)' }}>
+                      {weeklyReport.avgThisWeek >= weeklyReport.avgLastWeek ? '↑' : '↓'}{Math.abs(weeklyReport.avgThisWeek - weeklyReport.avgLastWeek)} vs last week
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4, fontWeight: 600 }}>Average score</div>
+              </div>
+            </div>
+
+            {/* Highlights */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+              {weeklyReport.best && (
+                <div style={{ background: 'var(--bg)', borderRadius: 12, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Best Session</div>
+                    <div style={{ fontSize: 13, color: 'var(--text)', marginTop: 2 }}>{weeklyReport.best.category} · {weeklyReport.best.difficulty}</div>
+                  </div>
+                  <div className="fredoka" style={{ fontSize: 24, color: 'var(--green)' }}>{weeklyReport.best.displayScore ?? weeklyReport.best.score}</div>
+                </div>
+              )}
+              <div style={{ background: 'var(--bg)', borderRadius: 12, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Most Practiced</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{weeklyReport.topCat}</div>
+              </div>
+              {weeklyReport.hasCompare && weeklyReport.mostImprovedLabel && weeklyReport.mostImprovedDelta && weeklyReport.mostImprovedDelta > 0 && (
+                <div style={{ background: '#E8F7EE', borderRadius: 12, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Most Improved</div>
+                    <div style={{ fontSize: 13, color: 'var(--text)', marginTop: 2 }}>{weeklyReport.mostImprovedLabel}</div>
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>+{weeklyReport.mostImprovedDelta}</div>
+                </div>
+              )}
+              <div style={{ background: 'var(--bg)', borderRadius: 12, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Filler Words</div>
+                  <div style={{ fontSize: 13, color: 'var(--text)', marginTop: 2 }}>
+                    {weeklyReport.totalFillers} total
+                    {weeklyReport.hasCompare && weeklyReport.prevFillers > weeklyReport.totalFillers && (
+                      <span style={{ color: 'var(--green)', fontWeight: 700 }}> · Down {weeklyReport.prevFillers - weeklyReport.totalFillers} from last week</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {!weeklyReport.hasCompare && (
+              <div style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginBottom: 16, fontStyle: 'italic' }}>
+                Keep practicing to unlock week-over-week comparisons
+              </div>
+            )}
+
+            {/* Closing line */}
+            <div style={{ background: 'var(--orange-dim)', borderRadius: 14, padding: '14px 16px', marginBottom: 20, fontSize: 14, color: '#7A4500', lineHeight: 1.6, textAlign: 'center', fontStyle: 'italic' }}>
+              {weeklyReport.hasCompare && weeklyReport.avgThisWeek > (weeklyReport.avgLastWeek ?? 0)
+                ? 'You are getting sharper — keep the momentum going'
+                : weeklyReport.sessionCount > 0
+                  ? 'More reps, more results — great week'
+                  : 'You took a break — this week is a fresh start'}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setShowWeeklyReport(false)} style={{ flex: 1, padding: '12px', borderRadius: 12, border: '2px solid var(--border)', background: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--muted)', fontFamily: 'Nunito, sans-serif', fontWeight: 700 }}>Close</button>
+              <Link href="/" onClick={() => setShowWeeklyReport(false)} style={{ flex: 2, padding: '12px', borderRadius: 12, background: 'var(--orange)', color: '#fff', textDecoration: 'none', textAlign: 'center', fontSize: 14, fontFamily: 'Fredoka, sans-serif', fontWeight: 600 }}>Start practicing</Link>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
