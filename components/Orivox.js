@@ -385,9 +385,10 @@ function analyzeTranscript(text, topic, difficulty) {
     else if(wordCount<150)  confidence-=1;
     confidence=Math.max(5,confidence);
 
-    // Quality bonus: clean delivery + high confidence + substantial length
+    // Quality bonus: display-only — never saved to localStorage or Supabase
     const qualityBonus=(fillerWordsScore===25&&confidence>=20&&wordCount>=100)?5:0;
-    const totalScore=Math.max(20,Math.min(100,clarity+structure+fillerWordsScore+confidence+qualityBonus));
+    // Raw score: no bonus, capped at 99 so 100 is only achievable via a perfect AI response
+    const totalScore=Math.max(20,Math.min(99,clarity+structure+fillerWordsScore+confidence));
 
     // ── Strength: find actual highest scoring category via reduce ─────────────
     const allScores=[['fillerWords',fillerWordsScore],['clarity',clarity],['structure',structure],['confidence',confidence]];
@@ -436,7 +437,7 @@ function analyzeTranscript(text, topic, difficulty) {
       confidence:"Use 'for example' as a trigger — each time you make a point, follow it immediately with one specific real-world example.",
     };
     const feedback=`${strength}. ${improvement}. ${tipMap[lowestCat]}`;
-    return{totalScore,clarity,structure,fillerWords:fillerWordsScore,confidence,fillerWordList,feedback,strength,improvement};
+    return{totalScore,qualityBonus,clarity,structure,fillerWords:fillerWordsScore,confidence,fillerWordList,feedback,strength,improvement};
   }
   // (unreachable — kept for linter)
   const FILLER_DEFS = [
@@ -1842,7 +1843,7 @@ export default function Orivox(){
               )}
 
               {!loading&&feedback&&!feedback.error&&(()=>{
-                const displayScore=Math.min(100,(feedback.clarity||0)+(feedback.structure||0)+(feedback.fillerWords||0)+(feedback.confidence||0));
+                const displayScore=Math.min(100,(feedback.clarity||0)+(feedback.structure||0)+(feedback.fillerWords||0)+(feedback.confidence||0)+(feedback.qualityBonus||0));
                 return(
                 <div>
                   {/* Before & After comparison */}
