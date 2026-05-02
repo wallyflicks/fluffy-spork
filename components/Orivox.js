@@ -839,140 +839,75 @@ function ReviewPrompt({onSubmit,initialName=""}){
 
 // ── Share Card ───────────────────────────────────────────────────────────────
 function ShareCard({score,category,difficulty,strength}){
-  const [open,setOpen]=useState(false);
   const [copied,setCopied]=useState(false);
-  const [previewUrl,setPreviewUrl]=useState('');
+  const [open,setOpen]=useState(false);
 
-  const makeCanvas=()=>{
+  const buildUrl=()=>{
+    const p=new URLSearchParams({score:String(score),category,difficulty,strength});
+    return `https://orivoxapp.vercel.app/result?${p.toString()}`;
+  };
+
+  const handleShare=async()=>{
+    const url=buildUrl();
+    const title=`I scored ${score}/100 on Orivox`;
+    // Mobile: native share sheet
+    if(typeof navigator!=='undefined'&&navigator.share){
+      try{await navigator.share({title,url});return;}
+      catch(e){if(e.name==='AbortError')return;}
+    }
+    // Desktop: copy link
+    try{
+      await navigator.clipboard.writeText(url);
+      setCopied(true);setTimeout(()=>setCopied(false),2400);
+    }catch{}
+  };
+
+  // Canvas-based PNG download (kept as secondary option)
+  const handleDownload=()=>{
     const W=1080,H=1080;
     const c=document.createElement('canvas');
     c.width=W;c.height=H;
     const ctx=c.getContext('2d');
     const scoreColor=score>=80?'#2D7A4F':score>=60?'#F5C842':'#E84040';
-
-    // Background
-    ctx.fillStyle='#1A1A2E';
-    ctx.fillRect(0,0,W,H);
-
-    // Dot grid
+    ctx.fillStyle='#1A1A2E';ctx.fillRect(0,0,W,H);
     ctx.fillStyle='rgba(255,255,255,0.055)';
-    for(let x=27;x<W;x+=54)for(let y=27;y<H;y+=54){
-      ctx.beginPath();ctx.arc(x,y,2.5,0,Math.PI*2);ctx.fill();
-    }
-
-    // Top bar
-    ctx.fillStyle='#FF6B2B';
-    ctx.fillRect(0,0,W,10);
-
-    // Logo
-    ctx.fillStyle='#FF6B2B';
-    ctx.font='bold 84px Fredoka,"Arial Rounded MT Bold",Arial';
-    ctx.textAlign='center';ctx.textBaseline='alphabetic';
-    ctx.fillText('Orivox',W/2,115);
-
-    // Subtitle
-    ctx.fillStyle='rgba(255,255,255,0.42)';
-    ctx.font='30px Arial,sans-serif';
-    ctx.fillText('AI Speaking Coach',W/2,162);
-
-    // Divider
+    for(let x=27;x<W;x+=54)for(let y=27;y<H;y+=54){ctx.beginPath();ctx.arc(x,y,2.5,0,Math.PI*2);ctx.fill();}
+    ctx.fillStyle='#FF6B2B';ctx.fillRect(0,0,W,10);
+    ctx.fillStyle='#FF6B2B';ctx.font='bold 84px Fredoka,"Arial Rounded MT Bold",Arial';
+    ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillText('Orivox',W/2,115);
+    ctx.fillStyle='rgba(255,255,255,0.42)';ctx.font='30px Arial,sans-serif';ctx.fillText('AI Speaking Coach',W/2,162);
     ctx.strokeStyle='rgba(255,107,43,0.22)';ctx.lineWidth=1.5;
     ctx.beginPath();ctx.moveTo(W*0.3,186);ctx.lineTo(W*0.7,186);ctx.stroke();
-
-    // Score ring
     const cx=W/2,cy=415,r=168;
-    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
-    ctx.strokeStyle='rgba(255,255,255,0.09)';ctx.lineWidth=22;ctx.stroke();
-    const arc=(score/100)*Math.PI*2;
-    ctx.beginPath();ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+arc);
+    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.strokeStyle='rgba(255,255,255,0.09)';ctx.lineWidth=22;ctx.stroke();
+    ctx.beginPath();ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+(score/100)*Math.PI*2);
     ctx.strokeStyle=scoreColor;ctx.lineWidth=22;ctx.lineCap='round';ctx.stroke();
-
-    // Score number
-    ctx.fillStyle=scoreColor;
-    ctx.font='bold 192px Fredoka,"Arial Rounded MT Bold",Arial';
-    ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText(score.toString(),cx,cy-16);
-
-    // /100
-    ctx.fillStyle='rgba(255,255,255,0.33)';
-    ctx.font='bold 54px Fredoka,"Arial Rounded MT Bold",Arial';
+    ctx.fillStyle=scoreColor;ctx.font='bold 192px Fredoka,"Arial Rounded MT Bold",Arial';
+    ctx.textBaseline='middle';ctx.fillText(score.toString(),cx,cy-16);
+    ctx.fillStyle='rgba(255,255,255,0.33)';ctx.font='bold 54px Fredoka,"Arial Rounded MT Bold",Arial';
     ctx.fillText('/100',cx,cy+90);
-
-    // Category · Difficulty
-    ctx.fillStyle='rgba(255,255,255,0.75)';
-    ctx.font='38px Arial,sans-serif';
-    ctx.textBaseline='alphabetic';
+    ctx.fillStyle='rgba(255,255,255,0.75)';ctx.font='38px Arial,sans-serif';ctx.textBaseline='alphabetic';
     ctx.fillText(`${category} · ${difficulty}`,cx,658);
-
-    // Strength (2-line word wrap, italic)
-    ctx.fillStyle='rgba(255,255,255,0.48)';
-    ctx.font='italic 29px Arial,sans-serif';
-    const maxW=820;
-    const words=(`"${strength}"`).split(' ');
-    let line='';const lines=[];
-    for(const w of words){
-      const test=line+(line?' ':'')+w;
-      if(ctx.measureText(test).width>maxW&&line){lines.push(line);line=w;if(lines.length>=2)break;}
-      else line=test;
-    }
+    ctx.fillStyle='rgba(255,255,255,0.48)';ctx.font='italic 29px Arial,sans-serif';
+    const maxW=820;const wds=(`"${strength}"`).split(' ');let line='';const lines=[];
+    for(const w of wds){const test=line+(line?' ':'')+w;if(ctx.measureText(test).width>maxW&&line){lines.push(line);line=w;if(lines.length>=2)break;}else line=test;}
     if(lines.length<2&&line)lines.push(line);
-    if(lines.length===2){
-      while(ctx.measureText(lines[1]+'…').width>maxW&&lines[1].includes(' '))
-        lines[1]=lines[1].split(' ').slice(0,-1).join(' ');
-      if(!(`"${strength}"`).endsWith(lines[1]))lines[1]+='…';
-    }
+    if(lines.length===2){while(ctx.measureText(lines[1]+'…').width>maxW&&lines[1].includes(' '))lines[1]=lines[1].split(' ').slice(0,-1).join(' ');if(!(`"${strength}"`).endsWith(lines[1]))lines[1]+='…';}
     lines.forEach((l,i)=>ctx.fillText(l,cx,714+i*42));
-
-    // Bottom CTA
     ctx.strokeStyle='rgba(255,107,43,0.2)';ctx.lineWidth=1.5;
     ctx.beginPath();ctx.moveTo(W*0.2,822);ctx.lineTo(W*0.8,822);ctx.stroke();
-    ctx.fillStyle='rgba(255,255,255,0.38)';
-    ctx.font='27px Arial,sans-serif';
-    ctx.fillText('Try it at',cx,876);
-    ctx.fillStyle='#FF6B2B';
-    ctx.font='bold 44px Arial,sans-serif';
-    ctx.fillText('orivoxapp.vercel.app',cx,946);
-
-    // Bottom bar
-    ctx.fillStyle='#FF6B2B';
-    ctx.fillRect(0,H-10,W,10);
-    return c;
-  };
-
-  const getBlob=()=>new Promise(resolve=>makeCanvas().toBlob(resolve,'image/png'));
-
-  const handleShare=async()=>{
-    const text=`I scored ${score}/100 on Orivox's AI speaking coach. Try it yourself: orivoxapp.vercel.app`;
-    if(typeof navigator!=='undefined'&&navigator.share){
-      try{
-        const blob=await getBlob();
-        const file=new File([blob],'orivox-score.png',{type:'image/png'});
-        if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file],text});return;}
-        await navigator.share({text,url:'https://orivoxapp.vercel.app'});return;
-      }catch(e){if(e.name==='AbortError')return;}
-    }
-    setPreviewUrl(makeCanvas().toDataURL('image/png'));
-    setOpen(true);
-  };
-
-  const handleDownload=()=>{
-    const a=document.createElement('a');
-    a.href=makeCanvas().toDataURL('image/png');
-    a.download='orivox-score.png';
-    document.body.appendChild(a);a.click();document.body.removeChild(a);
-  };
-
-  const handleCopy=async()=>{
-    try{
-      await navigator.clipboard.writeText(`I scored ${score}/100 on Orivox's AI speaking coach. Try it yourself: orivoxapp.vercel.app`);
-      setCopied(true);setTimeout(()=>setCopied(false),2200);
-    }catch{}
+    ctx.fillStyle='rgba(255,255,255,0.38)';ctx.font='27px Arial,sans-serif';ctx.fillText('Try it at',cx,876);
+    ctx.fillStyle='#FF6B2B';ctx.font='bold 44px Arial,sans-serif';ctx.fillText('orivoxapp.vercel.app',cx,946);
+    ctx.fillStyle='#FF6B2B';ctx.fillRect(0,H-10,W,10);
+    const a=document.createElement('a');a.href=c.toDataURL('image/png');
+    a.download='orivox-score.png';document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setOpen(false);
   };
 
   const btnBase={display:'flex',alignItems:'center',justifyContent:'center',gap:8,
-    padding:'14px',borderRadius:50,cursor:'pointer',
-    fontFamily:'Fredoka,sans-serif',fontSize:17,fontWeight:600,
-    border:'2.5px solid var(--text)',transition:'all .15s',width:'100%'};
+    padding:'13px',borderRadius:50,cursor:'pointer',
+    fontFamily:'Fredoka,sans-serif',fontSize:16,fontWeight:600,
+    transition:'all .15s',width:'100%',border:'2.5px solid var(--text)'};
 
   return(
     <>
@@ -980,28 +915,35 @@ function ShareCard({score,category,difficulty,strength}){
         display:'inline-flex',alignItems:'center',gap:8,marginTop:22,
         padding:'10px 26px',borderRadius:50,cursor:'pointer',
         fontFamily:'Fredoka,sans-serif',fontSize:16,fontWeight:600,
-        background:'transparent',color:'var(--text)',
-        border:'2.5px solid var(--border)',boxShadow:'3px 3px 0 var(--border)',transition:'all .15s',
+        background:copied?'#E8F7EE':'transparent',
+        color:copied?'var(--green)':'var(--text)',
+        border:`2.5px solid ${copied?'var(--green)':'var(--border)'}`,
+        boxShadow:`3px 3px 0 ${copied?'var(--green)':'var(--border)'}`,transition:'all .15s',
+      }}>
+        {copied?'✓ Link copied!':'Share Result'}
+      </button>
+
+      {/* Overflow menu for image download */}
+      <button onClick={()=>setOpen(true)} style={{
+        background:'none',border:'none',cursor:'pointer',
+        fontSize:12,color:'var(--muted)',marginTop:8,display:'block',
+        fontFamily:'Nunito,sans-serif',textDecoration:'underline',textDecorationColor:'transparent',
+        transition:'all .15s',
       }}
-      onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--orange)';e.currentTarget.style.color='var(--orange)';e.currentTarget.style.boxShadow='3px 3px 0 var(--orange)'}}
-      onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--text)';e.currentTarget.style.boxShadow='3px 3px 0 var(--border)'}}>
-        Share Result
+      onMouseEnter={e=>e.currentTarget.style.color='var(--orange)'}
+      onMouseLeave={e=>e.currentTarget.style.color='var(--muted)'}>
+        Download image instead
       </button>
 
       {open&&(
         <div onClick={()=>setOpen(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.72)',zIndex:999,display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:'var(--card)',borderRadius:24,border:'2.5px solid var(--border)',boxShadow:'8px 8px 0 rgba(0,0,0,0.22)',padding:28,maxWidth:400,width:'100%'}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:'var(--card)',borderRadius:24,border:'2.5px solid var(--border)',boxShadow:'8px 8px 0 rgba(0,0,0,0.22)',padding:28,maxWidth:380,width:'100%'}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
-              <span className="fredoka" style={{fontSize:22}}>Share your result</span>
+              <span className="fredoka" style={{fontSize:22}}>Download image</span>
               <button onClick={()=>setOpen(false)} style={{background:'none',border:'none',cursor:'pointer',fontSize:24,color:'var(--muted)',padding:4,lineHeight:1}}>×</button>
             </div>
-            {previewUrl&&<img src={previewUrl} alt="Score card" style={{width:'100%',borderRadius:14,marginBottom:18,border:'2px solid var(--border)'}}/>}
-            <div style={{display:'flex',flexDirection:'column',gap:10}}>
-              <button onClick={handleDownload} style={{...btnBase,background:'var(--orange)',color:'#fff',boxShadow:'4px 4px 0 var(--text)'}}>↓ Download Image</button>
-              <button onClick={handleCopy} style={{...btnBase,background:copied?'#E8F7EE':'var(--cream)',color:copied?'var(--green)':'var(--text)',borderColor:copied?'var(--green)':'var(--border)',boxShadow:`3px 3px 0 ${copied?'var(--green)':'var(--border)'}`}}>
-                {copied?'✓ Copied!':'⎘ Copy Text'}
-              </button>
-            </div>
+            <p style={{fontSize:14,color:'var(--muted)',marginBottom:18,lineHeight:1.6}}>Save the score card as a PNG — share it directly in stories, posts, or wherever images work best.</p>
+            <button onClick={handleDownload} style={{...btnBase,background:'var(--orange)',color:'#fff',boxShadow:'4px 4px 0 var(--text)'}}>↓ Download PNG</button>
           </div>
         </div>
       )}
