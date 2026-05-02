@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import Image from 'next/image'
 import PageNav from '../../components/PageNav'
 
 const G = () => (
@@ -29,6 +30,8 @@ const G = () => (
       background-image:radial-gradient(circle,#E0CEBC 1px,transparent 1px);
       background-size:30px 30px;opacity:.55;pointer-events:none;z-index:0;
     }
+    .li-link{color:var(--orange);text-decoration:underline;text-decoration-color:rgba(255,107,43,.45);text-underline-offset:2px;}
+    .li-link:hover{text-decoration-color:var(--orange);}
     @media(max-width:600px){
       .about-stat-grid{grid-template-columns:1fr 1fr!important}
       .about-story{padding:24px 20px!important}
@@ -48,14 +51,24 @@ export default function About() {
         {/* Content */}
         <div style={{maxWidth:680,margin:'0 auto',padding:'64px 24px 80px',position:'relative',zIndex:1}}>
 
-          {/* Headline */}
-          <div className="fadeUp d1" style={{textAlign:'center',marginBottom:48}}>
-            <h1 className="fredoka" style={{fontSize:'clamp(28px,5vw,42px)',lineHeight:1.2,color:'var(--text)',marginBottom:12}}>
-              Built by a student who couldn't find a way to practice thinking on his feet.
-            </h1>
-            <p className="fredoka" style={{fontSize:'clamp(20px,3vw,28px)',color:'var(--orange)'}}>
-              So he built one.
-            </p>
+          {/* Founder photo */}
+          <div className="fadeUp d1" style={{textAlign:'center',marginBottom:44}}>
+            <div style={{
+              width:200,height:200,borderRadius:'50%',margin:'0 auto 18px',
+              border:'3px solid var(--orange-border)',
+              boxShadow:'0 4px 24px rgba(0,0,0,0.10)',
+              overflow:'hidden',position:'relative',
+            }}>
+              <Image
+                src="/IMG_9799.JPG"
+                alt="Wallace Cheng"
+                fill
+                style={{objectFit:'cover',objectPosition:'center top'}}
+                priority
+              />
+            </div>
+            <p className="fredoka" style={{fontSize:22,fontWeight:700,color:'var(--text)',marginBottom:4}}>Wallace Cheng</p>
+            <p style={{fontSize:14,color:'var(--muted)'}}>Founder, Orivox</p>
           </div>
 
           {/* Story */}
@@ -66,7 +79,9 @@ export default function About() {
           }}>
             <div style={{borderLeft:'4px solid var(--orange)',paddingLeft:24}}>
               <p style={{fontSize:16,lineHeight:1.9,color:'var(--text)',marginBottom:20}}>
-                Hi, my name is Wallace and I am a 16 year old high school student from Vancouver, BC. I built Orivox because I had the same problem most people have but rarely talk about: I could think of the perfect thing to say about ten seconds too late.
+                Hi, my name is{' '}
+                <a href="https://www.linkedin.com/in/wallace-cheng-4aa888374/" target="_blank" rel="noopener noreferrer" className="li-link">Wallace</a>
+                {' '}and I am a 16 year old high school student from Vancouver, BC. I built Orivox because I had the same problem most people have but rarely talk about: I could think of the perfect thing to say about ten seconds too late.
               </p>
               <p style={{fontSize:16,lineHeight:1.9,color:'var(--text)',marginBottom:20}}>
                 I wanted to get better at quick thinking, at articulating my thoughts clearly under pressure, at sounding confident when it mattered. But I couldn't find a good way to actually practice that. Reading books about public speaking didn't help. Watching YouTube videos didn't help. What I needed was a way to just <em>do it</em> — over and over — and get real feedback.
@@ -81,7 +96,9 @@ export default function About() {
                 Orivox isn't backed by a company or a team of designers. It's just something I made because I needed it. I hope it helps you the way it's helped me.
               </p>
               <p style={{fontFamily:'Fredoka, sans-serif',fontSize:17,color:'var(--orange)',fontWeight:600}}>
-                — Wallace Cheng, Founder of Orivox
+                —{' '}
+                <a href="https://www.linkedin.com/in/wallace-cheng-4aa888374/" target="_blank" rel="noopener noreferrer" className="li-link" style={{fontFamily:'Fredoka, sans-serif',fontWeight:600}}>Wallace Cheng</a>
+                , Founder of Orivox
               </p>
             </div>
           </div>
@@ -118,7 +135,7 @@ export default function About() {
           {/* Terms & Privacy */}
           <div id="terms" style={{marginTop:64}}>
             <div style={{height:2,background:'var(--border)',marginBottom:40,borderRadius:2}}/>
-            <h2 className="fredoka" style={{fontSize:28,color:'var(--text)',marginBottom:6}}>Terms &amp; Privacy</h2>
+            <h2 className="fredoka" style={{fontSize:28,color:'var(--text)',marginBottom:28}}>Terms &amp; Privacy</h2>
 
             {[
               {
@@ -150,13 +167,13 @@ export default function About() {
                 body:'wallyflickss@gmail.com — this goes directly to the founder.',
               },
             ].map(({heading,body})=>(
-              <div key={heading} style={{marginBottom:28}}>
-                <h3 style={{fontSize:15,fontWeight:700,color:'var(--text)',marginBottom:6,fontFamily:'Nunito, sans-serif'}}>{heading}</h3>
+              <div key={heading} style={{marginTop:'2rem',paddingTop:'2rem',borderTop:'1px solid var(--border)'}}>
+                <h3 style={{fontSize:15,fontWeight:700,color:'var(--text)',marginBottom:12,fontFamily:'Nunito, sans-serif'}}>{heading}</h3>
                 <p style={{fontSize:14,lineHeight:1.85,color:'var(--muted)'}}>{body}</p>
               </div>
             ))}
 
-            <p style={{fontSize:13,color:'var(--border)',marginTop:40,fontStyle:'italic'}}>Last updated: May 2026</p>
+            <p style={{fontSize:13,color:'var(--border)',marginTop:48,fontStyle:'italic'}}>Last updated: May 2026</p>
           </div>
 
         </div>
