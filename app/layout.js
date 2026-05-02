@@ -1,5 +1,6 @@
 import { Providers } from './providers'
 import { Analytics } from '@vercel/analytics/react'
+import CursorEffect from '../components/CursorEffect'
 
 export const metadata = {
   title: 'Orivox - AI Speaking Coach',
@@ -14,6 +15,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body suppressHydrationWarning={true}>
+        <CursorEffect />
         <Providers>
           {children}
         </Providers>
