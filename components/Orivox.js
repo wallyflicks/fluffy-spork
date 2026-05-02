@@ -329,7 +329,13 @@ function analyzeTranscript(text, topic, difficulty) {
     const vocabRatio=wordCount>0?uniqueWordSet.size/wordCount:0;
 
     // ── Filler words score ────────────────────────────────────────────────────
-    const fillerWordsScore=Math.max(0,Math.min(25,25-Math.round(fillerRate*160)));
+    // 0 fillers + 150+ words = 25 (earned); 0 fillers alone = 23; fillers present = capped at 22
+    let fillerWordsScore;
+    if(totalFillers===0){
+      fillerWordsScore=wordCount>=150?25:23;
+    }else{
+      fillerWordsScore=Math.max(0,Math.min(22,22-Math.round(fillerRate*160)));
+    }
 
     // ── Clarity (base 18 for 80+ words; no sentence-length dependency) ────────
     let clarity=wordCount>=80?18:wordCount>=50?14:10;
@@ -378,7 +384,11 @@ function analyzeTranscript(text, topic, difficulty) {
       structure=Math.min(25,structure);
     }
 
-    // ── Confidence (penalty from 25) ──────────────────────────────────────────
+    // ── Confidence (penalty from base, capped by assertive language) ──────────
+    // Length alone can't push confidence above 20 — assertive phrases required
+    const ASSERTIVE_RES=[/\bi\s+know\b/gi,/\bdefinitely\b/gi,/\bclearly\b/gi,/\bthe\s+fact\s+is\b/gi,/\babsolutely\b/gi,/\bwithout\s+a\s+doubt\b/gi,/\bthis\s+is\s+why\b/gi,/\bthe\s+answer\s+is\b/gi,/\bi\s+am\s+certain\b/gi,/\bmy\s+point\s+is\b/gi];
+    const assertiveCount=ASSERTIVE_RES.reduce((s,re)=>s+(text.match(re)||[]).length,0);
+    const assertiveCap=assertiveCount>=3&&wordCount>=200?25:assertiveCount>=2&&wordCount>=150?23:assertiveCount>=1?21:20;
     let confidence=25;
     if(totalHedges>=5)      confidence-=10;
     else if(totalHedges>=3) confidence-=6;
@@ -386,12 +396,12 @@ function analyzeTranscript(text, topic, difficulty) {
     if(wordCount<60)        confidence-=8;
     else if(wordCount<100)  confidence-=4;
     else if(wordCount<150)  confidence-=1;
-    confidence=Math.max(5,confidence);
+    confidence=Math.max(5,Math.min(assertiveCap,confidence));
 
-    // Quality bonus: display-only — never saved to localStorage or Supabase
-    const qualityBonus=(fillerWordsScore===25&&confidence>=20&&wordCount>=100)?5:0;
-    // Raw score: no bonus, capped at 99 so 100 is only achievable via a perfect AI response
-    const totalScore=Math.max(20,Math.min(99,clarity+structure+fillerWordsScore+confidence));
+    // ── Word count hard cap on total ─────────────────────────────────────────
+    const wordCountCap=wordCount<30?25:wordCount<61?45:wordCount<101?68:wordCount<151?82:wordCount<201?91:100;
+    // Single final score — used identically for display, localStorage, and Supabase
+    const totalScore=Math.max(20,Math.min(wordCountCap,clarity+structure+fillerWordsScore+confidence));
 
     // ── Strength: find actual highest scoring category via reduce ─────────────
     const allScores=[['fillerWords',fillerWordsScore],['clarity',clarity],['structure',structure],['confidence',confidence]];
@@ -440,7 +450,7 @@ function analyzeTranscript(text, topic, difficulty) {
       confidence:"Use 'for example' as a trigger — each time you make a point, follow it immediately with one specific real-world example.",
     };
     const feedback=`${strength}. ${improvement}. ${tipMap[lowestCat]}`;
-    return{totalScore,qualityBonus,clarity,structure,fillerWords:fillerWordsScore,confidence,fillerWordList,feedback,strength,improvement};
+    return{totalScore,clarity,structure,fillerWords:fillerWordsScore,confidence,fillerWordList,feedback,strength,improvement};
   }
   // (unreachable — kept for linter)
   const FILLER_DEFS = [
@@ -1162,13 +1172,6 @@ export default function Orivox(){
                 console.error("LB insert failed:",error.message);
                 supabase.from("scores").insert({player_name:pname,score:feedback.totalScore})
                   .then(({error:e2})=>{if(e2)console.error("LB minimal insert failed:",e2.message);});
-              }else{
-                // Mark leaderboard achievement
-                if(!localStorage.getItem("orivox_leaderboard_posted")){
-                  localStorage.setItem("orivox_leaderboard_posted","1");
-                  const ach=ACHIEVEMENTS.find(a=>a.id==="leaderboard");
-                  if(ach)setToastQueue(prev=>[...prev,ach]);
-                }
               }
             }).catch(e=>console.error("LB error:",e));
         }
@@ -1371,7 +1374,7 @@ export default function Orivox(){
       const pacingRating=wpm<110?"too slow":wpm<130?"slightly slow":wpm<=160?"ideal":wpm<=180?"slightly fast":"too fast";
       const fillerWordList=feedbackData.fillerWordList||{};
       const localDate=new Date().toLocaleDateString("en-CA");
-      const displayScore=Math.min(100,(feedbackData.totalScore||0)+(feedbackData.qualityBonus||0));
+      const displayScore=feedbackData.totalScore||0;
       const session={
         id:Date.now().toString(),
         date:localDate,
@@ -1821,7 +1824,7 @@ export default function Orivox(){
               )}
 
               {!loading&&feedback&&!feedback.error&&(()=>{
-                const displayScore=Math.min(100,(feedback.clarity||0)+(feedback.structure||0)+(feedback.fillerWords||0)+(feedback.confidence||0)+(feedback.qualityBonus||0));
+                const displayScore=feedback.totalScore||0;
                 return(
                 <div>
                   {/* Before & After comparison */}
