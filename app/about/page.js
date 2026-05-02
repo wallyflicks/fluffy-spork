@@ -115,6 +115,51 @@ export default function About() {
             </Link>
           </div>
 
+          {/* Terms & Privacy */}
+          <div id="terms" style={{marginTop:64}}>
+            <div style={{height:2,background:'var(--border)',marginBottom:40,borderRadius:2}}/>
+            <h2 className="fredoka" style={{fontSize:28,color:'var(--text)',marginBottom:6}}>Terms &amp; Privacy</h2>
+            <p style={{fontSize:14,color:'var(--muted)',marginBottom:32,fontStyle:'italic'}}>Simple, honest, and written by a real person.</p>
+
+            {[
+              {
+                heading:'What we collect',
+                body:'Your session history — category, difficulty, score, transcript, and feedback — is stored locally in your browser. It never leaves your device unless you choose to post your score to the leaderboard. If you post a score, we store your display name and score in our database. If you leave a review, we store your display name, rating, and comment. We do not collect your email address. We do not require an account.',
+              },
+              {
+                heading:'How we use your data',
+                body:'Your local session data is used only to show you your own progress. We do not access it, sell it, or share it. Your leaderboard score and display name are shown publicly on the Leaderboard page. Your review is shown publicly on the Reviews page.',
+              },
+              {
+                heading:'Analytics',
+                body:'Orivox uses Vercel Analytics to count page views and understand how people use the app. This does not use cookies and does not collect personally identifiable information.',
+              },
+              {
+                heading:'Third party services',
+                body:'Supabase stores leaderboard scores and reviews. Vercel hosts the app and provides analytics.',
+              },
+              {
+                heading:'Your data',
+                body:'If you want your leaderboard score or review removed contact us at wallyflickss@gmail.com and we will delete it promptly. You can clear your local session history at any time from the Progress page.',
+              },
+              {
+                heading:'Disclaimer',
+                body:"Orivox is a solo student project provided free of charge and as-is. Scores are not a formal assessment — use it as a practice tool.",
+              },
+              {
+                heading:'Contact',
+                body:'wallyflickss@gmail.com — this goes directly to the founder.',
+              },
+            ].map(({heading,body})=>(
+              <div key={heading} style={{marginBottom:28}}>
+                <h3 style={{fontSize:15,fontWeight:700,color:'var(--text)',marginBottom:6,fontFamily:'Nunito, sans-serif'}}>{heading}</h3>
+                <p style={{fontSize:14,lineHeight:1.85,color:'var(--muted)'}}>{body}</p>
+              </div>
+            ))}
+
+            <p style={{fontSize:13,color:'var(--border)',marginTop:40,fontStyle:'italic'}}>Last updated: May 2026</p>
+          </div>
+
         </div>
       </div>
     </>

@@ -18,6 +18,10 @@ export default function RootLayout({ children }) {
           {children}
         </Providers>
         <Analytics />
+        <footer style={{textAlign:'center',padding:'14px 24px',fontSize:12,color:'#8A7E74',fontFamily:'Nunito,sans-serif'}}>
+          By using Orivox you agree to our{' '}
+          <a href="/about#terms" style={{color:'#8A7E74',textDecoration:'underline',textDecorationColor:'#C4B8AF'}}>Terms &amp; Privacy</a>
+        </footer>
       </body>
     </html>
   )
