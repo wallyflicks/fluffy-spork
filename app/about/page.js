@@ -63,7 +63,7 @@ export default function About() {
                 src="/IMG_9799.JPG"
                 alt="Wallace Cheng"
                 fill
-                style={{objectFit:'cover',objectPosition:'60% 25%'}}
+                style={{objectFit:'cover',objectPosition:'60% 40%'}}
                 priority
               />
             </div>
