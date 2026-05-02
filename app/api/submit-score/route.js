@@ -1,4 +1,5 @@
 import { supabase } from '../../../lib/supabase'
+import { containsInappropriateContent } from '../../../lib/contentFilter'
 
 export async function POST(req) {
   try {
@@ -9,6 +10,10 @@ export async function POST(req) {
     }
 
     const name = (player_name || 'Anonymous').trim()
+
+    if (containsInappropriateContent(name)) {
+      return Response.json({ error: 'Inappropriate content detected' }, { status: 400 })
+    }
 
     // Try full insert with all columns first
     const { error: fullErr } = await supabase

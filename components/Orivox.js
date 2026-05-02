@@ -4,6 +4,7 @@ import Link from "next/link";
 import { supabase } from "../lib/supabase";
 import { detectFillers } from "../lib/fillerDetection";
 import { checkNewAchievements, ACHIEVEMENTS } from "../lib/achievements";
+import { containsInappropriateContent } from "../lib/contentFilter";
 
 const G = () => (
   <style>{`
@@ -779,14 +780,17 @@ function ReviewPrompt({onSubmit,initialName=""}){
 
   const submit=async()=>{
     if(!rating)return;
+    const trimName=name.trim()||"Anonymous";
+    const trimComment=comment.trim();
+    if(containsInappropriateContent(trimName)||containsInappropriateContent(trimComment)){
+      setErr("Your review contains inappropriate content and could not be submitted. Please keep it respectful.");return;
+    }
     setLoading(true);setErr("");
-    const{error}=await supabase.from("Reviews").insert({
-      rating,
-      comment:comment.trim()||null,
-      Name:name.trim()||"Anonymous",
-    });
+    const res=await fetch("/api/submit-review",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({rating,comment:trimComment||null,name:trimName})});
+    const data=await res.json().catch(()=>({}));
     setLoading(false);
-    if(error){console.error("Review submit error:",error.message,error);setErr("Couldn't submit — please try again.");return;}
+    if(!res.ok){setErr(data.error||"Couldn't submit — please try again.");return;}
     setSubmitted(true);
     onSubmit();
   };
@@ -1085,6 +1089,7 @@ export default function Orivox(){
   const [audioUrl,setAudioUrl]=useState(null);
   const [username,setUsername]=useState("");
   const [showNameModal,setShowNameModal]=useState(false);
+  const [nameError,setNameError]=useState("");
   const [toastQueue,setToastQueue]=useState([]);
   const [nameInput,setNameInput]=useState("");
   const [showReviewModal,setShowReviewModal]=useState(false);
@@ -1413,6 +1418,10 @@ export default function Orivox(){
 
   const handleSaveName=(forced)=>{
     const name=(forced!==undefined?forced:(nameInput||"").trim())||"Anonymous";
+    if(forced===undefined&&name!=="Anonymous"&&containsInappropriateContent(name)){
+      setNameError("Please choose an appropriate display name.");return;
+    }
+    setNameError("");
     localStorage.setItem("orivox_username",name);
     setUsername(name);setShowNameModal(false);
   };
@@ -2047,10 +2056,11 @@ export default function Orivox(){
             </div>
             <h2 className="fredoka" style={{fontSize:24,marginBottom:8}}>What should we call you?</h2>
             <p style={{color:"var(--muted)",fontSize:14,marginBottom:24,lineHeight:1.6}}>Your name appears next to your scores. You can change it any time on the leaderboard page.</p>
-            <input value={nameInput} onChange={e=>setNameInput(e.target.value)}
+            <input value={nameInput} onChange={e=>{setNameInput(e.target.value);setNameError("");}}
               onKeyDown={e=>e.key==="Enter"&&handleSaveName()}
               placeholder="Your name" maxLength={30} autoFocus
-              style={{width:"100%",padding:"12px 16px",borderRadius:12,border:"2px solid var(--border)",fontSize:16,fontFamily:"Nunito,sans-serif",outline:"none",background:"var(--bg)",color:"var(--text)",marginBottom:12,boxSizing:"border-box"}}/>
+              style={{width:"100%",padding:"12px 16px",borderRadius:12,border:`2px solid ${nameError?"var(--red)":"var(--border)"}`,fontSize:16,fontFamily:"Nunito,sans-serif",outline:"none",background:"var(--bg)",color:"var(--text)",marginBottom:nameError?6:12,boxSizing:"border-box"}}/>
+            {nameError&&<p style={{color:"var(--red)",fontSize:13,marginBottom:10,textAlign:"left"}}>{nameError}</p>}
             <button className="btn btn-orange" style={{width:"100%",justifyContent:"center",padding:"14px",fontSize:17,marginBottom:10}} onClick={()=>handleSaveName()}>
               Let's go
             </button>

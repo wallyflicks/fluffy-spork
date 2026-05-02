@@ -119,12 +119,11 @@ export default function About() {
           <div id="terms" style={{marginTop:64}}>
             <div style={{height:2,background:'var(--border)',marginBottom:40,borderRadius:2}}/>
             <h2 className="fredoka" style={{fontSize:28,color:'var(--text)',marginBottom:6}}>Terms &amp; Privacy</h2>
-            <p style={{fontSize:14,color:'var(--muted)',marginBottom:32,fontStyle:'italic'}}>Simple, honest, and written by a real person.</p>
 
             {[
               {
                 heading:'What we collect',
-                body:'Your session history — category, difficulty, score, transcript, and feedback — is stored locally in your browser. It never leaves your device unless you choose to post your score to the leaderboard. If you post a score, we store your display name and score in our database. If you leave a review, we store your display name, rating, and comment. We do not collect your email address. We do not require an account.',
+                body:'Your session history (category, difficulty, score, transcript, and feedback) is stored locally in your browser. It never leaves your device unless you choose to post your score to the leaderboard. If you post a score, we store your display name and score in our database. If you leave a review, we store your display name, rating, and comment. We do not collect your email address. We do not require an account.',
               },
               {
                 heading:'How we use your data',
