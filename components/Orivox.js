@@ -59,6 +59,10 @@ const G = () => (
     @keyframes celebBounce{0%{transform:scale(0) rotate(-20deg);opacity:0}60%{transform:scale(1.3) rotate(10deg);opacity:1}100%{transform:scale(1) rotate(0deg);opacity:1}}
     @keyframes typewriter{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
     @keyframes urgentPulse{from{opacity:.15}to{opacity:.4}}
+    @keyframes letsGoGlow{0%,100%{filter:drop-shadow(0 0 0 transparent)}50%{filter:drop-shadow(0 0 22px rgba(255,107,43,.55))}}
+    @keyframes chipSpring{0%{transform:scale(1)}25%{transform:scale(.95)}65%{transform:scale(1.05)}100%{transform:scale(1)}}
+    @keyframes countdownTick{from{transform:scale(1.1)}to{transform:scale(1)}}
+    @keyframes toastSlideIn{from{opacity:0;transform:translateY(-38px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
 
     .fadeUp{animation:fadeUp .5s cubic-bezier(.22,.68,0,1.2) both}
     .slideLeft{animation:slideLeft .6s cubic-bezier(.22,.68,0,1.2) both}
@@ -94,7 +98,7 @@ const G = () => (
       top:50%;left:50%;margin:-30px 0 0 -30px;}
     .btn:active::after{animation:ripple .4s ease-out}
     .btn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--text)}
-    .btn:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--text)}
+    .btn:active{transform:translate(1px,1px) scale(.97);box-shadow:1px 1px 0 var(--text);transition:transform .1s,box-shadow .1s}
     .btn-orange{background:var(--orange);color:#fff}
     .btn-orange:hover{background:var(--orange-light)}
     .btn-cream{background:var(--cream);color:var(--text)}
@@ -117,6 +121,11 @@ const G = () => (
     .chip:active{transform:scale(.93)!important;transition:transform .08s}
     .chip.active{background:var(--orange);border-color:var(--orange);color:#fff;
       box-shadow:3px 3px 0 rgba(255,107,43,.5);animation:chipPop .3s cubic-bezier(.22,.68,0,1.4)}
+    @media(prefers-reduced-motion:no-preference){
+      .chip:active{animation:chipSpring .28s cubic-bezier(.22,.68,0,1.4) forwards!important;transform:none!important;transition:none!important}
+      .letsgo-btn:hover{animation:letsGoGlow 1.6s ease-in-out infinite}
+      .timer-tick{animation:countdownTick .18s ease-out}
+    }
 
     @media(max-width:480px){
       .chip{font-size:13px;padding:7px 14px;}
@@ -1522,17 +1531,17 @@ export default function Orivox(){
 
   const FloatDeco=()=>(
     <>
-      <Star size={48} color="#F5C842" style={{position:"absolute",top:60,left:"4%",animation:"float 4s ease-in-out infinite",opacity:.95}}/>
-      <Star size={28} color="#FF6B2B" style={{position:"absolute",top:170,right:"4%",animation:"float 3.5s ease-in-out infinite",animationDelay:"1s"}}/>
-      <Sparkle size={36} color="#2D7A4F" style={{position:"absolute",top:110,right:"16%",animation:"float 5s ease-in-out infinite",animationDelay:"0.5s"}}/>
-      <Star size={20} color="#F5C842" style={{position:"absolute",top:300,left:"10%",animation:"float 4.5s ease-in-out infinite",animationDelay:"2s"}}/>
-      <Sparkle size={30} color="#FF6B2B" style={{position:"absolute",bottom:210,left:"6%",animation:"float 3.8s ease-in-out infinite",animationDelay:"1.5s"}}/>
-      <Star size={38} color="#2D7A4F" style={{position:"absolute",bottom:250,right:"5%",animation:"float 4.2s ease-in-out infinite",animationDelay:"0.8s"}}/>
-      <Sparkle size={22} color="#F5C842" style={{position:"absolute",top:380,right:"19%",animation:"float 5.5s ease-in-out infinite",animationDelay:"3s"}}/>
-      <Star size={16} color="#FF6B2B" style={{position:"absolute",top:450,left:"18%",animation:"float 4s ease-in-out infinite",animationDelay:"1.2s"}}/>
-      <Sparkle size={26} color="#3B82F6" style={{position:"absolute",bottom:360,right:"11%",animation:"float 6s ease-in-out infinite",animationDelay:"2.5s"}}/>
-      <Star size={42} color="#F5C842" style={{position:"absolute",bottom:130,left:"2%",animation:"float 3.5s ease-in-out infinite",animationDelay:"0.3s",opacity:.7}}/>
-      <Sparkle size={18} color="#2D7A4F" style={{position:"absolute",top:230,left:"24%",animation:"float 4.8s ease-in-out infinite",animationDelay:"1.8s"}}/>
+      <Star size={48} color="#F5C842" style={{position:"absolute",top:60,left:"4%",animation:"float 4s ease-in-out infinite",opacity:.95,willChange:"transform"}}/>
+      <Star size={28} color="#FF6B2B" style={{position:"absolute",top:170,right:"4%",animation:"float 3.5s ease-in-out infinite",animationDelay:"1s",willChange:"transform"}}/>
+      <Sparkle size={36} color="#2D7A4F" style={{position:"absolute",top:110,right:"16%",animation:"float 5.2s ease-in-out infinite",animationDelay:"0.5s",willChange:"transform"}}/>
+      <Star size={20} color="#F5C842" style={{position:"absolute",top:300,left:"10%",animation:"float 4.5s ease-in-out infinite",animationDelay:"2s",willChange:"transform"}}/>
+      <Sparkle size={30} color="#FF6B2B" style={{position:"absolute",bottom:210,left:"6%",animation:"float 3.8s ease-in-out infinite",animationDelay:"1.5s",willChange:"transform"}}/>
+      <Star size={38} color="#2D7A4F" style={{position:"absolute",bottom:250,right:"5%",animation:"float 4.2s ease-in-out infinite",animationDelay:"0.8s",willChange:"transform"}}/>
+      <Sparkle size={22} color="#F5C842" style={{position:"absolute",top:380,right:"19%",animation:"float 5.5s ease-in-out infinite",animationDelay:"3s",willChange:"transform"}}/>
+      <Star size={16} color="#FF6B2B" style={{position:"absolute",top:450,left:"18%",animation:"float 6.8s ease-in-out infinite",animationDelay:"1.2s",willChange:"transform"}}/>
+      <Sparkle size={26} color="#3B82F6" style={{position:"absolute",bottom:360,right:"11%",animation:"float 6s ease-in-out infinite",animationDelay:"2.5s",willChange:"transform"}}/>
+      <Star size={42} color="#F5C842" style={{position:"absolute",bottom:130,left:"2%",animation:"float 3.5s ease-in-out infinite",animationDelay:"0.3s",opacity:.7,willChange:"transform"}}/>
+      <Sparkle size={18} color="#2D7A4F" style={{position:"absolute",top:230,left:"24%",animation:"float 7s ease-in-out infinite",animationDelay:"1.8s",willChange:"transform"}}/>
     </>
   );
 
@@ -1595,10 +1604,10 @@ export default function Orivox(){
                   <span style={{fontSize:14,fontWeight:700,color:"var(--orange)",fontFamily:"Fredoka",letterSpacing:"0.06em",textTransform:"uppercase"}}>AI Speaking Coach</span>
                 </div>
                 <div style={{position:"relative",display:"block",marginBottom:12}}>
-                  <h1 className="fredoka slideLeft" style={{fontSize:"clamp(62px,10vw,100px)",lineHeight:1,color:"var(--text)",letterSpacing:"-0.02em",animationDelay:".1s"}}>Speak up.</h1>
+                  <h1 className="fredoka fadeUp" style={{fontSize:"clamp(62px,10vw,100px)",lineHeight:1,color:"var(--text)",letterSpacing:"-0.02em",animationDelay:".05s"}}>Speak up.</h1>
                   <div style={{display:"flex",justifyContent:"center",marginTop:-4,marginBottom:4}}><Squiggle width={340} color="var(--orange)"/></div>
                 </div>
-                <h1 className="fredoka slideRight" style={{fontSize:"clamp(62px,10vw,100px)",lineHeight:1.1,color:"var(--orange)",letterSpacing:"-0.02em",display:"block",marginBottom:36,animationDelay:".2s"}}>Level up.</h1>
+                <h1 className="fredoka fadeUp" style={{fontSize:"clamp(62px,10vw,100px)",lineHeight:1.1,color:"var(--orange)",letterSpacing:"-0.02em",display:"block",marginBottom:36,animationDelay:".28s"}}>Level up.</h1>
                 <p className="fadeUp" style={{color:"var(--muted)",fontSize:19,maxWidth:480,margin:"0 auto",lineHeight:1.8,animationDelay:".35s"}}>Practice any speaking scenario and get instant AI feedback on clarity, structure, and filler words.</p>
               </div>
 
@@ -1710,7 +1719,7 @@ export default function Orivox(){
                     </div>
                   </div>
                 </div>
-                <button className="btn btn-orange btn-bounce" style={{width:"100%",justifyContent:"center",padding:"18px",fontSize:22}} onClick={()=>startSession()}>Let's Go!</button>
+                <button className="btn btn-orange btn-bounce letsgo-btn" style={{width:"100%",justifyContent:"center",padding:"18px",fontSize:22}} onClick={()=>startSession()}>Let's Go!</button>
               </div>
 
               {/* Feature strip */}
@@ -1792,7 +1801,7 @@ export default function Orivox(){
                     </div>
                   </div>
                 )}
-                <div style={{fontSize:96,fontWeight:700,fontFamily:"Fredoka",lineHeight:1,letterSpacing:"-0.03em",color:timer<10?"var(--red)":timer<30?"#CC6600":"var(--text)"}}>{fmt(timer)}</div>
+                <div key={timer} className="timer-tick" style={{fontSize:96,fontWeight:700,fontFamily:"Fredoka",lineHeight:1,letterSpacing:"-0.03em",color:timer<10?"var(--red)":timer<30?"#CC6600":"var(--text)"}}>{fmt(timer)}</div>
                 <div style={{color:"var(--muted)",fontFamily:"Fredoka",fontSize:17,margin:"10px 0 22px"}}>speaking time remaining</div>
                 <div style={{display:"flex",justifyContent:"center"}}><WaveViz active={recording} analyserNode={analyserNode}/></div>
               </div>
@@ -2033,7 +2042,7 @@ export default function Orivox(){
               background:"#1A1A2E",color:"#fff",borderRadius:16,padding:"14px 18px",
               boxShadow:"0 8px 32px rgba(0,0,0,0.35)",display:"flex",alignItems:"center",gap:14,
               border:"2px solid var(--orange)",minWidth:260,maxWidth:320,
-              animation:"fadeInRight .35s ease",
+              animation:"toastSlideIn .38s cubic-bezier(.22,.68,0,1.3)",
             }}>
               <div style={{width:44,height:44,borderRadius:"50%",background:"rgba(255,107,43,.15)",border:"2px solid var(--orange)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

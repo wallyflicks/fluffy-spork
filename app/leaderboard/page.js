@@ -16,7 +16,8 @@ const G = () => (
     body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;}
     .fredoka{font-family:'Fredoka',sans-serif;}
     @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-    @keyframes shine{from{background-position:200% center}to{background-position:-200% center}}
+    @keyframes shine{0%,55%{background-position:200% center}100%{background-position:-200% center}}
+    @keyframes rowSlideIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
     .fadeUp{animation:fadeUp .5s cubic-bezier(.22,.68,0,1.2) both}
     .d1{animation-delay:.08s}.d2{animation-delay:.18s}.d3{animation-delay:.28s}
     ::-webkit-scrollbar{width:6px}
@@ -27,7 +28,7 @@ const G = () => (
     .lb-row:last-child{border-bottom:none}
     .lb-row:hover{background:var(--orange-dim)}
     .rank-badge{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Fredoka',sans-serif;font-size:15px;font-weight:700;flex-shrink:0;}
-    .gold{background:linear-gradient(135deg,#FFD700,#FFC000,#FFD700);background-size:200%;animation:shine 2.5s linear infinite;color:#7A5500;}
+    .gold{background:linear-gradient(135deg,#FFD700,#FFC000,#FFD700);background-size:200%;animation:shine 4s ease-in-out infinite;color:#7A5500;}
     .silver{background:#E8E8E8;color:#666;}
     .bronze{background:#E8C4A0;color:#7A4400;}
     .rank-num{background:var(--orange-dim);color:var(--muted);}
@@ -186,7 +187,7 @@ export default function Leaderboard() {
               deduped.map((entry, i) => {
                 const b = scoreBadge(entry.score)
                 return (
-                  <div key={entry.id} className="lb-row">
+                  <div key={entry.id} className="lb-row" style={{animation:`rowSlideIn .35s ease-out ${Math.min(i*0.065,1.5)}s both`}}>
                     <RankBadge rank={i + 1} />
                     <div style={{ flex:1, minWidth:0 }}>
                       <div className="fredoka" style={{ fontSize:15, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>

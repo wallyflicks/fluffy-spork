@@ -18,7 +18,9 @@ const G = () => (
     body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;}
     .fredoka{font-family:'Fredoka',sans-serif;}
     @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes flameGlow{0%,100%{filter:drop-shadow(0 0 0 rgba(255,107,43,0))}50%{filter:drop-shadow(0 0 10px rgba(255,107,43,.65))}}
     .fadeUp{animation:fadeUp .5s cubic-bezier(.22,.68,0,1.2) both}
+    @media(prefers-reduced-motion:no-preference){.flame-icon{animation:flameGlow 2s ease-in-out infinite;will-change:filter}}
     .d1{animation-delay:.08s}.d2{animation-delay:.18s}.d3{animation-delay:.28s}
     .d4{animation-delay:.38s}.d5{animation-delay:.48s}
     ::-webkit-scrollbar{width:6px}
@@ -80,6 +82,27 @@ function scoreBadge(score) {
   if (score >= 80) return { bg: '#E8F7EE', color: '#2D7A4F', border: '#2D7A4F' }
   if (score >= 60) return { bg: '#FFF9E0', color: '#7A5500', border: '#F5C842' }
   return { bg: '#FFECEC', color: '#E84040', border: '#E84040' }
+}
+
+function CountUp({ to, duration = 900, delay = 300 }) {
+  const [val, setVal] = useState(0)
+  useEffect(() => {
+    if (!to) return
+    const tid = setTimeout(() => {
+      let raf
+      const start = Date.now()
+      const tick = () => {
+        const p = Math.min((Date.now() - start) / duration, 1)
+        const e = 1 - Math.pow(1 - p, 3)
+        setVal(Math.round(to * e))
+        if (p < 1) raf = requestAnimationFrame(tick)
+      }
+      raf = requestAnimationFrame(tick)
+      return () => cancelAnimationFrame(raf)
+    }, delay)
+    return () => clearTimeout(tid)
+  }, [to])
+  return val
 }
 
 function fmt(dateStr) {
@@ -291,6 +314,7 @@ export default function Progress() {
           }],
         },
         options: {
+          animation: { duration: 1200, easing: 'easeInOutCubic' },
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
@@ -402,7 +426,7 @@ export default function Progress() {
             }}>
               {streak > 0
                 ? <div style={{ width:44,height:44,borderRadius:'50%',background:'#FFF0E8',border:'2.5px solid var(--orange)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="var(--orange)" stroke="none"><path d="M12 23c-4.4 0-8-3.6-8-8 0-2.8 1.4-5.5 3-7.5.5 1.5 1.5 2.5 2.5 3C9 8.5 10 6 12 2c1.5 3.5 4 5.5 4 9.5.5-1 .5-2 .3-3C18 10.5 20 13 20 15c0 4.4-3.6 8-8 8z"/></svg>
+                    <svg className="flame-icon" width="22" height="22" viewBox="0 0 24 24" fill="var(--orange)" stroke="none"><path d="M12 23c-4.4 0-8-3.6-8-8 0-2.8 1.4-5.5 3-7.5.5 1.5 1.5 2.5 2.5 3C9 8.5 10 6 12 2c1.5 3.5 4 5.5 4 9.5.5-1 .5-2 .3-3C18 10.5 20 13 20 15c0 4.4-3.6 8-8 8z"/></svg>
                   </div>
                 : <div style={{ width:44,height:44,borderRadius:'50%',background:'var(--border)',border:'2.5px solid var(--muted)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
@@ -427,12 +451,12 @@ export default function Progress() {
           {/* Stats row */}
           <div className="fadeUp d2 stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 20 }}>
             <div className="stat-card">
-              <div className="fredoka" style={{ fontSize: 36, color: 'var(--orange)', lineHeight: 1, marginBottom: 4 }}>{sessions.length}</div>
+              <div className="fredoka" style={{ fontSize: 36, color: 'var(--orange)', lineHeight: 1, marginBottom: 4 }}><CountUp to={sessions.length} delay={400} /></div>
               <div style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 600 }}>Total Sessions</div>
             </div>
             <div className="stat-card">
               <div className="fredoka" style={{ fontSize: 36, color: sessions.length ? (avgScore >= 80 ? 'var(--green)' : avgScore >= 60 ? '#CC6600' : 'var(--red)') : 'var(--muted)', lineHeight: 1, marginBottom: 4 }}>
-                {sessions.length ? avgScore : '—'}
+                {sessions.length ? <CountUp to={avgScore} delay={500} /> : '—'}
               </div>
               <div style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 600 }}>Average Score</div>
             </div>
