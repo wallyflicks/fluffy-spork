@@ -54,7 +54,7 @@ export default function About() {
           {/* Founder photo */}
           <div className="fadeUp d1" style={{textAlign:'center',marginBottom:44}}>
             <div style={{
-              width:200,height:200,borderRadius:'50%',margin:'0 auto 18px',
+              width:240,height:240,borderRadius:'50%',margin:'0 auto 18px',
               border:'3px solid var(--orange-border)',
               boxShadow:'0 4px 24px rgba(0,0,0,0.10)',
               overflow:'hidden',position:'relative',
@@ -63,7 +63,7 @@ export default function About() {
                 src="/IMG_9799.JPG"
                 alt="Wallace Cheng"
                 fill
-                style={{objectFit:'cover',objectPosition:'center 20%'}}
+                style={{objectFit:'cover',objectPosition:'center 10%'}}
                 priority
               />
             </div>
