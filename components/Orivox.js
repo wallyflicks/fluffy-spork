@@ -1139,13 +1139,25 @@ export default function Orivox(){
   const [,tickMin]=useState(0);
   const [programSession,setProgramSession]=useState(null); // active program day context
   const [programDayResult,setProgramDayResult]=useState(null); // set after completing a program day
+  const [diagnosticSession,setDiagnosticSession]=useState(false); // diagnostic test mode
 
-  // On mount: load saved username; check for program session context
+  // On mount: load saved username; check for program/diagnostic session context
   useEffect(()=>{
     const saved=localStorage.getItem("orivox_username");
     if(saved) setUsername(saved); else setShowNameModal(true);
     const rc=JSON.parse(localStorage.getItem("orivox_custom_prompts")||"[]");
     setRecentCustoms(rc);
+    // Diagnostic session check (takes priority over program session)
+    try{
+      const ds=JSON.parse(localStorage.getItem("orivox_diagnostic_session")||"null");
+      if(ds){
+        setDiagnosticSession(true);
+        setSpeakTime(30);
+        setPrepTime(0);
+        setCat("General");setDiff("Medium");
+        return; // don't also check program session
+      }
+    }catch{}
     // Program session pre-configuration
     try{
       const ps=JSON.parse(localStorage.getItem("orivox_current_program_session")||"null");
@@ -1477,7 +1489,28 @@ export default function Orivox(){
       await new Promise(r=>setTimeout(r,800));
       result=analyzeTranscript(text,topic,activeDiff);
     }
-    const savedSession=saveSession(result);setFeedback(result);setLoading(false);
+    setFeedback(result);setLoading(false);
+
+    // Diagnostic mode — store result without saving to history
+    if(diagnosticSession){
+      try{
+        const testResult={
+          totalScore:result.totalScore||0,
+          clarity:result.clarity||0,
+          structure:result.structure||0,
+          delivery:result.fillerWords||0,
+          confidence:result.confidence||0,
+          fillerWordList:result.fillerWordList||{},
+        };
+        localStorage.setItem("orivox_diagnostic_test_result",JSON.stringify(testResult));
+        localStorage.removeItem("orivox_diagnostic_session");
+        setDiagnosticSession(false);
+        setProgramDayResult({isDiagnostic:true});
+      }catch{}
+      return; // skip session save and achievements
+    }
+
+    const savedSession=saveSession(result);
     // Program day completion
     try{
       const ps=JSON.parse(localStorage.getItem("orivox_current_program_session")||"null");
@@ -1546,6 +1579,7 @@ export default function Orivox(){
     clearInterval(ivRef.current);
     if(audioUrl){URL.revokeObjectURL(audioUrl);setAudioUrl(null);}
     setProgramDayResult(null);
+    // Don't clear diagnosticSession on reset — user should still be able to start it
   };
 
   // Program session helpers
@@ -1574,7 +1608,10 @@ export default function Orivox(){
   };
 
   const handleLetsGo=()=>{
-    if(programSession){
+    if(diagnosticSession){
+      // Diagnostic test — 30s General Medium, no prep
+      startSession({cat:"General",diff:"Medium"});
+    } else if(programSession){
       // Pre-configured for a program day — use override to lock in the prompt
       setSpeakTime(programSession.speakTime||60);
       if(programSession.forcePrepTime===0) setPrepTime(0);
@@ -1653,8 +1690,23 @@ export default function Orivox(){
           {screen==="home"&&(
             <div>
               <FloatDeco/>
+              {/* Diagnostic mode banner */}
+              {diagnosticSession&&(
+                <div style={{background:"var(--blue-dim)",border:"2.5px solid #bfdbfe",borderRadius:16,padding:"16px 20px",marginTop:24,marginBottom:8}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                    <div style={{width:32,height:32,borderRadius:8,background:"var(--blue)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+                    </div>
+                    <div>
+                      <div style={{fontSize:12,fontWeight:700,color:"var(--blue)",textTransform:"uppercase",letterSpacing:".07em",fontFamily:"Fredoka"}}>Diagnostic Test · 30 seconds</div>
+                      <div style={{fontSize:13,color:"var(--text)",fontWeight:600}}>Random General Medium prompt · No prep time</div>
+                    </div>
+                  </div>
+                  <p style={{fontSize:13,color:"#1E40AF",lineHeight:1.5}}>Your scores from this session will determine your program recommendations. Speak naturally — this is your baseline.</p>
+                </div>
+              )}
               {/* Program mode banner */}
-              {programSession&&(
+              {programSession&&!diagnosticSession&&(
                 <div style={{background:"var(--orange-dim)",border:"2.5px solid var(--orange-border)",borderRadius:16,padding:"16px 20px",marginTop:24,marginBottom:8,display:"flex",alignItems:"flex-start",gap:14}}>
                   <div style={{width:38,height:38,borderRadius:10,background:"var(--orange)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
@@ -1788,7 +1840,7 @@ export default function Orivox(){
                     </div>
                   </div>
                 </div>
-                <button className="btn btn-orange btn-bounce letsgo-btn" style={{width:"100%",justifyContent:"center",padding:"18px",fontSize:22}} onClick={handleLetsGo}>{programSession?`Start Day ${programSession.day}`:"Let's Go!"}</button>
+                <button className="btn btn-orange btn-bounce letsgo-btn" style={{width:"100%",justifyContent:"center",padding:"18px",fontSize:22}} onClick={handleLetsGo}>{diagnosticSession?"Start Diagnostic Test":programSession?`Start Day ${programSession.day}`:"Let's Go!"}</button>
               </div>
 
               {/* Feature strip */}
@@ -2075,19 +2127,21 @@ export default function Orivox(){
                     </div>
                   )}
 
-                  {/* Program day completion banner */}
+                  {/* Diagnostic complete / Program day completion banner */}
                   {programDayResult&&(
-                    <div className="fb7" style={{background:"var(--orange-dim)",border:"2.5px solid var(--orange-border)",borderRadius:16,padding:"18px 20px",marginBottom:16}}>
-                      <div style={{fontFamily:"Fredoka",fontSize:18,fontWeight:700,color:"var(--orange)",marginBottom:4}}>
-                        {programDayResult.isLastDay?"🏆 Program complete!":"✅ Day complete!"}
+                    <div className="fb7" style={{background:programDayResult.isDiagnostic?"var(--blue-dim)":"var(--orange-dim)",border:`2.5px solid ${programDayResult.isDiagnostic?"#bfdbfe":"var(--orange-border)"}`,borderRadius:16,padding:"18px 20px",marginBottom:16}}>
+                      <div style={{fontFamily:"Fredoka",fontSize:18,fontWeight:700,color:programDayResult.isDiagnostic?"var(--blue)":"var(--orange)",marginBottom:4}}>
+                        {programDayResult.isDiagnostic?"✅ Speaking test complete!":programDayResult.isLastDay?"🏆 Program complete!":"✅ Day complete!"}
                       </div>
                       <p style={{fontSize:14,color:"var(--text)",marginBottom:12}}>
-                        {programDayResult.isLastDay
-                          ?`You finished ${programDayResult.ps.programName}! Your certificate has been added to Achievements.`
-                          :`Day ${programDayResult.ps.day} of ${programDayResult.ps.programName} done. Keep the momentum going.`}
+                        {programDayResult.isDiagnostic
+                          ?"Your results are ready — we have analysed your scores and found your perfect program."
+                          :programDayResult.isLastDay
+                            ?`You finished ${programDayResult.ps.programName}! Your certificate has been added to Achievements.`
+                            :`Day ${programDayResult.ps.day} of ${programDayResult.ps.programName} done. Keep the momentum going.`}
                       </p>
-                      <Link href="/programs" style={{display:"inline-flex",alignItems:"center",gap:6,background:"var(--orange)",color:"#fff",border:"2px solid var(--orange)",borderRadius:50,padding:"10px 20px",fontFamily:"Fredoka",fontSize:16,fontWeight:600,textDecoration:"none",boxShadow:"3px 3px 0 rgba(255,107,43,.4)"}}>
-                        {programDayResult.isLastDay?"View certificate →":"Back to my program →"}
+                      <Link href="/programs" style={{display:"inline-flex",alignItems:"center",gap:6,background:programDayResult.isDiagnostic?"var(--blue)":"var(--orange)",color:"#fff",border:"none",borderRadius:50,padding:"10px 20px",fontFamily:"Fredoka",fontSize:16,fontWeight:600,textDecoration:"none",boxShadow:`3px 3px 0 rgba(${programDayResult.isDiagnostic?"59,130,246":"255,107,43"},.4)`}}>
+                        {programDayResult.isDiagnostic?"See my results →":programDayResult.isLastDay?"View certificate →":"Back to my program →"}
                       </Link>
                     </div>
                   )}
