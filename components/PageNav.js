@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 
 const NAV = [
   { label: 'Progress', href: '/progress' },
+  { label: 'Programs', href: '/programs' },
   { label: 'Leaderboard', href: '/leaderboard' },
   { label: 'Reviews', href: '/reviews' },
   { label: 'About', href: '/about' },

@@ -1137,13 +1137,26 @@ export default function Orivox(){
   const [caseType,setCaseType]=useState("General Q&A");
   const [activeCaseType,setActiveCaseType]=useState("General Q&A");
   const [,tickMin]=useState(0);
+  const [programSession,setProgramSession]=useState(null); // active program day context
+  const [programDayResult,setProgramDayResult]=useState(null); // set after completing a program day
 
-  // On mount: load saved username; show name modal if first visit
+  // On mount: load saved username; check for program session context
   useEffect(()=>{
     const saved=localStorage.getItem("orivox_username");
     if(saved) setUsername(saved); else setShowNameModal(true);
     const rc=JSON.parse(localStorage.getItem("orivox_custom_prompts")||"[]");
     setRecentCustoms(rc);
+    // Program session pre-configuration
+    try{
+      const ps=JSON.parse(localStorage.getItem("orivox_current_program_session")||"null");
+      if(ps){
+        setProgramSession(ps);
+        setSpeakTime(ps.speakTime||60);
+        if(ps.forcePrepTime===0) setPrepTime(0);
+        setCat(ps.category);setDiff(ps.difficulty);
+        if(ps.caseType) setCaseType(ps.caseType);
+      }
+    }catch{}
   },[]);
 
   // Tick every minute so the "Next prompt in X" countdown stays current
@@ -1248,10 +1261,10 @@ export default function Orivox(){
     // Daily prompt override or normal flow
     const resolvedCat=overrideData?overrideData.cat:(cat==="Random"?rand(CATS):cat);
     const resolvedDiff=overrideData?overrideData.diff:(diff==="Random"?rand(DIFFS):diff);
-    const resolvedCaseType=overrideData?("General Q&A"):caseType;
+    const resolvedCaseType=overrideData?.caseType||caseType;
     setActiveCat(resolvedCat);setActiveDiff(resolvedDiff);setActiveCaseType(resolvedCaseType);
     let picked;
-    if(overrideData){
+    if(overrideData&&overrideData.text){
       picked=overrideData.text;
     }else if(resolvedCat==="Case Competition"&&resolvedCaseType!=="General Q&A"){
       picked=randNew(CASE_TYPE_PROMPTS[resolvedCaseType]||ALL_PROMPTS,lastTopicRef.current);
@@ -1465,6 +1478,11 @@ export default function Orivox(){
       result=analyzeTranscript(text,topic,activeDiff);
     }
     const savedSession=saveSession(result);setFeedback(result);setLoading(false);
+    // Program day completion
+    try{
+      const ps=JSON.parse(localStorage.getItem("orivox_current_program_session")||"null");
+      if(ps) markProgramDayComplete(ps,result);
+    }catch{}
     // Achievement checking
     try{
       const allSessions=JSON.parse(localStorage.getItem("orivox_sessions")||"[]");
@@ -1527,6 +1545,43 @@ export default function Orivox(){
     setScreen("home");setFeedback(null);setAudioBlob(null);setTranscript("");setRecording(false);setRunning(false);
     clearInterval(ivRef.current);
     if(audioUrl){URL.revokeObjectURL(audioUrl);setAudioUrl(null);}
+    setProgramDayResult(null);
+  };
+
+  // Program session helpers
+  const markProgramDayComplete=(ps,scoreData)=>{
+    try{
+      const prog=JSON.parse(localStorage.getItem("orivox_program_progress")||"null");
+      if(!prog||prog.programId!==ps.programId) return;
+      const today=new Date().toLocaleDateString("en-CA");
+      const newDay=prog.currentDay+1;
+      const newScores={...prog.dayScores,[prog.currentDay]:scoreData?.totalScore||0};
+      const updated={...prog,currentDay:newDay,lastCompletedDate:today,dayScores:newScores};
+      localStorage.setItem("orivox_program_progress",JSON.stringify(updated));
+      // Check if just finished last day
+      if(prog.currentDay>=ps.totalDays){
+        const completed=JSON.parse(localStorage.getItem("orivox_completed_programs")||"[]");
+        const alreadyDone=completed.some(c=>c.programId===ps.programId);
+        if(!alreadyDone){
+          completed.push({programId:ps.programId,completedDate:today,certificate:ps.certificate});
+          localStorage.setItem("orivox_completed_programs",JSON.stringify(completed));
+        }
+      }
+      localStorage.removeItem("orivox_current_program_session");
+      setProgramDayResult({ps,isLastDay:prog.currentDay>=ps.totalDays});
+      setProgramSession(null);
+    }catch{}
+  };
+
+  const handleLetsGo=()=>{
+    if(programSession){
+      // Pre-configured for a program day — use override to lock in the prompt
+      setSpeakTime(programSession.speakTime||60);
+      if(programSession.forcePrepTime===0) setPrepTime(0);
+      startSession({cat:programSession.category,diff:programSession.difficulty,text:programSession.prompt||undefined,caseType:programSession.caseType||"General Q&A"});
+    } else {
+      startSession();
+    }
   };
 
   const FloatDeco=()=>(
@@ -1563,7 +1618,7 @@ export default function Orivox(){
             </div>
             <div className="nav-links">
               {screen!=="home"&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={reset}>← Home</button>}
-              {["Progress","/progress","Leaderboard","/leaderboard","Reviews","/reviews","About","/about"].reduce((acc,v,i,a)=>i%2===0?[...acc,[a[i],a[i+1]]]:acc,[]).map(([label,href])=>(
+              {["Progress","/progress","Programs","/programs","Leaderboard","/leaderboard","Reviews","/reviews","About","/about"].reduce((acc,v,i,a)=>i%2===0?[...acc,[a[i],a[i+1]]]:acc,[]).map(([label,href])=>(
                 <Link key={href} href={href} style={{display:"inline-flex",alignItems:"center",padding:"8px 18px",borderRadius:50,fontFamily:"Fredoka, sans-serif",fontSize:14,fontWeight:600,border:"2px solid var(--border)",color:"var(--muted)",background:"var(--card)",textDecoration:"none",boxShadow:"2px 2px 0 var(--border)",transition:"all .18s",whiteSpace:"nowrap"}}
                   onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--orange)";e.currentTarget.style.color="var(--orange)";e.currentTarget.style.boxShadow="2px 2px 0 var(--orange)"}}
                   onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)";e.currentTarget.style.color="var(--muted)";e.currentTarget.style.boxShadow="2px 2px 0 var(--border)"}}>
@@ -1583,7 +1638,7 @@ export default function Orivox(){
               {screen!=="home"&&(
                 <button className="mob-pill" style={{border:"2px solid var(--border)",cursor:"pointer"}} onClick={()=>{reset();setMenuOpen(false)}}>← Home</button>
               )}
-              {["Progress","/progress","Leaderboard","/leaderboard","Reviews","/reviews","About","/about"].reduce((acc,v,i,a)=>i%2===0?[...acc,[a[i],a[i+1]]]:acc,[]).map(([label,href])=>(
+              {["Progress","/progress","Programs","/programs","Leaderboard","/leaderboard","Reviews","/reviews","About","/about"].reduce((acc,v,i,a)=>i%2===0?[...acc,[a[i],a[i+1]]]:acc,[]).map(([label,href])=>(
                 <Link key={href} href={href} className="mob-pill" onClick={()=>setMenuOpen(false)}>{label}</Link>
               ))}
             </div>
@@ -1598,6 +1653,20 @@ export default function Orivox(){
           {screen==="home"&&(
             <div>
               <FloatDeco/>
+              {/* Program mode banner */}
+              {programSession&&(
+                <div style={{background:"var(--orange-dim)",border:"2.5px solid var(--orange-border)",borderRadius:16,padding:"16px 20px",marginTop:24,marginBottom:8,display:"flex",alignItems:"flex-start",gap:14}}>
+                  <div style={{width:38,height:38,borderRadius:10,background:"var(--orange)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:11,fontWeight:700,color:"var(--orange)",textTransform:"uppercase",letterSpacing:".07em",fontFamily:"Fredoka",marginBottom:2}}>{programSession.programName} · Day {programSession.day} of {programSession.totalDays}</div>
+                    <div style={{fontSize:15,fontWeight:700,color:"var(--text)",marginBottom:4}}>"{programSession.prompt||`${programSession.category} ${programSession.difficulty} prompt`}"</div>
+                    <div style={{fontSize:13,color:"var(--muted)"}}>🎯 Focus: {programSession.focus}</div>
+                  </div>
+                  <button style={{background:"none",border:"none",cursor:"pointer",color:"var(--muted)",fontSize:18,lineHeight:1,padding:"2px",flexShrink:0}} onClick={()=>{localStorage.removeItem("orivox_current_program_session");setProgramSession(null);}}>×</button>
+                </div>
+              )}
               <div style={{textAlign:"center",padding:"80px 0 60px"}}>
                 <div className="fadeUp" style={{display:"inline-flex",alignItems:"center",gap:8,marginBottom:32,padding:"10px 26px",borderRadius:50,background:"var(--orange-dim)",border:"2px solid var(--orange-border)"}}>
                   <span style={{width:9,height:9,borderRadius:"50%",background:"var(--orange)",animation:"blink 2s infinite"}}/>
@@ -1719,7 +1788,7 @@ export default function Orivox(){
                     </div>
                   </div>
                 </div>
-                <button className="btn btn-orange btn-bounce letsgo-btn" style={{width:"100%",justifyContent:"center",padding:"18px",fontSize:22}} onClick={()=>startSession()}>Let's Go!</button>
+                <button className="btn btn-orange btn-bounce letsgo-btn" style={{width:"100%",justifyContent:"center",padding:"18px",fontSize:22}} onClick={handleLetsGo}>{programSession?`Start Day ${programSession.day}`:"Let's Go!"}</button>
               </div>
 
               {/* Feature strip */}
@@ -2003,6 +2072,23 @@ export default function Orivox(){
                             el.ontimeupdate=()=>{el.ontimeupdate=null;el.currentTime=0;};
                           }
                         }}/>
+                    </div>
+                  )}
+
+                  {/* Program day completion banner */}
+                  {programDayResult&&(
+                    <div className="fb7" style={{background:"var(--orange-dim)",border:"2.5px solid var(--orange-border)",borderRadius:16,padding:"18px 20px",marginBottom:16}}>
+                      <div style={{fontFamily:"Fredoka",fontSize:18,fontWeight:700,color:"var(--orange)",marginBottom:4}}>
+                        {programDayResult.isLastDay?"🏆 Program complete!":"✅ Day complete!"}
+                      </div>
+                      <p style={{fontSize:14,color:"var(--text)",marginBottom:12}}>
+                        {programDayResult.isLastDay
+                          ?`You finished ${programDayResult.ps.programName}! Your certificate has been added to Achievements.`
+                          :`Day ${programDayResult.ps.day} of ${programDayResult.ps.programName} done. Keep the momentum going.`}
+                      </p>
+                      <Link href="/programs" style={{display:"inline-flex",alignItems:"center",gap:6,background:"var(--orange)",color:"#fff",border:"2px solid var(--orange)",borderRadius:50,padding:"10px 20px",fontFamily:"Fredoka",fontSize:16,fontWeight:600,textDecoration:"none",boxShadow:"3px 3px 0 rgba(255,107,43,.4)"}}>
+                        {programDayResult.isLastDay?"View certificate →":"Back to my program →"}
+                      </Link>
                     </div>
                   )}
 

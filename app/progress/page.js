@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, Fragment } from 'react'
 import Link from 'next/link'
 import PageNav from '../../components/PageNav'
 import { ACHIEVEMENTS } from '../../lib/achievements'
+import { getProgram } from '../../lib/programs'
 
 const G = () => (
   <style>{`
@@ -226,6 +227,7 @@ export default function Progress() {
   const [showWeeklyReport, setShowWeeklyReport] = useState(false)
   const [weeklyReport, setWeeklyReport] = useState(null)
   const [hoveredBadge, setHoveredBadge] = useState(null)
+  const [completedPrograms, setCompletedPrograms] = useState([])
   const chartRef = useRef(null)
   const chartInstance = useRef(null)
 
@@ -239,6 +241,11 @@ export default function Progress() {
     try {
       const vt = localStorage.getItem('orivox_voice_type')
       if (vt) setVoiceType(JSON.parse(vt))
+    } catch {}
+    // Completed programs
+    try {
+      const cp = JSON.parse(localStorage.getItem('orivox_completed_programs') || '[]')
+      setCompletedPrograms(cp)
     } catch {}
     // Achievements
     try {
@@ -565,6 +572,29 @@ export default function Progress() {
               </div>
             )
           })()}
+
+          {/* Program Certificates */}
+          {completedPrograms.length > 0 && (
+            <div className="fadeUp d4" style={{ background: 'var(--card)', border: '2.5px solid var(--border)', borderRadius: 22, boxShadow: 'var(--shadow)', padding: '24px 28px', marginBottom: 20 }}>
+              <div className="fredoka" style={{ fontSize: 20, color: 'var(--text)', marginBottom: 4 }}>Program Certificates</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>{completedPrograms.length} program{completedPrograms.length !== 1 ? 's' : ''} completed</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 12 }}>
+                {completedPrograms.map((cp, i) => {
+                  const prog = getProgram(cp.programId)
+                  if (!prog) return null
+                  const dateStr = cp.completedDate ? new Date(cp.completedDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''
+                  return (
+                    <div key={i} style={{ background: 'var(--yellow-dim)', border: '2px solid var(--yellow)', borderRadius: 14, padding: '16px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 28, marginBottom: 8 }}>🏆</div>
+                      <div className="fredoka" style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 4, lineHeight: 1.3 }}>{cp.certificate || prog.certificate}</div>
+                      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>{prog.name}</div>
+                      {dateStr && <div style={{ fontSize: 11, color: '#7A5500', fontWeight: 700 }}>{dateStr}</div>}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Chart */}
           <div className="fadeUp d4" style={{
