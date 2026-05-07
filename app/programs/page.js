@@ -318,7 +318,7 @@ function ProgramCard({program, progress, completedIds, onEnroll, recommended, ac
       )}
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
         <span className={`badge ${cfg.badge}`}>{cfg.label}</span>
-        {isDone && <span style={{fontSize:11,fontWeight:700,color:'var(--green)',fontFamily:'Fredoka',background:'var(--green-dim)',padding:'2px 10px',borderRadius:50,border:'1.5px solid #b8dfc8'}}>✓ Completed</span>}
+        {isDone && <span style={{fontSize:11,fontWeight:700,color:'var(--green)',fontFamily:'Fredoka',background:'var(--green-dim)',padding:'2px 10px',borderRadius:50,border:'1.5px solid #b8dfc8',display:'inline-flex',alignItems:'center',gap:4}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Completed</span>}
       </div>
       <div className="fredoka" style={{fontSize:18,fontWeight:700,color:'var(--text)',marginBottom:4,lineHeight:1.2}}>{program.name}</div>
       <div style={{fontSize:13,color:'var(--muted)',marginBottom:12,lineHeight:1.5}}>{program.tagline}</div>
@@ -537,7 +537,9 @@ export default function ProgramsPage() {
         {/* ── WELCOME CARD ─────────────────────────────────────────────── */}
         {view === 'welcome' && (
           <div className="fadeUp" style={{textAlign:'center', paddingTop:40}}>
-            <div style={{fontSize:64, marginBottom:16}}>🎤</div>
+            <div style={{width:80,height:80,borderRadius:24,background:'var(--orange)',border:'3px solid var(--text)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 24px',boxShadow:'4px 4px 0 var(--text)'}}>
+              <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+            </div>
             <h1 className="fredoka" style={{fontSize:36, color:'var(--text)', marginBottom:12}}>
               Let us find your perfect program
             </h1>
@@ -627,13 +629,13 @@ export default function ProgramsPage() {
             {/* What to expect */}
             <div className="card" style={{padding:'20px 24px',marginBottom:32,textAlign:'left',maxWidth:420,margin:'0 auto 32px'}}>
               {[
-                ['🎯', 'Random General topic — Medium difficulty'],
-                ['⏱', '30 seconds speak time, no prep'],
-                ['🤖', 'AI scores your clarity, structure, and delivery'],
-                ['📊', 'Results show your starting point and projected growth'],
+                [<svg key="a" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>, 'Random General topic — Medium difficulty'],
+                [<svg key="b" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>, '30 seconds speak time, no prep'],
+                [<svg key="c" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>, 'AI scores your clarity, structure, and delivery'],
+                [<svg key="d" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>, 'Results show your starting point and projected growth'],
               ].map(([icon, text]) => (
                 <div key={text} style={{display:'flex',alignItems:'center',gap:12,padding:'8px 0',borderBottom:'1px solid var(--border)'}}>
-                  <span style={{fontSize:18,flexShrink:0}}>{icon}</span>
+                  <span style={{flexShrink:0}}>{icon}</span>
                   <span style={{fontSize:14,color:'var(--muted)'}}>{text}</span>
                 </div>
               ))}
@@ -731,7 +733,7 @@ export default function ProgramsPage() {
                 <div style={{display:'flex',flexDirection:'column',gap:10}}>
                   {callouts.map((msg,i) => (
                     <div key={i} style={{display:'flex',alignItems:'flex-start',gap:10,background:'var(--bg)',borderRadius:10,padding:'12px 14px',border:'1.5px solid var(--border)'}}>
-                      <span style={{fontSize:16,flexShrink:0}}>💡</span>
+                      <svg style={{flexShrink:0}} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/><line x1="10" y1="21" x2="14" y2="21"/></svg>
                       <span style={{fontSize:14,color:'var(--text)',lineHeight:1.5}}>{msg}</span>
                     </div>
                   ))}
@@ -812,7 +814,7 @@ export default function ProgramsPage() {
             <div>
               {missedDays > 0 && !todayDone && (
                 <div className="fadeUp" style={{background:'var(--yellow-dim)',border:'2px solid var(--yellow)',borderRadius:14,padding:'14px 20px',marginBottom:20,display:'flex',alignItems:'center',gap:12}}>
-                  <span style={{fontSize:22}}>☀️</span>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#CC6600" strokeWidth="2.5" strokeLinecap="round" style={{flexShrink:0}}><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
                   <div>
                     <div style={{fontWeight:700,fontFamily:'Fredoka',fontSize:16}}>Welcome back — you missed {missedDays} day{missedDays>1?'s':''}</div>
                     <div style={{fontSize:14,color:'var(--muted)'}}>No worries, your progress is saved. Ready to pick up on Day {currentDay}?</div>
@@ -851,7 +853,9 @@ export default function ProgramsPage() {
 
               {todayDone ? (
                 <div className="card fadeUp d2" style={{padding:'32px',textAlign:'center'}}>
-                  <div style={{fontSize:48,marginBottom:12}}>✅</div>
+                  <div style={{width:56,height:56,borderRadius:'50%',background:'var(--green-dim)',border:'2.5px solid var(--green)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  </div>
                   <h2 className="fredoka" style={{fontSize:26,marginBottom:8}}>Day {currentDay-1} complete!</h2>
                   <p style={{color:'var(--muted)',fontSize:15,marginBottom:20}}>Great work. Come back tomorrow for Day {currentDay}.</p>
                   {program.days[currentDay-1] && (
@@ -880,7 +884,7 @@ export default function ProgramsPage() {
                   </div>
                   <div style={{background:'var(--orange-dim)',border:'2px solid var(--orange-border)',borderRadius:14,padding:'16px 18px',marginBottom:20}}>
                     <div style={{display:'flex',gap:10,alignItems:'flex-start'}}>
-                      <span style={{fontSize:18,flexShrink:0}}>🎯</span>
+                      <svg style={{flexShrink:0}} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
                       <div>
                         <div style={{fontSize:12,fontWeight:700,color:'var(--orange)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:4,fontFamily:'Fredoka'}}>Today's coaching focus</div>
                         <p style={{fontSize:15,color:'var(--text)',lineHeight:1.6}}>{dayData.focus}</p>
@@ -928,7 +932,9 @@ export default function ProgramsPage() {
           if (!program) return null
           return (
             <div className="fadeUp" style={{textAlign:'center',padding:'40px 0'}}>
-              <div style={{fontSize:72,marginBottom:16,animation:'celebBounce .7s cubic-bezier(.22,.68,0,1.4) both'}}>🏆</div>
+              <div style={{width:80,height:80,borderRadius:24,background:'var(--yellow)',border:'3px solid var(--text)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 24px',boxShadow:'4px 4px 0 var(--text)',animation:'celebBounce .7s cubic-bezier(.22,.68,0,1.4) both'}}>
+                <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="var(--text)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
+              </div>
               <h1 className="fredoka" style={{fontSize:38,color:'var(--orange)',marginBottom:8}}>You did it!</h1>
               <h2 className="fredoka" style={{fontSize:24,color:'var(--text)',marginBottom:12}}>{program.name}</h2>
               <p style={{color:'var(--muted)',fontSize:16,marginBottom:8}}>Completed {new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</p>
@@ -963,7 +969,10 @@ export default function ProgramsPage() {
 
             {recommendations.length > 0 && (
               <div className="fadeUp d1" style={{marginBottom:32}}>
-                <div style={{fontSize:13,fontWeight:700,color:'var(--orange)',textTransform:'uppercase',letterSpacing:'.07em',fontFamily:'Fredoka',marginBottom:12}}>★ Recommended for you</div>
+                <div style={{fontSize:13,fontWeight:700,color:'var(--orange)',textTransform:'uppercase',letterSpacing:'.07em',fontFamily:'Fredoka',marginBottom:12,display:'flex',alignItems:'center',gap:6}}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--orange)" stroke="none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+                  Recommended for you
+                </div>
                 <div className="prog-grid" style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:16}}>
                   {recommendations.map((p,i)=>(
                     <ProgramCard key={p.id} program={p} progress={progress}

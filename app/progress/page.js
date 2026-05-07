@@ -585,7 +585,9 @@ export default function Progress() {
                   const dateStr = cp.completedDate ? new Date(cp.completedDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''
                   return (
                     <div key={i} style={{ background: 'var(--yellow-dim)', border: '2px solid var(--yellow)', borderRadius: 14, padding: '16px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 28, marginBottom: 8 }}>🏆</div>
+                      <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--yellow)', border: '2px solid var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px', boxShadow: '2px 2px 0 var(--text)' }}>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
+                      </div>
                       <div className="fredoka" style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 4, lineHeight: 1.3 }}>{cp.certificate || prog.certificate}</div>
                       <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>{prog.name}</div>
                       {dateStr && <div style={{ fontSize: 11, color: '#7A5500', fontWeight: 700 }}>{dateStr}</div>}
