@@ -1199,6 +1199,9 @@ export default function Orivox(){
   const [programSession,setProgramSession]=useState(null);
   const [programDayResult,setProgramDayResult]=useState(null);
   const [diagnosticSession,setDiagnosticSession]=useState(false);
+  // Script mode elapsed timer
+  const [scriptElapsed,setScriptElapsed]=useState(0);
+  const scriptIntervalRef=useRef(null);
   // Warm-up
   const [warmupEx,setWarmupEx]=useState(0); // 0=breathing,1=twister,2=drill,3=done
   const [warmupTimer,setWarmupTimer]=useState(10);
@@ -1257,6 +1260,19 @@ export default function Orivox(){
     const t=setTimeout(()=>setToastQueue(prev=>prev.slice(1)),3200);
     return()=>clearTimeout(t);
   },[toastQueue]);
+
+  // Script mode elapsed counter
+  useEffect(()=>{
+    if(recording&&activeCat==="Script"){
+      setScriptElapsed(0);
+      scriptIntervalRef.current=setInterval(()=>{
+        if(startTimeRef.current) setScriptElapsed(Math.floor((Date.now()-startTimeRef.current)/1000));
+      },1000);
+    } else {
+      clearInterval(scriptIntervalRef.current);
+    }
+    return()=>clearInterval(scriptIntervalRef.current);
+  },[recording,activeCat]);
 
   // Warm-up exercise timer
   useEffect(()=>{
@@ -1341,7 +1357,7 @@ export default function Orivox(){
   },[activeCat,activeDiff,activeCaseType]);
 
   const startSession=(overrideData=null)=>{
-    // Script prompt flow
+    // Script prompt flow — no prep, no countdown, auto-start mic
     if(!overrideData&&cat==="Script"){
       if(scriptText.trim().length<50){setScriptErr("Please enter at least 50 characters");return;}
       setScriptErr("");
@@ -1351,9 +1367,10 @@ export default function Orivox(){
       lastTopicRef.current=preview;setTopic(preview);
       setFeedback(null);setAudioBlob(null);setTranscript("");setAudioUrl(null);transcriptRef.current="";
       setHedgingResult(null);setBenchmarks(null);
-      setPhase("prep");setTimer(prepTime);initialTimeRef.current=prepTime;
-      if(prepTime===0){setScreen("speak");setPhase("speak");setTimer(speakTime);initialTimeRef.current=speakTime;}
-      else setScreen("prep");
+      earlyStopRef.current=false;earlyStopElapsedRef.current=0;
+      setPhase("speak");setTimer(99999);initialTimeRef.current=99999; // no auto-stop
+      setScreen("speak");
+      setTimeout(()=>startMic(),150);
       return;
     }
     // Custom prompt flow
@@ -1507,7 +1524,7 @@ export default function Orivox(){
   const saveSession=(feedbackData)=>{
     try{
       const words=transcriptRef.current.trim().split(/\s+/).filter(Boolean).length;
-      const actualDur=earlyStopRef.current&&earlyStopElapsedRef.current>0?earlyStopElapsedRef.current:speakTime;
+      const actualDur=(earlyStopRef.current||activeCat==="Script")&&earlyStopElapsedRef.current>0?earlyStopElapsedRef.current:speakTime;
       const wpm=actualDur>0?Math.round((words/actualDur)*60):0;
       const pacingRating=wpm<110?"too slow":wpm<130?"slightly slow":wpm<=160?"ideal":wpm<=180?"slightly fast":"too fast";
       const fillerWordList=feedbackData.fillerWordList||{};
@@ -1634,7 +1651,7 @@ export default function Orivox(){
     const savedSession=saveSession(result);
     // Benchmarks
     const words=transcriptRef.current.trim().split(/\s+/).filter(Boolean).length;
-    const dur=earlyStopRef.current&&earlyStopElapsedRef.current>0?earlyStopElapsedRef.current:speakTime;
+    const dur=(earlyStopRef.current||activeCat==="Script")&&earlyStopElapsedRef.current>0?earlyStopElapsedRef.current:speakTime;
     const wpmVal=dur>0?Math.round((words/dur)*60):0;
     fetchBenchmarks(result.totalScore||0,wpmVal).catch(()=>{});
     // Program day completion
@@ -1669,7 +1686,7 @@ export default function Orivox(){
 
   const tryAgain=()=>{
     const words=(feedback?.cleanedTranscript||transcript).trim().split(/\s+/).filter(Boolean).length;
-    const dur=earlyStopRef.current&&earlyStopElapsedRef.current>0?earlyStopElapsedRef.current:speakTime;
+    const dur=(earlyStopRef.current||activeCat==="Script")&&earlyStopElapsedRef.current>0?earlyStopElapsedRef.current:speakTime;
     const wpm=dur>0?Math.round((words/dur)*60):0;
     localStorage.setItem("orivox_retry_source",JSON.stringify({
       score:feedback?.totalScore||0,
@@ -2028,22 +2045,29 @@ export default function Orivox(){
                     </div>
                   </div>
                 )}
-                {/* Timers */}
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:28,marginBottom:40}}>
-                  <div>
-                    <span className="fredoka" style={{fontSize:17,display:"block",marginBottom:14}}>Prep Time</span>
-                    <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-                      {PREP_TIMES.map(t=><button key={t} className={`chip ${prepTime===t?"active":""}`} style={{fontSize:14,padding:"6px 14px"}} onClick={()=>setPrepTime(t)}>{t===0?"None":fmt(t)}</button>)}
+                {/* Timers — hidden for Script */}
+                {cat!=="Script"&&(
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:28,marginBottom:40}}>
+                    <div>
+                      <span className="fredoka" style={{fontSize:17,display:"block",marginBottom:14}}>Prep Time</span>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                        {PREP_TIMES.map(t=><button key={t} className={`chip ${prepTime===t?"active":""}`} style={{fontSize:14,padding:"6px 14px"}} onClick={()=>setPrepTime(t)}>{t===0?"None":fmt(t)}</button>)}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="fredoka" style={{fontSize:17,display:"block",marginBottom:14}}>Speak Time</span>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                        {SPEAK_TIMES.map(t=><button key={t} className={`chip ${speakTime===t?"active":""}`} style={{fontSize:14,padding:"6px 14px"}} onClick={()=>setSpeakTime(t)}>{fmt(t)}</button>)}
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <span className="fredoka" style={{fontSize:17,display:"block",marginBottom:14}}>Speak Time</span>
-                    <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-                      {SPEAK_TIMES.map(t=><button key={t} className={`chip ${speakTime===t?"active":""}`} style={{fontSize:14,padding:"6px 14px"}} onClick={()=>setSpeakTime(t)}>{fmt(t)}</button>)}
-                    </div>
+                )}
+                {cat==="Script"&&(
+                  <div style={{marginBottom:24,padding:"12px 16px",borderRadius:12,background:"var(--bg)",border:"1.5px solid var(--border)"}}>
+                    <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.5}}>No time limit — speak until you finish your script, then press Done.</p>
                   </div>
-                </div>
-                <button className="btn btn-orange btn-bounce letsgo-btn" style={{width:"100%",justifyContent:"center",padding:"18px",fontSize:22}} onClick={handleLetsGo}>{diagnosticSession?"Start Diagnostic Test":programSession?`Start Day ${programSession.day}`:"Let's Go!"}</button>
+                )}
+                <button className="btn btn-orange btn-bounce letsgo-btn" style={{width:"100%",justifyContent:"center",padding:"18px",fontSize:22}} onClick={handleLetsGo}>{diagnosticSession?"Start Diagnostic Test":cat==="Script"?"Start Speaking":programSession?`Start Day ${programSession.day}`:"Let's Go!"}</button>
               </div>
 
               {/* Feature strip */}
@@ -2161,54 +2185,97 @@ export default function Orivox(){
           {/* ── SPEAK ── */}
           {screen==="speak"&&(
             <div className="screenEnter" style={{paddingTop:56,textAlign:"center"}}>
+              {/* Recording status badge */}
               <div className="fadeUp" style={{marginBottom:24,display:"flex",justifyContent:"center"}}>
                 {recording
                   ?<div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"9px 22px",borderRadius:50,background:"var(--red-dim)",border:"2px solid var(--red)",fontFamily:"Fredoka",fontSize:17,color:"var(--red)",fontWeight:600}}>
                     <span style={{width:9,height:9,borderRadius:"50%",background:"var(--red)",animation:"blink 1s infinite"}}/>Recording
                   </div>
-                  :<div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"9px 22px",borderRadius:50,background:"var(--orange-dim)",border:"2px solid var(--orange-border)",fontFamily:"Fredoka",fontSize:17,color:"var(--orange)"}}>Ready to record</div>
+                  :<div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"9px 22px",borderRadius:50,background:"var(--orange-dim)",border:"2px solid var(--orange-border)",fontFamily:"Fredoka",fontSize:17,color:"var(--orange)"}}>
+                    {micStarting?"Starting mic...":"Ready to record"}
+                  </div>
                 }
               </div>
+
               {activeCat==="Script"?(
-                <div className="card fadeUp d1" style={{textAlign:"left",padding:24,marginBottom:20,maxHeight:260,overflowY:"auto"}}>
-                  <p style={{fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>Your script — read from this</p>
-                  <p style={{fontSize:17,lineHeight:1.8,color:"var(--text)",whiteSpace:"pre-wrap"}}>{scriptText}</p>
+                // ── SCRIPT MODE SPEAK SCREEN ──────────────────────────────
+                <div>
+                  {/* Script text — large and scrollable */}
+                  <div className="card fadeUp d1" style={{textAlign:"left",padding:"20px 24px",marginBottom:20,maxHeight:320,overflowY:"auto",border:"2.5px solid var(--border)"}}>
+                    <p style={{fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Your script — read from this</p>
+                    <p style={{fontSize:18,lineHeight:1.85,color:"var(--text)",whiteSpace:"pre-wrap",fontFamily:"Nunito, sans-serif"}}>{scriptText}</p>
+                  </div>
+
+                  {/* Elapsed counter + waveform */}
+                  <div className="card fadeUp d2" style={{padding:"28px 32px",marginBottom:20,position:"relative",overflow:"visible"}}>
+                    {recording&&(
+                      <div style={{display:"flex",justifyContent:"center",marginBottom:16}}>
+                        <div style={{position:"relative",width:48,height:48}}>
+                          <div style={{position:"absolute",inset:0,borderRadius:"50%",border:"2px solid var(--red)",animation:"pulseRing 1.5s ease-out infinite"}}/>
+                          <div style={{position:"absolute",inset:6,borderRadius:"50%",background:"var(--red)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div className="fredoka" style={{fontSize:72,lineHeight:1,letterSpacing:"-0.03em",color:"var(--text)"}}>{fmt(scriptElapsed)}</div>
+                    <div style={{color:"var(--muted)",fontFamily:"Fredoka",fontSize:16,margin:"8px 0 20px"}}>elapsed</div>
+                    <div style={{display:"flex",justifyContent:"center"}}><WaveViz active={recording} analyserNode={analyserNode}/></div>
+                  </div>
+
+                  {/* Done button */}
+                  <div className="fadeUp d3">
+                    {!recording?(
+                      micStarting
+                        ?<div style={{padding:"17px",borderRadius:50,background:"var(--orange-dim)",border:"2.5px solid var(--orange-border)",fontFamily:"Fredoka",fontSize:18,color:"var(--orange)"}}>Starting mic...</div>
+                        :<button className="btn btn-orange" style={{width:"100%",justifyContent:"center",padding:"17px",fontSize:20}} onClick={startMic}>Start Recording</button>
+                    ):(
+                      <button className="btn btn-green" style={{width:"100%",justifyContent:"center",padding:"18px",fontSize:19}} onClick={()=>doStop(true)}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                        Done — I finished my script
+                      </button>
+                    )}
+                  </div>
                 </div>
               ):(
-                <div className="card fadeUp d1" style={{textAlign:"left",padding:24,marginBottom:20}}>
-                  <p style={{fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Your prompt</p>
-                  <p className="fredoka" style={{fontSize:20,lineHeight:1.5,marginBottom:recording?0:14}}>"{activeCat==="Custom"?topic:displayedTopic}"</p>
-                  {!recording&&activeCat!=="Custom"&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={pickTopic}>↻ New topic</button>}
+                // ── NORMAL SPEAK SCREEN ───────────────────────────────────
+                <div>
+                  <div className="card fadeUp d1" style={{textAlign:"left",padding:24,marginBottom:20}}>
+                    <p style={{fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Your prompt</p>
+                    <p className="fredoka" style={{fontSize:20,lineHeight:1.5,marginBottom:recording?0:14}}>"{activeCat==="Custom"?topic:displayedTopic}"</p>
+                    {!recording&&activeCat!=="Custom"&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={pickTopic}>↻ New topic</button>}
+                  </div>
+
+                  <div ref={timerCardRef} className="card fadeUp d2" style={{padding:"48px 32px",marginBottom:20,border:recording?"2.5px solid transparent":"2.5px solid var(--border)",transition:"border-color .3s",position:"relative",overflow:"visible"}}>
+                    <BorderTimer containerRef={timerCardRef} startTimeRef={startTimeRef} durationSecs={speakTime} active={recording}/>
+                    {recording&&(
+                      <div style={{display:"flex",justifyContent:"center",marginBottom:24}}>
+                        <div style={{position:"relative",width:64,height:64}}>
+                          <div style={{position:"absolute",inset:0,borderRadius:"50%",border:"2.5px solid var(--red)",animation:"pulseRing 1.5s ease-out infinite"}}/>
+                          <div style={{position:"absolute",inset:0,borderRadius:"50%",border:"2.5px solid var(--red)",animation:"pulseRing 1.5s ease-out infinite",animationDelay:"0.5s"}}/>
+                          <div style={{position:"absolute",inset:8,borderRadius:"50%",background:"var(--red)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div key={timer} className="timer-tick" style={{fontSize:96,fontWeight:700,fontFamily:"Fredoka",lineHeight:1,letterSpacing:"-0.03em",color:timer<10?"var(--red)":timer<30?"#CC6600":"var(--text)"}}>{fmt(timer)}</div>
+                    <div style={{color:"var(--muted)",fontFamily:"Fredoka",fontSize:17,margin:"10px 0 22px"}}>speaking time remaining</div>
+                    <div style={{display:"flex",justifyContent:"center"}}><WaveViz active={recording} analyserNode={analyserNode}/></div>
+                  </div>
+
+                  <div className="fadeUp d3">
+                    {!recording
+                      ?<button className="btn btn-orange" style={{width:"100%",justifyContent:"center",padding:"17px",fontSize:20}} onClick={startMic} disabled={micStarting}>{micStarting?"Starting...":"Start Recording"}</button>
+                      :<div style={{textAlign:"center"}}>
+                        <div style={{padding:"14px 20px",borderRadius:50,background:"var(--red-dim)",border:"2px solid var(--red)",fontFamily:"Fredoka",fontSize:16,color:"var(--red)",fontWeight:600,marginBottom:10}}>Timer ends automatically</div>
+                        <button style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"var(--muted)",fontFamily:"Nunito,sans-serif",textDecoration:"underline",padding:0}} onClick={()=>doStop(true)}>Stop early (not recommended)</button>
+                      </div>
+                    }
+                  </div>
                 </div>
               )}
 
-              <div ref={timerCardRef} className="card fadeUp d2" style={{padding:"48px 32px",marginBottom:20,border:recording?"2.5px solid transparent":"2.5px solid var(--border)",transition:"border-color .3s",position:"relative",overflow:"visible"}}>
-                <BorderTimer containerRef={timerCardRef} startTimeRef={startTimeRef} durationSecs={speakTime} active={recording}/>
-                {recording&&(
-                  <div style={{display:"flex",justifyContent:"center",marginBottom:24}}>
-                    <div style={{position:"relative",width:64,height:64}}>
-                      <div style={{position:"absolute",inset:0,borderRadius:"50%",border:"2.5px solid var(--red)",animation:"pulseRing 1.5s ease-out infinite"}}/>
-                      <div style={{position:"absolute",inset:0,borderRadius:"50%",border:"2.5px solid var(--red)",animation:"pulseRing 1.5s ease-out infinite",animationDelay:"0.5s"}}/>
-                      <div style={{position:"absolute",inset:8,borderRadius:"50%",background:"var(--red)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div key={timer} className="timer-tick" style={{fontSize:96,fontWeight:700,fontFamily:"Fredoka",lineHeight:1,letterSpacing:"-0.03em",color:timer<10?"var(--red)":timer<30?"#CC6600":"var(--text)"}}>{fmt(timer)}</div>
-                <div style={{color:"var(--muted)",fontFamily:"Fredoka",fontSize:17,margin:"10px 0 22px"}}>speaking time remaining</div>
-                <div style={{display:"flex",justifyContent:"center"}}><WaveViz active={recording} analyserNode={analyserNode}/></div>
-              </div>
-
-              <div className="fadeUp d3">
-                {!recording
-                  ?<button className="btn btn-orange" style={{width:"100%",justifyContent:"center",padding:"17px",fontSize:20}} onClick={startMic} disabled={micStarting}>{micStarting?"Starting...":"Start Recording"}</button>
-                  :<div style={{textAlign:"center"}}>
-                    <div style={{padding:"14px 20px",borderRadius:50,background:"var(--red-dim)",border:"2px solid var(--red)",fontFamily:"Fredoka",fontSize:16,color:"var(--red)",fontWeight:600,marginBottom:10}}>Timer ends automatically</div>
-                    <button style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"var(--muted)",fontFamily:"Nunito,sans-serif",textDecoration:"underline",padding:0}} onClick={()=>doStop(true)}>Stop early (not recommended)</button>
-                  </div>
-                }
-              </div>
               {micErr&&<p style={{color:"var(--red)",fontSize:14,marginTop:12}}>{micErr}</p>}
             </div>
           )}
@@ -2233,7 +2300,7 @@ export default function Orivox(){
                   {/* Before & After comparison */}
                   {retrySource&&(()=>{
                     const curWords=(feedback.cleanedTranscript||transcript).trim().split(/\s+/).filter(Boolean).length;
-                    const curDur=earlyStopRef.current&&earlyStopElapsedRef.current>0?earlyStopElapsedRef.current:speakTime;
+                    const curDur=(earlyStopRef.current||activeCat==="Script")&&earlyStopElapsedRef.current>0?earlyStopElapsedRef.current:speakTime;
                     const curWpm=curDur>0?Math.round((curWords/curDur)*60):0;
                     const curFill=Object.values(feedback.fillerWordList||{}).reduce((a,b)=>a+b,0);
                     const scoreDiff=displayScore-retrySource.score;
@@ -2303,7 +2370,7 @@ export default function Orivox(){
                   {/* WPM metric */}
                   {(()=>{
                     const words=(feedback.cleanedTranscript||transcript).trim().split(/\s+/).filter(Boolean).length;
-                    const dur=earlyStopRef.current&&earlyStopElapsedRef.current>0?earlyStopElapsedRef.current:speakTime;
+                    const dur=(earlyStopRef.current||activeCat==="Script")&&earlyStopElapsedRef.current>0?earlyStopElapsedRef.current:speakTime;
                     const wpm=dur>0?Math.round((words/dur)*60):0;
                     if(!wpm)return null;
                     const pace=wpm<110?{label:"Too slow — try to speak more naturally",color:"var(--red)"}
