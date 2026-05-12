@@ -59,6 +59,8 @@ const G = () => (
     @keyframes celebBounce{0%{transform:scale(0) rotate(-20deg);opacity:0}60%{transform:scale(1.3) rotate(10deg);opacity:1}100%{transform:scale(1) rotate(0deg);opacity:1}}
     @keyframes typewriter{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
     @keyframes urgentPulse{from{opacity:.15}to{opacity:.4}}
+    @keyframes breathe{0%{transform:scale(.65);opacity:.45}40%{transform:scale(1);opacity:1}60%{transform:scale(1);opacity:1}100%{transform:scale(.65);opacity:.45}}
+    @keyframes breatheHold{0%,100%{transform:scale(1);opacity:1}}
     @keyframes letsGoGlow{0%,100%{filter:drop-shadow(0 0 0 transparent)}50%{filter:drop-shadow(0 0 22px rgba(255,107,43,.55))}}
     @keyframes chipSpring{0%{transform:scale(1)}25%{transform:scale(.95)}65%{transform:scale(1.05)}100%{transform:scale(1)}}
     @keyframes countdownTick{from{transform:scale(1.1)}to{transform:scale(1)}}
@@ -282,6 +284,63 @@ const SPEAK_TIMES = [30,60,120,180,300];
 const fmt = s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
 const rand = arr=>arr[Math.floor(Math.random()*arr.length)];
 const randNew=(pool,last)=>{if(!pool||pool.length===0)return"";if(pool.length===1)return pool[0];let c,t=0;do{c=pool[Math.floor(Math.random()*pool.length)];t++;}while(c===last&&t<20);return c;};
+
+// ── Warm-up content ───────────────────────────────────────────────────────────
+const WARMUP_TWISTERS=[
+  "Red lorry yellow lorry — say it fast, three times",
+  "She sells seashells by the seashore — three times through",
+  "Unique New York, unique New York, you know you need unique New York",
+  "The lips the teeth the tip of the tongue — repeat five times",
+  "Betty Botter bought some butter — say it twice fast",
+  "How much wood would a woodchuck chuck — twice through",
+  "Peter Piper picked a peck of pickled peppers — twice",
+  "Toy boat toy boat toy boat — five times fast",
+  "Irish wristwatch — say it five times",
+  "She sees cheese — ten times fast",
+];
+const WARMUP_DRILLS=[
+  "Say AH-EE-OH loud and clear, three times. Open your mouth wide.",
+  "Hum at a comfortable pitch for 5 seconds, then say your name clearly and loudly.",
+  "Say 'I am confident and clear' three times, getting louder each time.",
+  "Count from 1 to 10 out loud, making each number crisp and distinct.",
+  "Say 'Ma Me Mi Mo Mu' five times, exaggerating each vowel sound.",
+  "Take a deep breath and say 'Hello, my name is...' as clearly and naturally as you can.",
+];
+
+// ── Hedging language detection ────────────────────────────────────────────────
+const HEDGE_PATTERNS=[
+  {phrase:"I think",re:/\bi\s+think\b/gi},{phrase:"I guess",re:/\bi\s+guess\b/gi},
+  {phrase:"I feel like",re:/\bi\s+feel\s+like\b/gi},{phrase:"maybe",re:/\bmaybe\b/gi},
+  {phrase:"perhaps",re:/\bperhaps\b/gi},{phrase:"possibly",re:/\bpossibly\b/gi},
+  {phrase:"probably",re:/\bprobably\b/gi},{phrase:"sort of",re:/\bsort\s+of\b/gi},
+  {phrase:"kind of",re:/\bkind\s+of\b/gi},{phrase:"a bit",re:/\ba\s+bit\b/gi},
+  {phrase:"a little",re:/\ba\s+little\b/gi},{phrase:"basically",re:/\bbasically\b/gi},
+  {phrase:"honestly",re:/\bhonestly\b/gi},{phrase:"to be honest",re:/\bto\s+be\s+honest\b/gi},
+  {phrase:"I'm not sure but",re:/\bi'?m\s+not\s+sure\s+but\b/gi},
+  {phrase:"I could be wrong",re:/\bi\s+could\s+be\s+wrong\b/gi},
+  {phrase:"I might be wrong",re:/\bi\s+might\s+be\s+wrong\b/gi},
+  {phrase:"if that makes sense",re:/\bif\s+that\s+makes\s+sense\b/gi},
+  {phrase:"does that make sense",re:/\bdoes\s+that\s+make\s+sense\b/gi},
+  {phrase:"you know what I mean",re:/\byou\s+know\s+what\s+i\s+mean\b/gi},
+  {phrase:"I don't know",re:/\bi\s+don'?t\s+know\b/gi},
+  {phrase:"whatever",re:/\bwhatever\b/gi},
+  {phrase:"I suppose",re:/\bi\s+suppose\b/gi},
+  {phrase:"I imagine",re:/\bi\s+imagine\b/gi},
+  {phrase:"seemingly",re:/\bseemingly\b/gi},
+  {phrase:"apparently",re:/\bapparently\b/gi},
+  {phrase:"just (hedge)",re:/\bjust\s+(?:think|maybe|wondering|guessing|trying|sort\s+of)\b/gi},
+  {phrase:"it's just that",re:/\bit'?s\s+just\s+that\b/gi},
+  {phrase:"I just think/feel",re:/\bi\s+just\s+(?:think|feel|guess|wanted|thought)\b/gi},
+];
+function detectHedging(text){
+  const breakdown={};let total=0;
+  for(const {phrase,re} of HEDGE_PATTERNS){
+    const n=(text.match(re)||[]).length;
+    if(n>0){breakdown[phrase]=n;total+=n;}
+  }
+  const sorted=Object.entries(breakdown).sort((a,b)=>b[1]-a[1]);
+  return{total,breakdown,sorted,topPhrase:sorted[0]?.[0]||null};
+}
 
 const playChime = () => {
   try {
@@ -1137,9 +1196,22 @@ export default function Orivox(){
   const [caseType,setCaseType]=useState("General Q&A");
   const [activeCaseType,setActiveCaseType]=useState("General Q&A");
   const [,tickMin]=useState(0);
-  const [programSession,setProgramSession]=useState(null); // active program day context
-  const [programDayResult,setProgramDayResult]=useState(null); // set after completing a program day
-  const [diagnosticSession,setDiagnosticSession]=useState(false); // diagnostic test mode
+  const [programSession,setProgramSession]=useState(null);
+  const [programDayResult,setProgramDayResult]=useState(null);
+  const [diagnosticSession,setDiagnosticSession]=useState(false);
+  // Warm-up
+  const [warmupEx,setWarmupEx]=useState(0); // 0=breathing,1=twister,2=drill,3=done
+  const [warmupTimer,setWarmupTimer]=useState(10);
+  const warmupContentRef=useRef({twister:"",drill:""});
+  const warmupDoneRef=useRef(false);
+  // Script mode
+  const [scriptText,setScriptText]=useState("");
+  const [scriptErr,setScriptErr]=useState("");
+  const [savedScripts,setSavedScripts]=useState([]);
+  // Hedging
+  const [hedgingResult,setHedgingResult]=useState(null);
+  // Benchmarks
+  const [benchmarks,setBenchmarks]=useState(null);
 
   // On mount: load saved username; check for program/diagnostic session context
   useEffect(()=>{
@@ -1147,6 +1219,8 @@ export default function Orivox(){
     if(saved) setUsername(saved); else setShowNameModal(true);
     const rc=JSON.parse(localStorage.getItem("orivox_custom_prompts")||"[]");
     setRecentCustoms(rc);
+    const ss=JSON.parse(localStorage.getItem("orivox_saved_scripts")||"[]");
+    setSavedScripts(ss);
     // Diagnostic session check (takes priority over program session)
     try{
       const ds=JSON.parse(localStorage.getItem("orivox_diagnostic_session")||"null");
@@ -1183,6 +1257,20 @@ export default function Orivox(){
     const t=setTimeout(()=>setToastQueue(prev=>prev.slice(1)),3200);
     return()=>clearTimeout(t);
   },[toastQueue]);
+
+  // Warm-up exercise timer
+  useEffect(()=>{
+    if(screen!=="warmup"||warmupEx>=3)return;
+    const dur=warmupEx===0?10:20;
+    setWarmupTimer(dur);
+    const iv=setInterval(()=>{
+      setWarmupTimer(t=>{
+        if(t<=1){clearInterval(iv);setWarmupEx(x=>x+1);return dur;}
+        return t-1;
+      });
+    },1000);
+    return()=>clearInterval(iv);
+  },[screen,warmupEx]);
 
   // Auto-post to leaderboard only when it's a new personal best
   useEffect(()=>{
@@ -1253,6 +1341,21 @@ export default function Orivox(){
   },[activeCat,activeDiff,activeCaseType]);
 
   const startSession=(overrideData=null)=>{
+    // Script prompt flow
+    if(!overrideData&&cat==="Script"){
+      if(scriptText.trim().length<50){setScriptErr("Please enter at least 50 characters");return;}
+      setScriptErr("");
+      const text=scriptText.trim().slice(0,2000);
+      setActiveCat("Script");setActiveDiff("Medium");
+      const preview=text.slice(0,60)+(text.length>60?"…":"");
+      lastTopicRef.current=preview;setTopic(preview);
+      setFeedback(null);setAudioBlob(null);setTranscript("");setAudioUrl(null);transcriptRef.current="";
+      setHedgingResult(null);setBenchmarks(null);
+      setPhase("prep");setTimer(prepTime);initialTimeRef.current=prepTime;
+      if(prepTime===0){setScreen("speak");setPhase("speak");setTimer(speakTime);initialTimeRef.current=speakTime;}
+      else setScreen("prep");
+      return;
+    }
     // Custom prompt flow
     if(!overrideData&&cat==="Custom"){
       if(!customText.trim()){setCustomErr("Please describe your scenario before starting");return;}
@@ -1285,6 +1388,7 @@ export default function Orivox(){
     }
     lastTopicRef.current=picked;setTopic(picked);
     setFeedback(null);setAudioBlob(null);setTranscript("");setAudioUrl(null);transcriptRef.current="";
+    setHedgingResult(null);setBenchmarks(null);
     setPhase("prep");setTimer(prepTime);initialTimeRef.current=prepTime;
     if(prepTime===0){setScreen("speak");setPhase("speak");setTimer(speakTime);initialTimeRef.current=speakTime;}
     else setScreen("prep");
@@ -1426,6 +1530,8 @@ export default function Orivox(){
         deliveryScore:feedbackData.fillerWords||0,
         confidence:feedbackData.confidence||0,
         fillerWordList,
+        hedgingCount:feedbackData._hedgingTotal||0,
+        warmupDone:warmupDoneRef.current,
         transcript:transcriptRef.current,
         strength:feedbackData.strength||"",
         improvement:feedbackData.improvement||"",
@@ -1482,12 +1588,27 @@ export default function Orivox(){
     let result=null;
     try{
       const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({transcript:text,topic,category:activeCat,difficulty:activeDiff})});
+        body:JSON.stringify({transcript:text,topic,category:activeCat,difficulty:activeDiff,isScript:activeCat==="Script"})});
       if(res.ok){const d=await res.json();if(!d.error)result=d;}
     }catch{}
     if(!result){
       await new Promise(r=>setTimeout(r,800));
       result=analyzeTranscript(text,topic,activeDiff);
+    }
+    // Hedging detection + confidence penalty
+    const hedge=detectHedging(text);
+    setHedgingResult(hedge);
+    if(hedge.total>0){
+      const penalty=Math.min(8,hedge.total);
+      const adjConf=Math.max(0,(result.confidence||0)-penalty);
+      const adjTotal=(result.totalScore||0)-((result.confidence||0)-adjConf);
+      result={...result,confidence:adjConf,totalScore:Math.max(0,adjTotal),_hedgingTotal:hedge.total};
+      if(hedge.total>=4&&result.improvement){
+        const top=hedge.sorted[0]?.[0]||"I think";
+        result={...result,improvement:`You used hedging phrases ${hedge.total} times — phrases like "${top}" undermine how credible you sound. Try replacing "I think X" with just "X". Commitment to your statements is half of sounding confident.`};
+      }
+    } else {
+      result={...result,_hedgingTotal:0};
     }
     setFeedback(result);setLoading(false);
 
@@ -1511,6 +1632,11 @@ export default function Orivox(){
     }
 
     const savedSession=saveSession(result);
+    // Benchmarks
+    const words=transcriptRef.current.trim().split(/\s+/).filter(Boolean).length;
+    const dur=earlyStopRef.current&&earlyStopElapsedRef.current>0?earlyStopElapsedRef.current:speakTime;
+    const wpmVal=dur>0?Math.round((words/dur)*60):0;
+    fetchBenchmarks(result.totalScore||0,wpmVal).catch(()=>{});
     // Program day completion
     try{
       const ps=JSON.parse(localStorage.getItem("orivox_current_program_session")||"null");
@@ -1578,8 +1704,31 @@ export default function Orivox(){
     setScreen("home");setFeedback(null);setAudioBlob(null);setTranscript("");setRecording(false);setRunning(false);
     clearInterval(ivRef.current);
     if(audioUrl){URL.revokeObjectURL(audioUrl);setAudioUrl(null);}
-    setProgramDayResult(null);
-    // Don't clear diagnosticSession on reset — user should still be able to start it
+    setProgramDayResult(null);setHedgingResult(null);setBenchmarks(null);
+  };
+
+  const handleWarmupStart=()=>{
+    warmupContentRef.current={twister:rand(WARMUP_TWISTERS),drill:rand(WARMUP_DRILLS)};
+    warmupDoneRef.current=false;
+    setWarmupEx(0);setWarmupTimer(10);
+    setScreen("warmup");
+  };
+
+  const fetchBenchmarks=async(score,wpm)=>{
+    try{
+      const sessions=JSON.parse(localStorage.getItem("orivox_sessions")||"[]");
+      const prior=sessions.slice(-11,-1);
+      const userAvg=prior.length>0?Math.round(prior.reduce((s,x)=>s+(x.score||0),0)/prior.length):null;
+      let percentile=null;
+      try{
+        const [{count:total},{count:below}]=await Promise.all([
+          supabase.from("scores").select("*",{count:"exact",head:true}),
+          supabase.from("scores").select("*",{count:"exact",head:true}).lt("score",score),
+        ]);
+        if(total>0) percentile=Math.round(Math.round((below/total)*100/5)*5);
+      }catch{}
+      setBenchmarks({userAvg,sessionCount:prior.length,percentile,wpm});
+    }catch{}
   };
 
   // Program session helpers
@@ -1754,6 +1903,14 @@ export default function Orivox(){
                 );
               })()}
 
+              {/* Warm Up button */}
+              <div className="fadeUp d2" style={{marginBottom:16,textAlign:"center"}}>
+                <button className="btn btn-cream" style={{gap:10,fontSize:15,padding:"10px 22px"}} onClick={handleWarmupStart}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                  Warm Up First — 60 seconds
+                </button>
+              </div>
+
               {/* Setup card */}
               <div className="card fadeUp d3" style={{padding:"clamp(20px,5vw,40px)",marginBottom:20}}>
                 {/* Category */}
@@ -1763,11 +1920,57 @@ export default function Orivox(){
                     <Star size={20} color="#F5C842"/>
                   </div>
                   <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
-                    {CATS.map(c=><button key={c} className={`chip ${cat===c?"active":""}`} onClick={()=>{setCat(c);setCustomErr("");}}>{c}</button>)}
-                    <button className={`chip ${cat==="Random"?"active":""}`} onClick={()=>{setCat("Random");setCustomErr("");}}>Random</button>
-                    <button className={`chip ${cat==="Custom"?"active":""}`} onClick={()=>{setCat("Custom");setCustomErr("");}}>Custom</button>
+                    {CATS.map(c=><button key={c} className={`chip ${cat===c?"active":""}`} onClick={()=>{setCat(c);setCustomErr("");setScriptErr("");}}>{c}</button>)}
+                    <button className={`chip ${cat==="Random"?"active":""}`} onClick={()=>{setCat("Random");setCustomErr("");setScriptErr("");}}>Random</button>
+                    <button className={`chip ${cat==="Script"?"active":""}`} onClick={()=>{setCat("Script");setCustomErr("");setScriptErr("");}}>Script</button>
+                    <button className={`chip ${cat==="Custom"?"active":""}`} onClick={()=>{setCat("Custom");setCustomErr("");setScriptErr("");}}>Custom</button>
                   </div>
                 </div>
+                {/* Script textarea */}
+                {cat==="Script"&&(()=>{
+                  const words=scriptText.trim().split(/\s+/).filter(Boolean).length;
+                  const mins=Math.max(1,Math.round(words/130));
+                  return(
+                    <div style={{marginBottom:36}}>
+                      <div style={{position:"relative"}}>
+                        <textarea value={scriptText}
+                          onChange={e=>{if(e.target.value.length<=2000){setScriptText(e.target.value);setScriptErr("");}}}
+                          placeholder="Paste your speech, presentation, or script here — then record yourself delivering it"
+                          rows={7}
+                          style={{width:"100%",padding:"14px 16px 36px",borderRadius:14,border:`2px solid ${scriptErr?"var(--red)":"var(--border)"}`,fontSize:15,fontFamily:"Nunito,sans-serif",outline:"none",background:"var(--bg)",color:"var(--text)",resize:"vertical",boxSizing:"border-box",lineHeight:1.7,transition:"border-color .2s"}}
+                        />
+                        <span style={{position:"absolute",bottom:10,right:14,fontSize:12,color:scriptText.length>1800?"var(--red)":"var(--muted)",pointerEvents:"none"}}>{scriptText.length}/2000</span>
+                      </div>
+                      {scriptText.trim().length>0&&<p style={{fontSize:13,color:"var(--muted)",marginTop:6}}>{words} words · roughly {mins} minute{mins!==1?"s":""} at a natural pace</p>}
+                      {scriptErr&&<p style={{color:"var(--red)",fontSize:13,marginTop:6,fontWeight:600}}>{scriptErr}</p>}
+                      <div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}}>
+                        {scriptText.trim().length>=50&&<button className="btn btn-cream" style={{fontSize:13,padding:"6px 14px"}} onClick={()=>{
+                          const updated=[scriptText,...savedScripts.filter(s=>s!==scriptText)].slice(0,5);
+                          setSavedScripts(updated);localStorage.setItem("orivox_saved_scripts",JSON.stringify(updated));
+                        }}>Save script</button>}
+                      </div>
+                      {savedScripts.length>0&&(
+                        <div style={{marginTop:14}}>
+                          <p style={{fontSize:12,color:"var(--muted)",marginBottom:8,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em"}}>Your saved scripts</p>
+                          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                            {savedScripts.map((s,i)=>(
+                              <div key={i} style={{display:"flex",gap:6,alignItems:"flex-start"}}>
+                                <button onClick={()=>setScriptText(s)}
+                                  style={{flex:1,textAlign:"left",padding:"9px 14px",borderRadius:10,border:"1.5px solid var(--border)",background:"var(--cream)",fontSize:13,color:"var(--text)",cursor:"pointer",fontFamily:"Nunito,sans-serif",lineHeight:1.5,transition:"border-color .15s"}}
+                                  onMouseOver={e=>e.currentTarget.style.borderColor="var(--orange)"}
+                                  onMouseOut={e=>e.currentTarget.style.borderColor="var(--border)"}>
+                                  {s.slice(0,80)}{s.length>80?"…":""}
+                                </button>
+                                <button onClick={()=>{const u=savedScripts.filter((_,j)=>j!==i);setSavedScripts(u);localStorage.setItem("orivox_saved_scripts",JSON.stringify(u));}}
+                                  style={{background:"none",border:"1.5px solid var(--border)",borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:13,color:"var(--muted)",lineHeight:1,flexShrink:0}}>✕</button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 {/* Custom prompt textarea */}
                 {cat==="Custom"&&(
                   <div style={{marginBottom:36}}>
@@ -1799,8 +2002,8 @@ export default function Orivox(){
                     )}
                   </div>
                 )}
-                {/* Difficulty — hidden for Custom */}
-                {cat!=="Custom"&&(
+                {/* Difficulty — hidden for Custom and Script */}
+                {cat!=="Custom"&&cat!=="Script"&&(
                 <div style={{marginBottom:36}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
                     <span className="fredoka" style={{fontSize:20}}>Difficulty</span>
@@ -1856,6 +2059,69 @@ export default function Orivox(){
             </div>
           )}
 
+          {/* ── WARM-UP ── */}
+          {screen==="warmup"&&(()=>{
+            const exTitles=["Breathe in","Warm up your mouth","Open up your voice"];
+            const exSubtitles=["Breathe in · hold · breathe out","Read the tongue twister aloud","Speak this drill out loud"];
+            const content=warmupEx===1?warmupContentRef.current.twister:warmupEx===2?warmupContentRef.current.drill:"";
+            const dur=warmupEx===0?10:20;
+            const pct=((dur-warmupTimer)/dur)*100;
+            return(
+              <div className="screenEnter" style={{paddingTop:48,textAlign:"center"}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:24}}>
+                  <div style={{fontSize:13,color:"var(--muted)",fontFamily:"Fredoka"}}>
+                    {warmupEx<3?`Exercise ${warmupEx+1} of 3`:"Done"}
+                  </div>
+                  <button style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"var(--muted)",fontFamily:"Nunito",textDecoration:"underline",padding:0}}
+                    onClick={()=>{warmupDoneRef.current=false;setScreen("home");setWarmupEx(0);}}>
+                    Skip warm-up
+                  </button>
+                </div>
+
+                {warmupEx<3?(
+                  <div>
+                    <h2 className="fredoka" style={{fontSize:30,marginBottom:6}}>{exTitles[warmupEx]}</h2>
+                    <p style={{color:"var(--muted)",fontSize:15,marginBottom:32}}>{exSubtitles[warmupEx]}</p>
+
+                    {warmupEx===0?(
+                      // Breathing circle animation
+                      <div style={{display:"flex",justifyContent:"center",marginBottom:32}}>
+                        <div style={{width:160,height:160,borderRadius:"50%",background:"var(--orange-dim)",border:"3px solid var(--orange-border)",display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
+                          <div key={warmupEx} style={{position:"absolute",inset:0,borderRadius:"50%",background:"rgba(255,107,43,.12)",animation:"breathe 10s ease-in-out 1 forwards"}}/>
+                          <div key={`inner-${warmupEx}`} style={{width:80,height:80,borderRadius:"50%",background:"var(--orange)",opacity:.7,animation:"breathe 10s ease-in-out 1 forwards"}}/>
+                        </div>
+                      </div>
+                    ):(
+                      <div className="card" style={{padding:"24px 28px",marginBottom:32,textAlign:"left",maxWidth:480,margin:"0 auto 32px"}}>
+                        <p style={{fontSize:17,lineHeight:1.7,color:"var(--text)",fontWeight:600}}>{content}</p>
+                      </div>
+                    )}
+
+                    {/* Progress bar + timer */}
+                    <div style={{maxWidth:320,margin:"0 auto"}}>
+                      <div style={{height:6,borderRadius:3,background:"var(--border)",overflow:"hidden",marginBottom:10}}>
+                        <div style={{height:"100%",borderRadius:3,background:"var(--orange)",width:`${pct}%`,transition:"width 1s linear"}}/>
+                      </div>
+                      <div className="fredoka" style={{fontSize:28,color:"var(--text)"}}>{warmupTimer}s</div>
+                    </div>
+                  </div>
+                ):(
+                  // Warmup complete
+                  <div>
+                    <div style={{width:72,height:72,borderRadius:"50%",background:"var(--green-dim)",border:"2.5px solid var(--green)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px"}}>
+                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                    </div>
+                    <h2 className="fredoka" style={{fontSize:30,marginBottom:8}}>You are warmed up</h2>
+                    <p style={{color:"var(--muted)",fontSize:16,marginBottom:32}}>Time to speak — your voice is ready.</p>
+                    <button className="btn btn-orange" style={{fontSize:18,padding:"14px 32px"}} onClick={()=>{warmupDoneRef.current=true;setScreen("home");}}>
+                      Start your session
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* ── PREP ── */}
           {screen==="prep"&&(
             <div className="screenEnter" style={{paddingTop:56}}>
@@ -1903,11 +2169,18 @@ export default function Orivox(){
                   :<div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"9px 22px",borderRadius:50,background:"var(--orange-dim)",border:"2px solid var(--orange-border)",fontFamily:"Fredoka",fontSize:17,color:"var(--orange)"}}>Ready to record</div>
                 }
               </div>
-              <div className="card fadeUp d1" style={{textAlign:"left",padding:24,marginBottom:20}}>
-                <p style={{fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Your prompt</p>
-                <p className="fredoka" style={{fontSize:20,lineHeight:1.5,marginBottom:recording?0:14}}>"{activeCat==="Custom"?topic:displayedTopic}"</p>
-                {!recording&&activeCat!=="Custom"&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={pickTopic}>↻ New topic</button>}
-              </div>
+              {activeCat==="Script"?(
+                <div className="card fadeUp d1" style={{textAlign:"left",padding:24,marginBottom:20,maxHeight:260,overflowY:"auto"}}>
+                  <p style={{fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>Your script — read from this</p>
+                  <p style={{fontSize:17,lineHeight:1.8,color:"var(--text)",whiteSpace:"pre-wrap"}}>{scriptText}</p>
+                </div>
+              ):(
+                <div className="card fadeUp d1" style={{textAlign:"left",padding:24,marginBottom:20}}>
+                  <p style={{fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Your prompt</p>
+                  <p className="fredoka" style={{fontSize:20,lineHeight:1.5,marginBottom:recording?0:14}}>"{activeCat==="Custom"?topic:displayedTopic}"</p>
+                  {!recording&&activeCat!=="Custom"&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={pickTopic}>↻ New topic</button>}
+                </div>
+              )}
 
               <div ref={timerCardRef} className="card fadeUp d2" style={{padding:"48px 32px",marginBottom:20,border:recording?"2.5px solid transparent":"2.5px solid var(--border)",transition:"border-color .3s",position:"relative",overflow:"visible"}}>
                 <BorderTimer containerRef={timerCardRef} startTimeRef={startTimeRef} durationSecs={speakTime} active={recording}/>
@@ -2022,7 +2295,7 @@ export default function Orivox(){
                   {/* Sub scores — 4 categories out of 25 */}
                   <div className="fb2 scores-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
                     <SubBar label="Clarity" val={feedback.clarity} max={25} color="#3B82F6" bg="#EFF6FF"/>
-                    <SubBar label="Structure" val={feedback.structure} max={25} color="var(--orange)" bg="var(--orange-dim)"/>
+                    <SubBar label={activeCat==="Script"?"Reading Delivery":"Structure"} val={feedback.structure} max={25} color="var(--orange)" bg="var(--orange-dim)"/>
                     <SubBar label="Delivery" val={feedback.fillerWords} max={25} color="var(--green)" bg="#E8F7EE"/>
                     <SubBar label="Confidence" val={feedback.confidence} max={25} color="#8B5CF6" bg="#F5F3FF"/>
                   </div>
@@ -2071,6 +2344,94 @@ export default function Orivox(){
                       </div>
                     )}
                   </div>
+
+                  {/* Hedging language */}
+                  {hedgingResult&&(
+                    <div className="card fb3" style={{padding:28,marginBottom:20,borderLeft:`5px solid ${hedgingResult.total===0?"var(--green)":hedgingResult.total>=4?"var(--red)":"#CC6600"}`}}>
+                      <p className="fredoka" style={{fontSize:19,marginBottom:16}}>Hedging Language</p>
+                      {hedgingResult.total===0?(
+                        <p style={{color:"var(--green)",fontSize:15,fontWeight:600}}>Confident language — no hedging detected</p>
+                      ):(
+                        <div>
+                          {hedgingResult.total>=4&&(
+                            <p style={{fontSize:14,color:"var(--red)",fontWeight:600,marginBottom:12}}>Hedging language undermines your credibility — try committing to your statements directly</p>
+                          )}
+                          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                            {hedgingResult.sorted.map(([phrase,count])=>(
+                              <div key={phrase} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 18px",borderRadius:12,background:hedgingResult.total>=4?"var(--red-dim)":"var(--yellow-dim)",border:`1.5px solid ${hedgingResult.total>=4?"rgba(232,64,64,.18)":"rgba(245,200,66,.3)"}`}}>
+                                <span style={{fontFamily:"Fredoka",fontSize:16,color:hedgingResult.total>=4?"var(--red)":"#CC6600"}}>"{phrase}"</span>
+                                <span style={{fontSize:14,color:hedgingResult.total>=4?"var(--red)":"#CC6600",fontWeight:700}}>— {count}×</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* How you compare — benchmarks */}
+                  {benchmarks&&(
+                    <div className="card fb3" style={{padding:28,marginBottom:20}}>
+                      <p className="fredoka" style={{fontSize:19,marginBottom:20}}>How you compare</p>
+                      <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                        {/* vs own average */}
+                        {benchmarks.userAvg!==null&&benchmarks.sessionCount>0&&(
+                          <div style={{padding:"14px 16px",borderRadius:12,background:displayScore>=benchmarks.userAvg?"var(--green-dim)":"var(--yellow-dim)",border:`1.5px solid ${displayScore>=benchmarks.userAvg?"#b8dfc8":"rgba(245,200,66,.4)"}`}}>
+                            <div style={{fontSize:13,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4,fontFamily:"Fredoka"}}>vs your average</div>
+                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                              <span style={{fontSize:15,color:"var(--text)"}}>Your average: {benchmarks.userAvg}</span>
+                              <span style={{fontFamily:"Fredoka",fontSize:17,fontWeight:700,color:displayScore>=benchmarks.userAvg?"var(--green)":"#CC6600"}}>
+                                {displayScore>=benchmarks.userAvg?`+${displayScore-benchmarks.userAvg} above average`:`${displayScore-benchmarks.userAvg} below average`}
+                              </span>
+                            </div>
+                            <div style={{fontSize:13,color:"var(--muted)",marginTop:4}}>
+                              {displayScore>=benchmarks.userAvg?"Above your average — well done":"Below your average — happens to everyone, get back at it"}
+                            </div>
+                          </div>
+                        )}
+                        {/* vs all users */}
+                        {benchmarks.percentile!==null&&(
+                          <div style={{padding:"14px 16px",borderRadius:12,background:"var(--blue-dim)",border:"1.5px solid #bfdbfe"}}>
+                            <div style={{fontSize:13,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4,fontFamily:"Fredoka"}}>vs all Orivox users</div>
+                            <div className="fredoka" style={{fontSize:17,color:"var(--blue)",marginBottom:4}}>
+                              {benchmarks.percentile>=90?"Top 10% of all Orivox speakers":benchmarks.percentile>=75?"Top 25% of all Orivox speakers":`You scored higher than ${benchmarks.percentile}% of all Orivox sessions`}
+                            </div>
+                            <div style={{fontSize:13,color:"var(--muted)"}}>Based on global session data</div>
+                          </div>
+                        )}
+                        {/* WPM benchmark scale */}
+                        {(()=>{
+                          const wpm=benchmarks.wpm;
+                          if(!wpm) return null;
+                          const benchPts=[{label:"Conversational",wpm:135,range:"120–150"},{label:"Podcast hosts",wpm:155,range:"150–160"},{label:"TED speakers",wpm:163,range:"~163"},{label:"Auctioneers",wpm:260,range:"250+"}];
+                          const minW=80,maxW=300,clamp=v=>Math.max(minW,Math.min(maxW,v));
+                          const pct=v=>((clamp(v)-minW)/(maxW-minW))*100;
+                          const userPct=pct(wpm);
+                          const wpmLabel=wpm<120?"Below conversational pace — slow down is fine for formal speeches":wpm<=160?"Good — natural conversational pace":wpm<=175?"Slightly fast — consider slowing down for complex topics":"Fast — your audience may struggle to keep up";
+                          return(
+                            <div style={{padding:"14px 16px",borderRadius:12,background:"var(--bg)",border:"1.5px solid var(--border)"}}>
+                              <div style={{fontSize:13,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:12,fontFamily:"Fredoka"}}>your speaking pace — {wpm} WPM</div>
+                              {/* Scale */}
+                              <div style={{position:"relative",height:28,marginBottom:10}}>
+                                <div style={{position:"absolute",top:10,left:0,right:0,height:6,borderRadius:3,background:"var(--border)"}}/>
+                                {benchPts.map(b=>(
+                                  <div key={b.label} style={{position:"absolute",top:0,left:`${pct(b.wpm)}%`,transform:"translateX(-50%)",display:"flex",flexDirection:"column",alignItems:"center"}}>
+                                    <div style={{width:2,height:10,background:"var(--muted)",opacity:.4}}/>
+                                    <div style={{width:8,height:8,borderRadius:"50%",background:"var(--muted)",marginTop:6}}/>
+                                  </div>
+                                ))}
+                                <div style={{position:"absolute",top:6,left:`${userPct}%`,transform:"translateX(-50%)",width:14,height:14,borderRadius:"50%",background:"var(--orange)",border:"2px solid white",boxShadow:"0 1px 4px rgba(0,0,0,.25)"}}/>
+                              </div>
+                              <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"var(--muted)",marginBottom:10}}>
+                                {benchPts.map(b=><span key={b.label} style={{textAlign:"center",maxWidth:60,lineHeight:1.3}}>{b.label}<br/>{b.range}</span>)}
+                              </div>
+                              <div style={{fontSize:13,color:"var(--muted)"}}>{wpmLabel}</div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
 
                   {/* What's working + Focus on this */}
                   <div className="fb4" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:20}}>

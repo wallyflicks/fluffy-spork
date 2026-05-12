@@ -99,7 +99,7 @@ Session history: ${JSON.stringify(body.sessions)}`
     }
 
     // ── Normal analysis ──────────────────────────────────────────────────────
-    const { transcript, topic, category, difficulty } = body;
+    const { transcript, topic, category, difficulty, isScript } = body;
 
     if (!transcript?.trim()) {
       return Response.json(
@@ -163,7 +163,20 @@ Session history: ${JSON.stringify(body.sessions)}`
 
     const isCaseComp = category === 'Case Competition';
 
-    const scoringBlock = isCaseComp
+    const scoringBlock = isScript
+      ? `This person was reading from a script they wrote. Evaluate ONLY their delivery — how naturally and confidently they read it. Do NOT evaluate content, argument quality, or structure (the structure was pre-written).
+
+Score across these four categories:
+- Clarity (0-25): Did they speak clearly and audibly? Were their words easy to understand?
+- Delivery (0-25): Did they sound natural, not robotic? Did they vary their pace and energy, or were they monotone? This replaces structure since content was pre-written.
+- Filler words (0-25): Standard filler word detection — um, uh, like, you know etc.
+- Confidence (0-25): Did they sound engaged and present, or were they clearly just reading words without conviction?
+
+The JSON field name for Delivery must be "structure" to maintain API compatibility.
+
+Coaching focus: Was this a natural delivery or did it sound like they were reading? Give specific feedback on pacing, energy, and naturalness. Frame all feedback as delivery coaching.${lengthNote}`
+
+      : isCaseComp
       ? `This is a case competition judge Q&A round. The user was given a mini business case and a specific judge question. Evaluate using the following criteria:
 
 Score across these four categories:

@@ -695,7 +695,12 @@ export default function Progress() {
                             <td style={{ color: s.fillerWordCount > 0 ? 'var(--red)' : 'var(--green)', fontWeight: 600 }}>
                               {s.fillerWordCount > 0
                                 ? `${s.fillerWordCount} (${s.fillerWords.slice(0, 3).join(', ')}${s.fillerWords.length > 3 ? '…' : ''})`
-                                : '✓ Clean'}
+                                : 'Clean'}
+                              {s.hedgingCount > 0 && (
+                                <span title={`${s.hedgingCount} hedging phrase${s.hedgingCount !== 1 ? 's' : ''}`} style={{ marginLeft: 6, display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 11, fontWeight: 700, color: s.hedgingCount >= 4 ? 'var(--red)' : '#CC6600', background: s.hedgingCount >= 4 ? 'var(--red-dim)' : 'var(--yellow-dim)', padding: '1px 7px', borderRadius: 50, border: `1.5px solid ${s.hedgingCount >= 4 ? 'rgba(232,64,64,.3)' : 'rgba(245,200,66,.4)'}` }}>
+                                  H:{s.hedgingCount}
+                                </span>
+                              )}
                             </td>
                             <td style={{ textAlign: 'center', paddingLeft: 4, paddingRight: 12 }}>
                               <svg className={`chevron${isOpen ? ' open' : ''}`} width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round">
