@@ -2313,10 +2313,14 @@ export default function Orivox(){
 
               {/* Feature strip */}
               <div className="fadeUp d4" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:20}}>
-                {[["Record","Mic-based practice"],["AI Feedback","Real-time analysis"],["Score","Detailed breakdown"]].map(([t,s])=>(
+                {[
+                  ["Pick any topic","From job interviews to debate to case competitions — hundreds of real prompts across 11 categories"],
+                  ["Speak and get scored","Instant feedback on clarity, filler words, structure, confidence, pace, and hedging language — every session"],
+                  ["Track your growth","Session history, streaks, achievements, structured programs, and a global leaderboard to compete on"],
+                ].map(([t,s])=>(
                   <div key={t} className="card" style={{padding:"24px 16px",textAlign:"center"}}>
-                    <div className="fredoka" style={{fontSize:17,marginBottom:4}}>{t}</div>
-                    <div style={{fontSize:13,color:"var(--muted)",lineHeight:1.4}}>{s}</div>
+                    <div className="fredoka" style={{fontSize:17,marginBottom:6}}>{t}</div>
+                    <div style={{fontSize:12,color:"var(--muted)",lineHeight:1.5}}>{s}</div>
                   </div>
                 ))}
               </div>

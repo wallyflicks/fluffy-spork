@@ -17,8 +17,10 @@ const G = () => (
     body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;}
     .fredoka{font-family:'Fredoka',sans-serif;}
     @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
     .fadeUp{animation:fadeUp .5s cubic-bezier(.22,.68,0,1.2) both}
     .d1{animation-delay:.08s}.d2{animation-delay:.18s}.d3{animation-delay:.28s}.d4{animation-delay:.38s}
+    .skeleton{animation:pulse 1.6s ease-in-out infinite;background:var(--border);border-radius:8px;}
     ::-webkit-scrollbar{width:6px}
     ::-webkit-scrollbar-thumb{background:var(--orange-border);border-radius:3px}
     .review-card{
@@ -91,8 +93,27 @@ export default function Reviews() {
     return (
       <>
         <G />
-        <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="fredoka" style={{ fontSize: 22, color: 'var(--muted)' }}>Loading…</div>
+        <div style={{ minHeight: '100vh', background: 'var(--bg)', position: 'relative' }}>
+          <div className="dot-bg" />
+          <PageNav active="/reviews" />
+          <div style={{ maxWidth: 760, margin: '0 auto', padding: '56px 24px 80px', position: 'relative', zIndex: 1 }}>
+            {/* Skeleton header */}
+            <div style={{ textAlign: 'center', marginBottom: 40 }}>
+              <div className="skeleton" style={{ height: 48, width: 220, margin: '0 auto 12px', borderRadius: 12 }} />
+              <div className="skeleton" style={{ height: 18, width: 180, margin: '0 auto' }} />
+            </div>
+            {/* Skeleton cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 14 }}>
+              {[0, 1, 2].map(i => (
+                <div key={i} style={{ background: 'var(--card)', border: '2.5px solid var(--border)', borderRadius: 20, padding: 20, height: 180, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div className="skeleton" style={{ height: 14, width: '60%', animationDelay: `${i * 0.15}s` }} />
+                  <div className="skeleton" style={{ height: 12, width: '100%', animationDelay: `${i * 0.15 + 0.1}s` }} />
+                  <div className="skeleton" style={{ height: 12, width: '90%', animationDelay: `${i * 0.15 + 0.2}s` }} />
+                  <div className="skeleton" style={{ height: 12, width: '75%', animationDelay: `${i * 0.15 + 0.3}s` }} />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </>
     )
@@ -134,11 +155,11 @@ export default function Reviews() {
               padding: '60px 32px', textAlign: 'center',
             }}>
               <div style={{ display:'flex', justifyContent:'center', marginBottom:16 }}>
-                <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--border)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--orange-border)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               </div>
               <p className="fredoka" style={{ fontSize: 22, marginBottom: 8 }}>No reviews yet</p>
-              <p style={{ color: 'var(--muted)', fontSize: 15, marginBottom: 28 }}>
-                Be the first to share your experience after a session.
+              <p style={{ color: 'var(--muted)', fontSize: 15, marginBottom: 28, maxWidth: 380, margin: '0 auto 28px', lineHeight: 1.6 }}>
+                Be the first to leave a review — complete a session and share your experience
               </p>
               <Link href="/" style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8,
