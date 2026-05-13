@@ -1,19 +1,54 @@
 'use client'
 import { useState, useEffect } from 'react'
 
+function detectApp(ua) {
+  if (/Instagram/i.test(ua))             return 'instagram'
+  if (/FBAN|FBAV/i.test(ua))             return 'facebook'
+  if (/BytedanceWebview|musical_ly|TikTok/i.test(ua)) return 'tiktok'
+  if (/Snapchat/i.test(ua))              return 'snapchat'
+  return null
+}
+
+function getInstruction(app, isIOS) {
+  switch (app) {
+    case 'instagram':
+      return isIOS
+        ? "Tap the three dots in the top right corner, then tap 'Open in Safari'"
+        : "Tap the three dots in the top right corner, then tap 'Open in Chrome'"
+    case 'facebook':
+      return isIOS
+        ? "Tap the three dots in the top right corner, then tap 'Open in Safari'"
+        : "Tap the three dots in the top right corner, then tap 'Open in Chrome'"
+    case 'tiktok':
+      return isIOS
+        ? "Tap the three dots in the top right corner, then tap 'Open in Safari'"
+        : "Tap the three dots in the top right corner, then tap 'Open in external browser'"
+    case 'snapchat':
+      return "Tap the three dots and select 'Open in browser'"
+    default:
+      return isIOS
+        ? "Tap the share icon and choose 'Open in Safari'"
+        : "Tap the menu and choose 'Open in Chrome'"
+  }
+}
+
 export default function InAppBanner() {
   const [show, setShow] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
+  const [app, setApp] = useState(null)
 
   useEffect(() => {
     const ua = navigator.userAgent || ''
-    const inApp = /Instagram|FBAN|FBAV|FB_IAB|BytedanceWebview|musical_ly|Snapchat/i.test(ua)
-    if (!inApp) return
+    const detected = detectApp(ua)
+    if (!detected) return
+    setApp(detected)
     setIsIOS(/iPhone|iPad|iPod/i.test(ua))
     setShow(true)
   }, [])
 
-  if (!show) return null
+  if (!show || !app) return null
+
+  const targetBrowser = app === 'tiktok' && !isIOS ? 'an external browser' : isIOS ? 'Safari' : 'Chrome'
 
   return (
     <div style={{
@@ -24,7 +59,6 @@ export default function InAppBanner() {
       borderBottom: '2px solid rgba(255,107,43,.5)',
       fontFamily: "'Nunito', sans-serif",
     }}>
-      {/* Icon */}
       <div style={{ flexShrink: 0, marginTop: 2 }}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
           stroke="#FF6B2B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -34,20 +68,15 @@ export default function InAppBanner() {
         </svg>
       </div>
 
-      {/* Text */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.4, marginBottom: 4 }}>
-          For the best experience — including microphone and camera access — open Orivox in{' '}
-          {isIOS ? 'Safari' : 'Chrome'}
+          For the best experience — including microphone and camera access — open Orivox in {targetBrowser}
         </div>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,.75)', lineHeight: 1.5 }}>
-          {isIOS
-            ? "Tap the three dots in the bottom right corner of your screen, then tap ‘Open in Safari’"
-            : "Tap the three dots in the top right corner of your screen, then tap ‘Open in Chrome’"}
+          {getInstruction(app, isIOS)}
         </div>
       </div>
 
-      {/* Dismiss */}
       <button
         onClick={() => setShow(false)}
         style={{

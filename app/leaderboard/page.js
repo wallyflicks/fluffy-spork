@@ -65,12 +65,15 @@ function TrophyIcon() {
   )
 }
 
+const PAGE_SIZE = 10
+
 export default function Leaderboard() {
   const [scores, setScores] = useState(null)
   const [loading, setLoading] = useState(true)
   const [savedName, setSavedName] = useState('')
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState('')
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
     setSavedName(localStorage.getItem('orivox_username') || '')
@@ -116,6 +119,9 @@ export default function Leaderboard() {
   })() : []
 
   const allTimeHigh = deduped.length > 0 ? deduped[0] : null
+  const totalPages = Math.max(1, Math.ceil(deduped.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const pageEntries = deduped.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   return (
     <>
@@ -184,27 +190,51 @@ export default function Leaderboard() {
                 <p style={{ color:'var(--muted)', fontSize:15 }}>No scores yet — be the first to post.</p>
               </div>
             ) : (
-              deduped.map((entry, i) => {
-                const b = scoreBadge(entry.score)
-                return (
-                  <div key={entry.id} className="lb-row" style={{animation:`rowSlideIn .35s ease-out ${Math.min(i*0.065,1.5)}s both`}}>
-                    <RankBadge rank={i + 1} />
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div className="fredoka" style={{ fontSize:15, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                        {entry.player_name || 'Anonymous'}
-                      </div>
-                      {(entry.category || entry.difficulty || entry.date || entry.created_at) && (
-                        <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>
-                          {[entry.category, entry.difficulty, entry.date ? fmtDate(entry.date) : (entry.created_at ? fmtDate(entry.created_at) : null)].filter(Boolean).join(' · ')}
+              <>
+                {pageEntries.map((entry, i) => {
+                  const globalRank = (safePage - 1) * PAGE_SIZE + i + 1
+                  const b = scoreBadge(entry.score)
+                  return (
+                    <div key={entry.id} className="lb-row" style={{animation:`rowSlideIn .3s ease-out ${Math.min(i*0.05,0.5)}s both`}}>
+                      <RankBadge rank={globalRank} />
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div className="fredoka" style={{ fontSize:15, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                          {entry.player_name || 'Anonymous'}
                         </div>
-                      )}
+                        {(entry.category || entry.difficulty || entry.date || entry.created_at) && (
+                          <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>
+                            {[entry.category, entry.difficulty, entry.date ? fmtDate(entry.date) : (entry.created_at ? fmtDate(entry.created_at) : null)].filter(Boolean).join(' · ')}
+                          </div>
+                        )}
+                      </div>
+                      <span style={{ padding:'5px 16px', borderRadius:50, fontFamily:'Fredoka,sans-serif', fontSize:17, fontWeight:700, background:b.bg, color:b.color, border:`2px solid ${b.border}50`, flexShrink:0 }}>
+                        {entry.score}
+                      </span>
                     </div>
-                    <span style={{ padding:'5px 16px', borderRadius:50, fontFamily:'Fredoka,sans-serif', fontSize:17, fontWeight:700, background:b.bg, color:b.color, border:`2px solid ${b.border}50`, flexShrink:0 }}>
-                      {entry.score}
+                  )
+                })}
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 20px', borderTop:'1.5px solid var(--border)' }}>
+                    <button
+                      disabled={safePage === 1}
+                      onClick={() => { setPage(p => Math.max(1, p - 1)) }}
+                      style={{ background:'none', border:'2px solid var(--border)', borderRadius:10, padding:'7px 16px', cursor:safePage===1?'not-allowed':'pointer', fontFamily:'Fredoka,sans-serif', fontSize:15, color:safePage===1?'var(--border)':'var(--text)', opacity:safePage===1?.4:1, transition:'all .15s' }}>
+                      ← Previous
+                    </button>
+                    <span style={{ fontFamily:'Fredoka,sans-serif', fontSize:15, color:'var(--muted)' }}>
+                      Page {safePage} of {totalPages}
                     </span>
+                    <button
+                      disabled={safePage === totalPages}
+                      onClick={() => { setPage(p => Math.min(totalPages, p + 1)) }}
+                      style={{ background:'none', border:'2px solid var(--border)', borderRadius:10, padding:'7px 16px', cursor:safePage===totalPages?'not-allowed':'pointer', fontFamily:'Fredoka,sans-serif', fontSize:15, color:safePage===totalPages?'var(--border)':'var(--text)', opacity:safePage===totalPages?.4:1, transition:'all .15s' }}>
+                      Next →
+                    </button>
                   </div>
-                )
-              })
+                )}
+              </>
             )}
           </div>
 
