@@ -1227,6 +1227,8 @@ export default function Orivox(){
   const [programSession,setProgramSession]=useState(null);
   const [programDayResult,setProgramDayResult]=useState(null);
   const [diagnosticSession,setDiagnosticSession]=useState(false);
+  // Pre-selected prompt (from daily challenge / news card)
+  const [preselectedTopic,setPreselectedTopic]=useState(null);
   // News prompt
   const [newsPrompt,setNewsPrompt]=useState(null);
   const [newsList,setNewsList]=useState([]);
@@ -1463,6 +1465,9 @@ export default function Orivox(){
     let picked;
     if(overrideData&&overrideData.text){
       picked=overrideData.text;
+    }else if(!overrideData&&preselectedTopic){
+      picked=preselectedTopic;
+      setPreselectedTopic(null);
     }else if(resolvedCat==="Case Competition"&&resolvedCaseType!=="General Q&A"){
       picked=randNew(CASE_TYPE_PROMPTS[resolvedCaseType]||ALL_PROMPTS,lastTopicRef.current);
     }else{
@@ -1869,6 +1874,13 @@ export default function Orivox(){
     eyeDataRef.current=null;
   };
 
+  const prefillSession=(data)=>{
+    if(data.cat) setCat(data.cat);
+    if(data.diff) setDiff(data.diff);
+    if(data.text) setPreselectedTopic(data.text);
+    setCustomErr("");setScriptErr("");
+  };
+
   const handleWarmupStart=()=>{
     warmupContentRef.current={twister:rand(WARMUP_TWISTERS),drill:rand(WARMUP_DRILLS)};
     warmupDoneRef.current=false;
@@ -2067,7 +2079,7 @@ export default function Orivox(){
                     <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
                       <span style={{background:DIFF_BG[DAILY_PROMPT.diff],color:DIFF_COLOR[DAILY_PROMPT.diff],border:`1.5px solid ${DIFF_COLOR[DAILY_PROMPT.diff]}60`,borderRadius:50,padding:"3px 12px",fontSize:12,fontFamily:"Fredoka",fontWeight:600}}>{DAILY_PROMPT.diff}</span>
                       <span style={{background:"var(--orange-dim)",color:"var(--orange)",border:"1.5px solid var(--orange-border)",borderRadius:50,padding:"3px 12px",fontSize:12,fontFamily:"Fredoka",fontWeight:600}}>{DAILY_PROMPT.cat}</span>
-                      <button className="btn btn-orange" style={{marginLeft:"auto",padding:"8px 18px",fontSize:14}} onClick={()=>startSession(DAILY_PROMPT)}>Try this prompt</button>
+                      <button className="btn btn-orange" style={{marginLeft:"auto",padding:"8px 18px",fontSize:14}} onClick={()=>prefillSession(DAILY_PROMPT)}>Try this prompt</button>
                     </div>
                   </div>
                 );
@@ -2095,7 +2107,7 @@ export default function Orivox(){
                       <p style={{fontSize:12,color:"#3B82F6",marginBottom:12}}>via {newsPrompt.source}</p>
                       <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
                         <button className="btn" style={{padding:"8px 18px",fontSize:14,background:"#3B82F6",color:"#fff",borderColor:"#3B82F6",boxShadow:"3px 3px 0 rgba(59,130,246,.35)"}}
-                          onClick={()=>startSession({cat:"News",diff:"Medium",text:newsPrompt.prompt})}>
+                          onClick={()=>prefillSession({cat:"News",diff:"Medium",text:newsPrompt.prompt})}>
                           Speak on this
                         </button>
                         {newsList.length>1&&(
@@ -2143,10 +2155,10 @@ export default function Orivox(){
                     <Star size={20} color="#F5C842"/>
                   </div>
                   <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
-                    {CATS.map(c=><button key={c} className={`chip ${cat===c?"active":""}`} onClick={()=>{setCat(c);setCustomErr("");setScriptErr("");}}>{c}</button>)}
-                    <button className={`chip ${cat==="Random"?"active":""}`} onClick={()=>{setCat("Random");setCustomErr("");setScriptErr("");}}>Random</button>
-                    <button className={`chip ${cat==="Script"?"active":""}`} onClick={()=>{setCat("Script");setCustomErr("");setScriptErr("");}}>Script</button>
-                    <button className={`chip ${cat==="Custom"?"active":""}`} onClick={()=>{setCat("Custom");setCustomErr("");setScriptErr("");}}>Custom</button>
+                    {CATS.map(c=><button key={c} className={`chip ${cat===c?"active":""}`} onClick={()=>{setCat(c);setCustomErr("");setScriptErr("");setPreselectedTopic(null);}}>{c}</button>)}
+                    <button className={`chip ${cat==="Random"?"active":""}`} onClick={()=>{setCat("Random");setCustomErr("");setScriptErr("");setPreselectedTopic(null);}}>Random</button>
+                    <button className={`chip ${cat==="Script"?"active":""}`} onClick={()=>{setCat("Script");setCustomErr("");setScriptErr("");setPreselectedTopic(null);}}>Script</button>
+                    <button className={`chip ${cat==="Custom"?"active":""}`} onClick={()=>{setCat("Custom");setCustomErr("");setScriptErr("");setPreselectedTopic(null);}}>Custom</button>
                   </div>
                 </div>
                 {/* Script textarea */}
@@ -2271,6 +2283,15 @@ export default function Orivox(){
                 {cat==="Script"&&(
                   <div style={{marginBottom:24,padding:"12px 16px",borderRadius:12,background:"var(--bg)",border:"1.5px solid var(--border)"}}>
                     <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.5}}>No time limit — speak until you finish your script, then press Done.</p>
+                  </div>
+                )}
+                {preselectedTopic&&cat!=="Custom"&&cat!=="Script"&&(
+                  <div style={{marginBottom:16,padding:"12px 16px",borderRadius:12,background:"var(--yellow-dim)",border:"1.5px solid var(--yellow)",display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:11,fontWeight:700,color:"#7A5500",textTransform:"uppercase",letterSpacing:".07em",marginBottom:4,fontFamily:"Fredoka"}}>Selected prompt</div>
+                      <p style={{fontSize:14,color:"var(--text)",lineHeight:1.5}}>{preselectedTopic.length>140?preselectedTopic.slice(0,140)+"…":preselectedTopic}</p>
+                    </div>
+                    <button style={{background:"none",border:"none",cursor:"pointer",color:"var(--muted)",fontSize:18,lineHeight:1,padding:"2px",flexShrink:0}} onClick={()=>setPreselectedTopic(null)}>×</button>
                   </div>
                 )}
                 <button className="btn btn-orange btn-bounce letsgo-btn" style={{width:"100%",justifyContent:"center",padding:"18px",fontSize:22}} onClick={handleLetsGo}>{diagnosticSession?"Start Diagnostic Test":cat==="Script"?"Start Speaking":programSession?`Start Day ${programSession.day}`:"Let's Go!"}</button>
