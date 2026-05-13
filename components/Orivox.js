@@ -60,6 +60,10 @@ const G = () => (
     @keyframes typewriter{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
     @keyframes urgentPulse{from{opacity:.15}to{opacity:.4}}
     @keyframes breathe{0%{transform:scale(.65);opacity:.45}40%{transform:scale(1);opacity:1}60%{transform:scale(1);opacity:1}100%{transform:scale(.65);opacity:.45}}
+    .eye-toggle{width:44px;height:24px;border-radius:12px;background:var(--border);position:relative;cursor:pointer;transition:background .2s,border-color .2s;border:2px solid var(--border);flex-shrink:0;}
+    .eye-toggle.on{background:var(--green);border-color:var(--green);}
+    .eye-toggle::after{content:"";position:absolute;top:1px;left:1px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.22);}
+    .eye-toggle.on::after{left:21px;}
     @keyframes breatheHold{0%,100%{transform:scale(1);opacity:1}}
     @keyframes letsGoGlow{0%,100%{filter:drop-shadow(0 0 0 transparent)}50%{filter:drop-shadow(0 0 22px rgba(255,107,43,.55))}}
     @keyframes chipSpring{0%{transform:scale(1)}25%{transform:scale(.95)}65%{transform:scale(1.05)}100%{transform:scale(1)}}
@@ -306,6 +310,30 @@ const WARMUP_DRILLS=[
   "Say 'Ma Me Mi Mo Mu' five times, exaggerating each vowel sound.",
   "Take a deep breath and say 'Hello, my name is...' as clearly and naturally as you can.",
 ];
+
+// ── Eye contact helpers ───────────────────────────────────────────────────────
+function isLookingAtCamera(landmarks){
+  if(!landmarks||landmarks.length<264)return null;
+  const nose=landmarks[4],leftEye=landmarks[33],rightEye=landmarks[263];
+  if(!nose||!leftEye||!rightEye)return null;
+  const eyeW=Math.abs(rightEye.x-leftEye.x);
+  if(eyeW<0.04)return null;
+  const midX=(leftEye.x+rightEye.x)/2,midY=(leftEye.y+rightEye.y)/2;
+  const hOff=Math.abs(nose.x-midX)/eyeW,vOff=(nose.y-midY)/eyeW;
+  return hOff<0.25&&vOff>-0.15&&vOff<0.55;
+}
+async function loadMediaPipeScript(){
+  if(typeof window==="undefined"||window._mpLoaded)return;
+  await new Promise((res,rej)=>{
+    const src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js";
+    if(document.querySelector(`script[src="${src}"]`)){res();return;}
+    const s=document.createElement("script");
+    s.src=src;s.crossOrigin="anonymous";
+    s.onload=()=>{window._mpLoaded=true;res();};
+    s.onerror=rej;
+    document.head.appendChild(s);
+  });
+}
 
 // ── Hedging language detection ────────────────────────────────────────────────
 const HEDGE_PATTERNS=[
@@ -1204,6 +1232,18 @@ export default function Orivox(){
   const [newsList,setNewsList]=useState([]);
   const [newsIndex,setNewsIndex]=useState(0);
   const [newsLoading,setNewsLoading]=useState(true);
+  // Eye contact tracking
+  const [eyeTrackingEnabled,setEyeTrackingEnabled]=useState(false);
+  const [eyeContactLive,setEyeContactLive]=useState(null); // true/false/null(no face)
+  const [eyeContactResults,setEyeContactResults]=useState(null);
+  const [eyePermissionDenied,setEyePermissionDenied]=useState(false);
+  const cameraPreviewRef=useRef(null);
+  const faceMeshRef=useRef(null);
+  const eyeCameraRef=useRef(null);
+  const eyeDataRef=useRef(null);
+  const eyeSampleIvRef=useRef(null);
+  const currentLookingRef=useRef(null);
+  const eyeResultsRef=useRef(null);
   // Script mode elapsed timer
   const [scriptElapsed,setScriptElapsed]=useState(0);
   const scriptIntervalRef=useRef(null);
@@ -1229,6 +1269,7 @@ export default function Orivox(){
     setRecentCustoms(rc);
     const ss=JSON.parse(localStorage.getItem("orivox_saved_scripts")||"[]");
     setSavedScripts(ss);
+    if(localStorage.getItem("orivox_eye_tracking_enabled")==="true") setEyeTrackingEnabled(true);
     // Fetch news prompt
     fetch("/api/news-prompt").then(r=>r.json()).then(d=>{
       if(d.headline){
@@ -1292,6 +1333,11 @@ export default function Orivox(){
     }
     return()=>clearInterval(scriptIntervalRef.current);
   },[recording,activeCat]);
+
+  // Start eye tracking when recording begins
+  useEffect(()=>{
+    if(recording&&eyeTrackingEnabled){startEyeTracking();}
+  },[recording]);
 
   // Warm-up exercise timer
   useEffect(()=>{
@@ -1537,6 +1583,7 @@ export default function Orivox(){
     audioCtxRef.current=null;
     recognitionRef.current?.stop();recognitionRef.current=null;
     if(mediaRef.current?.state!=="inactive")mediaRef.current?.stop();
+    stopEyeTracking();
     setRecording(false);setRunning(false);setScreen("feedback");analyze();
   };
 
@@ -1567,6 +1614,7 @@ export default function Orivox(){
         confidence:feedbackData.confidence||0,
         fillerWordList,
         hedgingCount:feedbackData._hedgingTotal||0,
+        eyeContactPercent:eyeResultsRef.current?.percent??null,
         warmupDone:warmupDoneRef.current,
         transcript:transcriptRef.current,
         strength:feedbackData.strength||"",
@@ -1741,6 +1789,84 @@ export default function Orivox(){
     clearInterval(ivRef.current);
     if(audioUrl){URL.revokeObjectURL(audioUrl);setAudioUrl(null);}
     setProgramDayResult(null);setHedgingResult(null);setBenchmarks(null);
+    setEyeContactResults(null);setEyeContactLive(null);setEyePermissionDenied(false);
+    eyeResultsRef.current=null;
+  };
+
+  const startEyeTracking=async()=>{
+    try{
+      await loadMediaPipeScript();
+      if(!window.FaceMesh){throw new Error("FaceMesh not loaded");}
+      const stream=await navigator.mediaDevices.getUserMedia({video:{width:320,height:240,facingMode:"user"},audio:false});
+      eyeCameraRef.current=stream;
+      if(cameraPreviewRef.current){
+        cameraPreviewRef.current.srcObject=stream;
+        await cameraPreviewRef.current.play().catch(()=>{});
+      }
+      const fm=new window.FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
+      fm.setOptions({maxNumFaces:1,refineLandmarks:false,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
+      fm.onResults(res=>{
+        const lm=res.multiFaceLandmarks?.[0];
+        const looking=isLookingAtCamera(lm);
+        currentLookingRef.current=looking;
+        setEyeContactLive(looking);
+        if(!eyeDataRef.current)return;
+        const data=eyeDataRef.current;const now=Date.now();
+        data.samples.push({t:now-data.startTime,looking});
+        if(looking===null){data.noFace++;return;}
+        if(looking){
+          data.lookN++;
+          if(data.streak!=="look"){
+            if(data.streak==="away"&&data.streakStart) data.longestAway=Math.max(data.longestAway,(now-data.streakStart)/1000);
+            data.streak="look";data.streakStart=now;
+          }
+        } else {
+          data.awayN++;
+          if(data.streak!=="away"){
+            if(data.streak==="look"&&data.streakStart) data.longestLook=Math.max(data.longestLook,(now-data.streakStart)/1000);
+            data.streak="away";data.streakStart=now;
+          }
+        }
+      });
+      await fm.initialize();
+      faceMeshRef.current=fm;
+      eyeDataRef.current={startTime:Date.now(),samples:[],lookN:0,awayN:0,noFace:0,streak:null,streakStart:null,longestLook:0,longestAway:0};
+      setEyePermissionDenied(false);
+      eyeSampleIvRef.current=setInterval(async()=>{
+        const v=cameraPreviewRef.current;
+        if(!v||v.readyState<2||!faceMeshRef.current)return;
+        try{await faceMeshRef.current.send({image:v});}catch{}
+      },500);
+    }catch(err){
+      if(err.name==="NotAllowedError"||err.name==="PermissionDeniedError"){
+        setEyePermissionDenied(true);
+      }
+      if(eyeCameraRef.current){eyeCameraRef.current.getTracks().forEach(t=>t.stop());eyeCameraRef.current=null;}
+    }
+  };
+
+  const stopEyeTracking=()=>{
+    clearInterval(eyeSampleIvRef.current);
+    if(faceMeshRef.current){try{faceMeshRef.current.close();}catch{} faceMeshRef.current=null;}
+    if(eyeCameraRef.current){eyeCameraRef.current.getTracks().forEach(t=>t.stop());eyeCameraRef.current=null;}
+    if(cameraPreviewRef.current){cameraPreviewRef.current.srcObject=null;}
+    const data=eyeDataRef.current;
+    if(data&&(data.lookN+data.awayN)>0){
+      const now=Date.now();
+      if(data.streak==="look"&&data.streakStart) data.longestLook=Math.max(data.longestLook,(now-data.streakStart)/1000);
+      if(data.streak==="away"&&data.streakStart) data.longestAway=Math.max(data.longestAway,(now-data.streakStart)/1000);
+      const total=data.lookN+data.awayN+data.noFace;
+      const noFacePct=total>0?Math.round((data.noFace/total)*100):0;
+      const pct=data.lookN+data.awayN>0?Math.round((data.lookN/(data.lookN+data.awayN))*100):0;
+      const result={percent:pct,noFacePercent:noFacePct,lookN:data.lookN,awayN:data.awayN,longestLook:Math.round(data.longestLook),longestAway:Math.round(data.longestAway),samples:data.samples};
+      eyeResultsRef.current=result;
+      setEyeContactResults(result);
+    } else {
+      eyeResultsRef.current=null;
+      setEyeContactResults(null);
+    }
+    setEyeContactLive(null);
+    eyeDataRef.current=null;
   };
 
   const handleWarmupStart=()=>{
@@ -1987,6 +2113,26 @@ export default function Orivox(){
                   )}
                 </div>
               )}
+
+              {/* Eye contact tracking toggle */}
+              <div className="fadeUp d3" style={{marginBottom:14,padding:"14px 18px",borderRadius:16,border:"1.5px solid var(--border)",background:"var(--card)",display:"flex",alignItems:"flex-start",gap:14}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <span style={{fontSize:14,fontWeight:700,color:"var(--text)"}}>Eye contact tracking</span>
+                    <span style={{fontSize:11,fontWeight:600,color:"var(--muted)",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:50,padding:"1px 8px",marginLeft:2}}>Optional</span>
+                  </div>
+                  <p style={{fontSize:12,color:"var(--muted)",lineHeight:1.5,marginBottom:eyeTrackingEnabled?6:0}}>Uses your camera to track how often you look at the screen while speaking. Your camera feed never leaves your device — all analysis runs locally.</p>
+                  {eyeTrackingEnabled&&<p style={{fontSize:12,color:"var(--green)",fontWeight:600}}>Camera will activate when your session starts</p>}
+                </div>
+                <div className={`eye-toggle${eyeTrackingEnabled?" on":""}`}
+                  onClick={()=>{
+                    const next=!eyeTrackingEnabled;
+                    setEyeTrackingEnabled(next);
+                    localStorage.setItem("orivox_eye_tracking_enabled",String(next));
+                    if(!next){stopEyeTracking();}
+                  }}/>
+              </div>
 
               {/* Setup card */}
               <div className="card fadeUp d3" style={{padding:"clamp(20px,5vw,40px)",marginBottom:20}}>
@@ -2244,7 +2390,24 @@ export default function Orivox(){
 
           {/* ── SPEAK ── */}
           {screen==="speak"&&(
-            <div className="screenEnter" style={{paddingTop:56,textAlign:"center"}}>
+            <div className="screenEnter" style={{paddingTop:56,textAlign:"center",position:"relative"}}>
+              {/* Eye tracking: hidden video element + live indicator */}
+              {eyeTrackingEnabled&&(
+                <div style={{position:"absolute",top:8,right:0,display:"flex",flexDirection:"column",alignItems:"center",gap:6,zIndex:10}}>
+                  <div style={{width:80,height:80,borderRadius:"50%",overflow:"hidden",border:`2.5px solid ${eyeContactLive===true?"var(--green)":eyeContactLive===false?"#F59E0B":"var(--border)"}`,background:"var(--bg)",boxShadow:"0 2px 8px rgba(0,0,0,.18)",transition:"border-color .3s"}}>
+                    <video ref={cameraPreviewRef} autoPlay muted playsInline style={{width:"100%",height:"100%",objectFit:"cover",transform:"scaleX(-1)"}}/>
+                  </div>
+                  {recording&&(
+                    <div style={{display:"flex",alignItems:"center",gap:5,background:"rgba(255,255,255,.92)",borderRadius:50,padding:"3px 8px",border:"1px solid var(--border)"}}>
+                      <div style={{width:7,height:7,borderRadius:"50%",background:eyeContactLive===true?"var(--green)":eyeContactLive===false?"#F59E0B":"var(--border)",transition:"background .3s"}}/>
+                      <span style={{fontSize:10,fontWeight:700,color:"var(--muted)",fontFamily:"Fredoka"}}>Eye contact</span>
+                    </div>
+                  )}
+                  {eyePermissionDenied&&(
+                    <div style={{fontSize:10,color:"var(--red)",maxWidth:88,textAlign:"center",lineHeight:1.4}}>Camera denied</div>
+                  )}
+                </div>
+              )}
               {/* Recording status badge */}
               <div className="fadeUp" style={{marginBottom:24,display:"flex",justifyContent:"center"}}>
                 {recording
@@ -2451,6 +2614,69 @@ export default function Orivox(){
                           </div>
                         </div>
                         <p style={{marginTop:10,fontSize:14,color:pace.color,fontWeight:600}}>{pace.label}</p>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Eye contact results */}
+                  {eyeContactResults&&(()=>{
+                    const ec=eyeContactResults;
+                    const noFaceDom=ec.noFacePercent>50;
+                    const assessment=ec.percent>=80?"Strong eye contact — you kept your audience engaged":ec.percent>=60?"Good eye contact with room to improve — try anchoring your gaze on the camera":ec.percent>=40?"Moderate eye contact — looking at the camera more will make you appear more confident":"Low eye contact detected — practice speaking directly to the camera as if it is a person";
+                    const barColor=ec.percent>=80?"var(--green)":ec.percent>=60?"#22C55E":ec.percent>=40?"#F59E0B":"var(--red)";
+                    // Build timeline segments
+                    const segs=40;
+                    const totalMs=ec.samples.length>0?ec.samples[ec.samples.length-1].t:1;
+                    const segData=Array.from({length:segs},(_,i)=>{
+                      const s=i/segs*totalMs,e=(i+1)/segs*totalMs;
+                      const inSeg=ec.samples.filter(x=>x.t>=s&&x.t<e);
+                      if(!inSeg.length)return"none";
+                      const lk=inSeg.filter(x=>x.looking===true).length;
+                      const aw=inSeg.filter(x=>x.looking===false).length;
+                      return lk>aw?"look":aw>lk?"away":"none";
+                    });
+                    return(
+                      <div className="card fb3" style={{padding:28,marginBottom:20,borderLeft:`5px solid ${barColor}`}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:8}}>
+                          <div>
+                            <p className="fredoka" style={{fontSize:19,marginBottom:2}}>Eye Contact</p>
+                            {noFaceDom&&<p style={{fontSize:13,color:"var(--muted)"}}>Face not detected for most of this session — make sure your face is visible to the camera for accurate tracking</p>}
+                          </div>
+                          {!noFaceDom&&<span className="fredoka" style={{fontSize:32,color:barColor}}>{ec.percent}%</span>}
+                        </div>
+                        {!noFaceDom&&(
+                          <>
+                            {/* Bar */}
+                            <div style={{height:10,borderRadius:5,background:"var(--border)",overflow:"hidden",marginBottom:10}}>
+                              <div style={{height:"100%",borderRadius:5,background:barColor,width:`${ec.percent}%`,transition:"width .8s cubic-bezier(.22,.68,0,1.2)"}}/>
+                            </div>
+                            <p style={{fontSize:14,color:barColor,fontWeight:600,marginBottom:12}}>{assessment}</p>
+                            <div style={{display:"flex",gap:16,marginBottom:14,flexWrap:"wrap"}}>
+                              <span style={{fontSize:13,color:"var(--muted)"}}>Longest streak: <strong style={{color:"var(--text)"}}>{ec.longestLook}s</strong></span>
+                              {ec.longestAway>0&&<span style={{fontSize:13,color:"var(--muted)"}}>Longest away: <strong style={{color:"var(--text)"}}>{ec.longestAway}s</strong></span>}
+                            </div>
+                            {/* Timeline */}
+                            <div style={{marginBottom:4}}>
+                              <p style={{fontSize:11,color:"var(--muted)",marginBottom:5,fontWeight:600,textTransform:"uppercase",letterSpacing:".06em"}}>Session timeline</p>
+                              <div style={{display:"flex",gap:1.5,height:12,borderRadius:4,overflow:"hidden"}}>
+                                {segData.map((s,i)=>(
+                                  <div key={i} style={{flex:1,background:s==="look"?"var(--green)":s==="away"?"#F59E0B":"var(--border)",borderRadius:1}}/>
+                                ))}
+                              </div>
+                              <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"var(--muted)",marginTop:3}}>
+                                <span>Start</span><span>End</span>
+                              </div>
+                            </div>
+                            <div style={{display:"flex",gap:12,marginTop:8}}>
+                              {[["var(--green)","Looking at camera"],["#F59E0B","Looking away"]].map(([c,l])=>(
+                                <span key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"var(--muted)"}}>
+                                  <span style={{width:10,height:10,borderRadius:2,background:c,display:"inline-block"}}/>
+                                  {l}
+                                </span>
+                              ))}
+                            </div>
+                          </>
+                        )}
                       </div>
                     );
                   })()}

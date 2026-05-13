@@ -653,6 +653,7 @@ export default function Progress() {
                       <th className="hide-mobile">Difficulty</th>
                       <th>Score</th>
                       <th>Filler Words</th>
+                      <th className="hide-mobile" style={{ width: 56 }}>Eye</th>
                       <th style={{ width: 36 }}></th>
                     </tr>
                   </thead>
@@ -702,6 +703,14 @@ export default function Progress() {
                                 </span>
                               )}
                             </td>
+                            <td className="hide-mobile" style={{ textAlign: 'center', fontSize: 12 }}>
+                              {s.eyeContactPercent != null ? (
+                                <span title={`Eye contact: ${s.eyeContactPercent}%`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: s.eyeContactPercent >= 60 ? 'var(--green)' : s.eyeContactPercent >= 40 ? '#CC6600' : 'var(--red)' }}>
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                  {s.eyeContactPercent}%
+                                </span>
+                              ) : <span style={{ color: 'var(--border)' }}>—</span>}
+                            </td>
                             <td style={{ textAlign: 'center', paddingLeft: 4, paddingRight: 12 }}>
                               <svg className={`chevron${isOpen ? ' open' : ''}`} width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round">
                                 <path d="M4 6l4 4 4-4"/>
@@ -711,7 +720,7 @@ export default function Progress() {
 
                           {isOpen && (
                             <tr className="detail-row">
-                              <td colSpan={6} style={{ padding: 0 }}>
+                              <td colSpan={7} style={{ padding: 0 }}>
                                 <div style={{ padding: '22px 24px 24px', background: 'var(--orange-dim)' }}>
                                   {!hasDetail ? (
                                     <p style={{ color: 'var(--muted)', fontSize: 14, fontStyle: 'italic' }}>
