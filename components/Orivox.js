@@ -1500,7 +1500,11 @@ export default function Orivox(){
         try{
           const perm=await navigator.permissions.query({name:"microphone"});
           if(perm.state==="denied"){
-            setMicErr("Microphone access is blocked. Go to your browser settings and allow microphone access for this site, then refresh and try again.");
+            const ua=navigator.userAgent||"";
+            const inApp=/Instagram|FBAN|FBAV|FB_IAB|BytedanceWebview|musical_ly|Snapchat/i.test(ua);
+            setMicErr(inApp
+              ?"Microphone access is blocked. If you are viewing this inside Instagram or TikTok please open this page in Safari or Chrome instead."
+              :"Microphone access is blocked. Go to your browser settings and allow microphone access for this site, then refresh and try again.");
             setMicStarting(false);return;
           }
         }catch{}
@@ -1574,8 +1578,12 @@ export default function Orivox(){
         startRec();
       }
     }catch(err){
+      const ua=navigator.userAgent||"";
+      const inApp=/Instagram|FBAN|FBAV|FB_IAB|BytedanceWebview|musical_ly|Snapchat/i.test(ua);
       const msg=err?.name==="NotAllowedError"||err?.name==="PermissionDeniedError"
-        ?"Microphone access was denied. Please allow microphone access in your browser settings and try again."
+        ?inApp
+          ?"Microphone access is blocked. If you are viewing this inside Instagram or TikTok please open this page in Safari or Chrome instead."
+          :"Microphone access was denied. Please allow microphone access in your browser settings and try again."
         :err?.name==="NotFoundError"||err?.name==="DevicesNotFoundError"
         ?"No microphone found. Please connect a microphone and try again."
         :"Could not start recording — please check your microphone and try again.";
