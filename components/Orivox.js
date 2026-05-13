@@ -1199,6 +1199,11 @@ export default function Orivox(){
   const [programSession,setProgramSession]=useState(null);
   const [programDayResult,setProgramDayResult]=useState(null);
   const [diagnosticSession,setDiagnosticSession]=useState(false);
+  // News prompt
+  const [newsPrompt,setNewsPrompt]=useState(null);
+  const [newsList,setNewsList]=useState([]);
+  const [newsIndex,setNewsIndex]=useState(0);
+  const [newsLoading,setNewsLoading]=useState(true);
   // Script mode elapsed timer
   const [scriptElapsed,setScriptElapsed]=useState(0);
   const scriptIntervalRef=useRef(null);
@@ -1224,6 +1229,20 @@ export default function Orivox(){
     setRecentCustoms(rc);
     const ss=JSON.parse(localStorage.getItem("orivox_saved_scripts")||"[]");
     setSavedScripts(ss);
+    // Fetch news prompt
+    fetch("/api/news-prompt").then(r=>r.json()).then(d=>{
+      if(d.headline){
+        const all=d.all||[{headline:d.headline,source:d.source,prompt:d.prompt}];
+        setNewsList(all);
+        // Find deterministic index in the all array
+        const today=new Date().toLocaleDateString("en-CA");
+        const seed=today.split('-').reduce((a,b)=>a+parseInt(b),0);
+        const idx=seed%all.length;
+        setNewsIndex(idx);
+        setNewsPrompt(all[idx]);
+      }
+      setNewsLoading(false);
+    }).catch(()=>setNewsLoading(false));
     // Diagnostic session check (takes priority over program session)
     try{
       const ds=JSON.parse(localStorage.getItem("orivox_diagnostic_session")||"null");
@@ -1344,7 +1363,7 @@ export default function Orivox(){
   },[running,phase]);
 
   const pickTopic=useCallback(()=>{
-    if(activeCat==="Custom")return;
+    if(activeCat==="Custom"||activeCat==="News"||activeCat==="Script")return;
     let pool;
     if(activeCat==="Case Competition"&&activeCaseType!=="General Q&A"){
       pool=CASE_TYPE_PROMPTS[activeCaseType]||ALL_PROMPTS;
@@ -1706,7 +1725,7 @@ export default function Orivox(){
     localStorage.removeItem("orivox_retry_source");setRetrySource(null);
     setFeedback(null);setAudioBlob(null);setTranscript("");setAudioUrl(null);transcriptRef.current="";
     earlyStopRef.current=false;earlyStopElapsedRef.current=0;
-    if(activeCat!=="Custom"){
+    if(activeCat!=="Custom"&&activeCat!=="News"&&activeCat!=="Script"){
       const pool=activeCat==="Random"?ALL_PROMPTS:(TOPICS[activeCat]?.[activeDiff]||ALL_PROMPTS);
       const picked=randNew(pool,lastTopicRef.current);
       lastTopicRef.current=picked;setTopic(picked);
@@ -1898,13 +1917,21 @@ export default function Orivox(){
                 <p className="fadeUp" style={{color:"var(--muted)",fontSize:19,maxWidth:480,margin:"0 auto",lineHeight:1.8,animationDelay:".35s"}}>Practice any speaking scenario and get instant AI feedback on clarity, structure, and filler words.</p>
               </div>
 
+              {/* Warm Up button — above Today's Challenge */}
+              <div className="fadeUp d1" style={{marginBottom:14,textAlign:"center"}}>
+                <button className="btn btn-cream" style={{gap:10,fontSize:15,padding:"10px 22px"}} onClick={handleWarmupStart}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                  Warm Up First — 60 seconds
+                </button>
+              </div>
+
               {/* Prompt of the Day */}
               {(()=>{
                 const ms=msTilMidnight();
                 const h=Math.floor(ms/3600000);const m=Math.floor((ms%3600000)/60000);
                 const countdown=h>0?`${h}h ${m}m`:`${m}m`;
                 return(
-                  <div className="card fadeUp d2" style={{padding:"clamp(16px,4vw,24px)",marginBottom:20,background:"var(--yellow-dim)",border:"2.5px solid var(--yellow)",position:"relative",overflow:"hidden"}}>
+                  <div className="card fadeUp d2" style={{padding:"clamp(16px,4vw,24px)",marginBottom:14,background:"var(--yellow-dim)",border:"2.5px solid var(--yellow)",position:"relative",overflow:"hidden"}}>
                     <div style={{position:"absolute",top:0,right:0,width:72,height:72,background:"rgba(245,200,66,0.18)",borderRadius:"0 0 0 72px",pointerEvents:"none"}}/>
                     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10,flexWrap:"wrap"}}>
                       <span style={{fontSize:11,fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",color:"#7A5500",background:"var(--yellow)",padding:"4px 12px",borderRadius:50,fontFamily:"Fredoka",whiteSpace:"nowrap"}}>Today's challenge</span>
@@ -1920,13 +1947,46 @@ export default function Orivox(){
                 );
               })()}
 
-              {/* Warm Up button */}
-              <div className="fadeUp d2" style={{marginBottom:16,textAlign:"center"}}>
-                <button className="btn btn-cream" style={{gap:10,fontSize:15,padding:"10px 22px"}} onClick={handleWarmupStart}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                  Warm Up First — 60 seconds
-                </button>
-              </div>
+              {/* Today in the news */}
+              {(newsPrompt||newsLoading)&&(
+                <div className="card fadeUp d2" style={{padding:"clamp(14px,4vw,22px)",marginBottom:20,background:"var(--blue-dim)",border:"2.5px solid #bfdbfe",position:"relative",overflow:"hidden"}}>
+                  <div style={{position:"absolute",top:0,right:0,width:60,height:60,background:"rgba(59,130,246,.1)",borderRadius:"0 0 0 60px",pointerEvents:"none"}}/>
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10,flexWrap:"wrap"}}>
+                    <span style={{fontSize:11,fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",color:"#1D4ED8",background:"#DBEAFE",padding:"4px 12px",borderRadius:50,fontFamily:"Fredoka",whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:6}}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                      Today in the news
+                    </span>
+                    <span style={{fontSize:11,color:"#93C5FD",marginLeft:"auto"}}>Updates daily</span>
+                  </div>
+                  {newsLoading?(
+                    <div style={{height:48,display:"flex",alignItems:"center",gap:10}}>
+                      <div style={{width:16,height:16,borderRadius:"50%",border:"2px solid #93C5FD",borderTopColor:"#3B82F6",animation:"spin 0.8s linear infinite"}}/>
+                      <span style={{fontSize:14,color:"#93C5FD"}}>Fetching today's headline...</span>
+                    </div>
+                  ):(
+                    <>
+                      <p style={{fontSize:16,fontWeight:700,lineHeight:1.5,marginBottom:6,color:"#1E3A8A"}}>{newsPrompt.headline}</p>
+                      <p style={{fontSize:12,color:"#3B82F6",marginBottom:12}}>via {newsPrompt.source}</p>
+                      <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                        <button className="btn" style={{padding:"8px 18px",fontSize:14,background:"#3B82F6",color:"#fff",borderColor:"#3B82F6",boxShadow:"3px 3px 0 rgba(59,130,246,.35)"}}
+                          onClick={()=>startSession({cat:"News",diff:"Medium",text:newsPrompt.prompt})}>
+                          Speak on this
+                        </button>
+                        {newsList.length>1&&(
+                          <button title="Show a different headline" style={{background:"none",border:"1.5px solid #BFDBFE",borderRadius:8,padding:"8px 10px",cursor:"pointer",color:"#3B82F6",display:"inline-flex",alignItems:"center",gap:5,fontSize:13,fontFamily:"Nunito"}}
+                            onClick={()=>{
+                              const next=(newsIndex+1)%newsList.length;
+                              setNewsIndex(next);setNewsPrompt(newsList[next]);
+                            }}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2.5" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                            Different headline
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
               {/* Setup card */}
               <div className="card fadeUp d3" style={{padding:"clamp(20px,5vw,40px)",marginBottom:20}}>
@@ -2162,8 +2222,8 @@ export default function Orivox(){
 
               <div className="card fadeUp d1" style={{padding:28,marginBottom:20,borderLeft:"6px solid var(--orange)",position:"relative"}}>
                 <p style={{fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Your prompt</p>
-                <p className="fredoka" style={{fontSize:24,lineHeight:1.4,marginBottom:16}}>"{activeCat==="Custom"?topic:displayedTopic}"</p>
-                {activeCat!=="Custom"&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={pickTopic}>↻ New topic</button>}
+                <p className="fredoka" style={{fontSize:24,lineHeight:1.4,marginBottom:16}}>"{(activeCat==="Custom"||activeCat==="News")?topic:displayedTopic}"</p>
+                {activeCat!=="Custom"&&activeCat!=="News"&&activeCat!=="Script"&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={pickTopic}>↻ New topic</button>}
               </div>
 
               <div className="card fadeUp d2" style={{textAlign:"center",padding:"44px 32px",marginBottom:20}}>
@@ -2242,8 +2302,8 @@ export default function Orivox(){
                 <div>
                   <div className="card fadeUp d1" style={{textAlign:"left",padding:24,marginBottom:20}}>
                     <p style={{fontSize:11,fontWeight:700,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Your prompt</p>
-                    <p className="fredoka" style={{fontSize:20,lineHeight:1.5,marginBottom:recording?0:14}}>"{activeCat==="Custom"?topic:displayedTopic}"</p>
-                    {!recording&&activeCat!=="Custom"&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={pickTopic}>↻ New topic</button>}
+                    <p className="fredoka" style={{fontSize:20,lineHeight:1.5,marginBottom:recording?0:14}}>"{(activeCat==="Custom"||activeCat==="News")?topic:displayedTopic}"</p>
+                    {!recording&&activeCat!=="Custom"&&activeCat!=="News"&&activeCat!=="Script"&&<button className="btn btn-cream" style={{fontSize:14,padding:"8px 18px"}} onClick={pickTopic}>↻ New topic</button>}
                   </div>
 
                   <div ref={timerCardRef} className="card fadeUp d2" style={{padding:"48px 32px",marginBottom:20,border:recording?"2.5px solid transparent":"2.5px solid var(--border)",transition:"border-color .3s",position:"relative",overflow:"visible"}}>
