@@ -1229,6 +1229,10 @@ export default function Orivox(){
   const [diagnosticSession,setDiagnosticSession]=useState(false);
   // Pre-selected prompt (from daily challenge / news card)
   const [preselectedTopic,setPreselectedTopic]=useState(null);
+  // Quick-start modal
+  const [promptModal,setPromptModal]=useState(null); // {title,displayText,cat,diff,text}
+  const [modalPrepTime,setModalPrepTime]=useState(0);   // default: None
+  const [modalSpeakTime,setModalSpeakTime]=useState(60); // default: 1:00
   // News prompt
   const [newsPrompt,setNewsPrompt]=useState(null);
   const [newsList,setNewsList]=useState([]);
@@ -1423,7 +1427,7 @@ export default function Orivox(){
     setTopic(t);
   },[activeCat,activeDiff,activeCaseType]);
 
-  const startSession=(overrideData=null)=>{
+  const startSession=(overrideData=null,_prepTime=null,_speakTime=null)=>{
     // Script prompt flow — no prep, no countdown, auto-start mic
     if(!overrideData&&cat==="Script"){
       if(scriptText.trim().length<50){setScriptErr("Please enter at least 50 characters");return;}
@@ -1476,8 +1480,10 @@ export default function Orivox(){
     lastTopicRef.current=picked;setTopic(picked);
     setFeedback(null);setAudioBlob(null);setTranscript("");setAudioUrl(null);transcriptRef.current="";
     setHedgingResult(null);setBenchmarks(null);
-    setPhase("prep");setTimer(prepTime);initialTimeRef.current=prepTime;
-    if(prepTime===0){setScreen("speak");setPhase("speak");setTimer(speakTime);initialTimeRef.current=speakTime;}
+    const rPrep=_prepTime!==null?_prepTime:prepTime;
+    const rSpeak=_speakTime!==null?_speakTime:speakTime;
+    setPhase("prep");setTimer(rPrep);initialTimeRef.current=rPrep;
+    if(rPrep===0){setScreen("speak");setPhase("speak");setTimer(rSpeak);initialTimeRef.current=rSpeak;}
     else setScreen("prep");
   };
 
@@ -2079,7 +2085,7 @@ export default function Orivox(){
                     <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
                       <span style={{background:DIFF_BG[DAILY_PROMPT.diff],color:DIFF_COLOR[DAILY_PROMPT.diff],border:`1.5px solid ${DIFF_COLOR[DAILY_PROMPT.diff]}60`,borderRadius:50,padding:"3px 12px",fontSize:12,fontFamily:"Fredoka",fontWeight:600}}>{DAILY_PROMPT.diff}</span>
                       <span style={{background:"var(--orange-dim)",color:"var(--orange)",border:"1.5px solid var(--orange-border)",borderRadius:50,padding:"3px 12px",fontSize:12,fontFamily:"Fredoka",fontWeight:600}}>{DAILY_PROMPT.cat}</span>
-                      <button className="btn btn-orange" style={{marginLeft:"auto",padding:"8px 18px",fontSize:14}} onClick={()=>prefillSession(DAILY_PROMPT)}>Try this prompt</button>
+                      <button className="btn btn-orange" style={{marginLeft:"auto",padding:"8px 18px",fontSize:14}} onClick={()=>{setModalPrepTime(0);setModalSpeakTime(60);setPromptModal({title:"Today's Challenge",displayText:DAILY_PROMPT.text,cat:DAILY_PROMPT.cat,diff:DAILY_PROMPT.diff,text:DAILY_PROMPT.text});}}>Try this prompt</button>
                     </div>
                   </div>
                 );
@@ -2107,7 +2113,7 @@ export default function Orivox(){
                       <p style={{fontSize:12,color:"#3B82F6",marginBottom:12}}>via {newsPrompt.source}</p>
                       <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
                         <button className="btn" style={{padding:"8px 18px",fontSize:14,background:"#3B82F6",color:"#fff",borderColor:"#3B82F6",boxShadow:"3px 3px 0 rgba(59,130,246,.35)"}}
-                          onClick={()=>prefillSession({cat:"News",diff:"Medium",text:newsPrompt.prompt})}>
+                          onClick={()=>{setModalPrepTime(0);setModalSpeakTime(60);setPromptModal({title:"Today in the News",displayText:newsPrompt.headline,cat:"News",diff:"Medium",text:newsPrompt.prompt});}}>
                           Speak on this
                         </button>
                         {newsList.length>1&&(
@@ -2933,6 +2939,47 @@ export default function Orivox(){
           </div>
         );
       })()}
+
+      {/* Quick-start prompt modal */}
+      {promptModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={()=>setPromptModal(null)}>
+          <div style={{background:"var(--card)",borderRadius:24,border:"2.5px solid var(--border)",boxShadow:"8px 8px 0 rgba(0,0,0,.18)",padding:"28px 28px 24px",maxWidth:460,width:"100%",position:"relative"}} onClick={e=>e.stopPropagation()}>
+            {/* Close */}
+            <button style={{position:"absolute",top:14,right:14,background:"none",border:"1.5px solid var(--border)",borderRadius:8,width:32,height:32,cursor:"pointer",color:"var(--muted)",fontSize:18,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setPromptModal(null)}>×</button>
+            {/* Source label */}
+            <div style={{fontSize:11,fontWeight:700,color:"var(--orange)",textTransform:"uppercase",letterSpacing:".08em",fontFamily:"Fredoka",marginBottom:8}}>{promptModal.title}</div>
+            {/* Prompt text */}
+            <p className="fredoka" style={{fontSize:18,lineHeight:1.45,color:"var(--text)",marginBottom:22,paddingRight:24}}>"{promptModal.displayText}"</p>
+            {/* Prep Time */}
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:14,fontWeight:700,color:"var(--text)",marginBottom:8,fontFamily:"Fredoka"}}>Prep Time</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {[[0,"None"],[30,"0:30"],[60,"1:00"],[120,"2:00"]].map(([t,label])=>(
+                  <button key={t} className={`chip${modalPrepTime===t?" active":""}`} style={{fontSize:14,padding:"6px 14px"}} onClick={()=>setModalPrepTime(t)}>{label}</button>
+                ))}
+              </div>
+            </div>
+            {/* Speak Time */}
+            <div style={{marginBottom:24}}>
+              <div style={{fontSize:14,fontWeight:700,color:"var(--text)",marginBottom:8,fontFamily:"Fredoka"}}>Speak Time</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {[[30,"0:30"],[60,"1:00"],[120,"2:00"],[180,"3:00"],[300,"5:00"]].map(([t,label])=>(
+                  <button key={t} className={`chip${modalSpeakTime===t?" active":""}`} style={{fontSize:14,padding:"6px 14px"}} onClick={()=>setModalSpeakTime(t)}>{label}</button>
+                ))}
+              </div>
+            </div>
+            {/* Let's Go */}
+            <button className="btn btn-orange" style={{width:"100%",justifyContent:"center",padding:"15px",fontSize:20,fontFamily:"Fredoka"}}
+              onClick={()=>{
+                setSpeakTime(modalSpeakTime);setPrepTime(modalPrepTime);
+                setPromptModal(null);
+                startSession({cat:promptModal.cat,diff:promptModal.diff,text:promptModal.text},modalPrepTime,modalSpeakTime);
+              }}>
+              Let's Go
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* First-visit name modal */}
       {showNameModal&&(
