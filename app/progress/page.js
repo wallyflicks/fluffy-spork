@@ -2,8 +2,6 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import Link from 'next/link'
 import PageNav from '../../components/PageNav'
-import { ACHIEVEMENTS } from '../../lib/achievements'
-import { getProgram } from '../../lib/programs'
 
 const G = () => (
   <style>{`
@@ -223,11 +221,8 @@ export default function Progress() {
   const [streak, setStreak] = useState(0)
   const [streakLost, setStreakLost] = useState(false)
   const [lostStreakCount, setLostStreakCount] = useState(0)
-  const [unlockedIds, setUnlockedIds] = useState(new Set())
   const [showWeeklyReport, setShowWeeklyReport] = useState(false)
   const [weeklyReport, setWeeklyReport] = useState(null)
-  const [hoveredBadge, setHoveredBadge] = useState(null)
-  const [completedPrograms, setCompletedPrograms] = useState([])
   const chartRef = useRef(null)
   const chartInstance = useRef(null)
 
@@ -241,16 +236,6 @@ export default function Progress() {
     try {
       const vt = localStorage.getItem('orivox_voice_type')
       if (vt) setVoiceType(JSON.parse(vt))
-    } catch {}
-    // Completed programs
-    try {
-      const cp = JSON.parse(localStorage.getItem('orivox_completed_programs') || '[]')
-      setCompletedPrograms(cp)
-    } catch {}
-    // Achievements
-    try {
-      const stored = JSON.parse(localStorage.getItem('orivox_achievements') || '[]')
-      setUnlockedIds(new Set(stored.map(a => a.id)))
     } catch {}
     // Weekly report — show every Monday
     try {
@@ -526,74 +511,6 @@ export default function Progress() {
                   style={{ fontSize: 13, color: 'var(--orange)', background: 'none', border: '1.5px solid var(--orange-border)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontFamily: 'Nunito, sans-serif', fontWeight: 700 }}>
                   Retake
                 </button>
-              </div>
-            </div>
-          )}
-
-          {/* Achievements */}
-          {(() => {
-            const groups = [...new Set(ACHIEVEMENTS.map(a => a.group))]
-            return (
-              <div className="fadeUp d4" style={{ background: 'var(--card)', border: '2.5px solid var(--border)', borderRadius: 22, boxShadow: 'var(--shadow)', padding: '24px 28px', marginBottom: 20 }}>
-                <div className="fredoka" style={{ fontSize: 20, color: 'var(--text)', marginBottom: 4 }}>Achievements</div>
-                <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>{unlockedIds.size} of {ACHIEVEMENTS.length} unlocked</div>
-                {groups.map(group => (
-                  <div key={group} style={{ marginBottom: 24 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--orange)', marginBottom: 12, fontFamily: 'Fredoka, sans-serif' }}>{group}</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(80px,1fr))', gap: 10 }}>
-                      {ACHIEVEMENTS.filter(a => a.group === group).map(ach => {
-                        const unlocked = unlockedIds.has(ach.id)
-                        const paths = Array.isArray(ach.path) ? ach.path : [ach.path]
-                        return (
-                          <div key={ach.id} onMouseEnter={() => setHoveredBadge(ach.id)} onMouseLeave={() => setHoveredBadge(null)}
-                            style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 4px', borderRadius: 14, background: unlocked ? 'var(--orange-dim)' : 'var(--bg)', border: `2px solid ${unlocked ? 'var(--orange-border)' : 'var(--border)'}`, cursor: 'default', transition: 'border-color .15s' }}>
-                            <div style={{ width: 42, height: 42, borderRadius: '50%', background: unlocked ? 'rgba(255,107,43,.15)' : 'rgba(0,0,0,.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={unlocked ? 'var(--orange)' : '#C4B8AF'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                {paths.map((d, i) => <path key={i} d={d} />)}
-                              </svg>
-                              {!unlocked && (
-                                <div style={{ position: 'absolute', bottom: -2, right: -2, width: 16, height: 16, borderRadius: '50%', background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#8A7E74" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                                </div>
-                              )}
-                            </div>
-                            <div style={{ fontSize: 10, fontWeight: 700, color: unlocked ? 'var(--orange)' : 'var(--muted)', textAlign: 'center', lineHeight: 1.3, fontFamily: 'Fredoka, sans-serif' }}>{ach.name}</div>
-                            {hoveredBadge === ach.id && (
-                              <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)', background: '#1A1A2E', color: '#fff', borderRadius: 10, padding: '8px 12px', fontSize: 11, whiteSpace: 'nowrap', maxWidth: 200, whiteSpace: 'normal', textAlign: 'center', zIndex: 50, lineHeight: 1.5, pointerEvents: 'none' }}>
-                                {unlocked ? ach.desc : ach.condition}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )
-          })()}
-
-          {/* Program Certificates */}
-          {completedPrograms.length > 0 && (
-            <div className="fadeUp d4" style={{ background: 'var(--card)', border: '2.5px solid var(--border)', borderRadius: 22, boxShadow: 'var(--shadow)', padding: '24px 28px', marginBottom: 20 }}>
-              <div className="fredoka" style={{ fontSize: 20, color: 'var(--text)', marginBottom: 4 }}>Program Certificates</div>
-              <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>{completedPrograms.length} program{completedPrograms.length !== 1 ? 's' : ''} completed</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 12 }}>
-                {completedPrograms.map((cp, i) => {
-                  const prog = getProgram(cp.programId)
-                  if (!prog) return null
-                  const dateStr = cp.completedDate ? new Date(cp.completedDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''
-                  return (
-                    <div key={i} style={{ background: 'var(--yellow-dim)', border: '2px solid var(--yellow)', borderRadius: 14, padding: '16px', textAlign: 'center' }}>
-                      <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--yellow)', border: '2px solid var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px', boxShadow: '2px 2px 0 var(--text)' }}>
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
-                      </div>
-                      <div className="fredoka" style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 4, lineHeight: 1.3 }}>{cp.certificate || prog.certificate}</div>
-                      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>{prog.name}</div>
-                      {dateStr && <div style={{ fontSize: 11, color: '#7A5500', fontWeight: 700 }}>{dateStr}</div>}
-                    </div>
-                  )
-                })}
               </div>
             </div>
           )}
