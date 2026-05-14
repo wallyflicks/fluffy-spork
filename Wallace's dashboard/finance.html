@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0b">
+<title>Finance — Wallace's Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg: #0a0a0b;
+  --bg-card: #111113;
+  --text-1: #ffffff;
+  --text-2: rgba(255,255,255,0.6);
+  --text-3: rgba(255,255,255,0.4);
+  --text-4: rgba(255,255,255,0.22);
+  --border: rgba(255,255,255,0.06);
+  --border-strong: rgba(255,255,255,0.12);
+  --good: #6ee7b7;
+  --warn: #fbbf24;
+  --bad: #ff8a8a;
+  --info: #7dd3fc;
+  --font: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--text-1);
+  font-family: var(--font);
+  overflow-x: hidden;
+}
+body {
+  padding: calc(env(safe-area-inset-top, 0px) + 68px) 0 calc(env(safe-area-inset-bottom, 0px) + 100px);
+}
+
+/* ── Shell ────────────────────────────────────────────────────────────── */
+.fin-shell {
+  width: min(720px, 100%);
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+/* ── Section ──────────────────────────────────────────────────────────── */
+.fin-section-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.18em;
+  color: var(--text-3); text-transform: uppercase;
+  margin: 0 0 10px;
+}
+.fin-divider {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 12px;
+}
+.fin-divider span {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.18em;
+  color: var(--text-3); text-transform: uppercase; white-space: nowrap;
+}
+.fin-divider::before, .fin-divider::after {
+  content: ''; flex: 1; height: 1px;
+  background: var(--border);
+}
+
+/* ── Card ─────────────────────────────────────────────────────────────── */
+.fin-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px 18px 16px;
+}
+
+/* ── Hero numbers ─────────────────────────────────────────────────────── */
+.fin-hero {
+  text-align: center;
+  padding: 24px 20px 20px;
+}
+.fin-hero-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.2em;
+  color: var(--text-3); text-transform: uppercase; margin-bottom: 6px;
+}
+.fin-hero-value {
+  font-size: 42px; font-weight: 300; letter-spacing: -0.03em;
+  color: var(--text-1); line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.fin-hero-value .fin-currency { font-size: 22px; font-weight: 400; vertical-align: top; margin-top: 8px; display: inline-block; }
+.fin-hero-meta {
+  display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+  margin-top: 10px;
+}
+.fin-hero-chip {
+  font-size: 12px; font-weight: 600; padding: 4px 10px;
+  border-radius: 99px;
+  background: rgba(255,255,255,0.05);
+  color: var(--text-2);
+}
+.fin-hero-chip.up   { color: var(--good); background: rgba(110,231,183,0.1); }
+.fin-hero-chip.down { color: var(--bad);  background: rgba(248,113,113,0.1); }
+
+/* ── Form elements ────────────────────────────────────────────────────── */
+.fin-form {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  margin-top: 12px;
+}
+.fin-form.cols-1 { grid-template-columns: 1fr; }
+.fin-form.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.fin-form-span { grid-column: 1 / -1; }
+.fin-field { display: flex; flex-direction: column; gap: 4px; }
+.fin-field label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+  color: var(--text-3); text-transform: uppercase;
+}
+.fin-input {
+  padding: 9px 12px; border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-1); font-family: var(--font); font-size: 13px;
+  width: 100%;
+  -webkit-appearance: none;
+}
+.fin-input:focus { outline: none; border-color: rgba(110,231,183,0.4); }
+.fin-input::placeholder { color: var(--text-4); }
+.fin-input[type=number] { font-variant-numeric: tabular-nums; }
+
+/* ── Buttons ──────────────────────────────────────────────────────────── */
+.fin-btn {
+  padding: 9px 16px; border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: rgba(255,255,255,0.05);
+  color: var(--text-1); font-family: var(--font); font-size: 12px; font-weight: 600;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, transform 0.1s;
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.fin-btn:hover   { background: rgba(255,255,255,0.09); }
+.fin-btn:active  { transform: scale(0.96); }
+.fin-btn.primary { background: var(--good); color: #000; border-color: transparent; }
+.fin-btn.primary:hover { background: #5fd4a6; }
+.fin-btn.danger  { color: var(--bad); border-color: rgba(248,113,113,0.25); background: transparent; }
+.fin-btn.danger.confirming { background: rgba(248,113,113,0.12); border-color: rgba(248,113,113,0.4); }
+.fin-btn.sm      { padding: 6px 11px; font-size: 11px; border-radius: 8px; }
+.fin-btn.full    { width: 100%; justify-content: center; }
+.fin-btn.icon-only { padding: 7px 10px; }
+
+/* ── Toggle ───────────────────────────────────────────────────────────── */
+.fin-toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 2px; margin-bottom: 4px;
+}
+.fin-collapse-panel { display: none; }
+.fin-collapse-panel.open { display: block; }
+
+/* ── List items ───────────────────────────────────────────────────────── */
+.fin-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.fin-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px; border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+}
+.fin-item-body { flex: 1; min-width: 0; }
+.fin-item-title { font-size: 13px; font-weight: 600; color: var(--text-1); }
+.fin-item-sub   { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+.fin-item-right { text-align: right; flex-shrink: 0; }
+.fin-item-value { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.fin-item-value.up   { color: var(--good); }
+.fin-item-value.down { color: var(--bad); }
+.fin-item-value.neutral { color: var(--text-1); }
+.fin-item-sub-right { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+/* ── Tag pill ─────────────────────────────────────────────────────────── */
+.fin-tag {
+  display: inline-block; padding: 2px 7px; border-radius: 99px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+  background: rgba(255,255,255,0.06); color: var(--text-3);
+  text-transform: uppercase;
+}
+
+/* ── Chart wrapper ────────────────────────────────────────────────────── */
+.fin-chart-wrap { margin-top: 14px; position: relative; }
+.fin-chart-wrap canvas { max-height: 190px; }
+.fin-donut-wrap { max-width: 220px; margin: 14px auto 0; }
+.fin-donut-wrap canvas { max-height: 220px; }
+
+/* ── Net worth specific ───────────────────────────────────────────────── */
+.fin-nw-accounts-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.fin-nw-account {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: 10px;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+}
+.fin-nw-account-name { flex: 1; font-size: 13px; font-weight: 500; }
+.fin-nw-account-val  { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--good); }
+
+/* ── Stocks ───────────────────────────────────────────────────────────── */
+.fin-stock-item {
+  padding: 10px 12px; border-radius: 10px;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  display: grid; grid-template-columns: auto 1fr auto; gap: 6px 12px;
+  align-items: center;
+}
+.fin-stock-ticker { font-size: 14px; font-weight: 700; color: var(--text-1); }
+.fin-stock-shares { font-size: 11px; color: var(--text-3); }
+.fin-stock-price  { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.fin-stock-detail { grid-column: 2 / 4; display: flex; gap: 14px; flex-wrap: wrap; }
+.fin-stock-stat   { font-size: 11px; color: var(--text-3); }
+.fin-stock-stat span { font-weight: 600; }
+.fin-stale { font-size: 10px; color: var(--warn); margin-left: 4px; }
+
+/* ── Savings goals ────────────────────────────────────────────────────── */
+.fin-goal-bar-track {
+  height: 6px; border-radius: 99px;
+  background: rgba(255,255,255,0.08);
+  margin: 8px 0 4px; overflow: hidden;
+}
+.fin-goal-bar-fill {
+  height: 100%; border-radius: 99px;
+  background: var(--good);
+  transition: width 0.5s cubic-bezier(0.22,1,0.36,1);
+}
+.fin-goal-bar-fill.warn { background: var(--warn); }
+.fin-goal-stats { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 4px; }
+.fin-goal-stat  { font-size: 11px; color: var(--text-3); }
+.fin-goal-stat span { color: var(--text-2); font-weight: 600; }
+
+/* ── Warning banner ───────────────────────────────────────────────────── */
+.fin-warning {
+  display: none; padding: 10px 14px; border-radius: 10px;
+  background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.25);
+  color: var(--warn); font-size: 12px; margin-top: 10px;
+}
+.fin-warning.show { display: block; }
+
+/* ── Onboarding ───────────────────────────────────────────────────────── */
+.fin-onboard {
+  text-align: center; padding: 32px 20px; color: var(--text-3); font-size: 14px;
+}
+.fin-onboard strong { color: var(--text-2); display: block; margin-bottom: 8px; font-size: 16px; }
+
+/* ── Sub total rows ───────────────────────────────────────────────────── */
+.fin-totals-row {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px;
+}
+.fin-total-chip {
+  flex: 1; min-width: 100px;
+  padding: 12px 14px; border-radius: 12px;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 3px;
+}
+.fin-total-label { font-size: 9px; font-weight: 700; letter-spacing: 0.16em; color: var(--text-3); text-transform: uppercase; }
+.fin-total-value { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.fin-total-value.up   { color: var(--good); }
+.fin-total-value.down { color: var(--bad); }
+
+/* ── Refresh indicator ────────────────────────────────────────────────── */
+.fin-refresh-row {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 8px; margin-bottom: 2px;
+}
+.fin-refresh-time { font-size: 11px; color: var(--text-4); }
+
+/* ── Empty state ──────────────────────────────────────────────────────── */
+.fin-empty { padding: 20px; text-align: center; color: var(--text-4); font-size: 13px; font-style: italic; }
+
+/* ── Responsive ───────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .fin-form.cols-3 { grid-template-columns: 1fr 1fr; }
+  .fin-hero-value  { font-size: 34px; }
+  .fin-totals-row  { flex-direction: column; }
+  .fin-total-chip  { min-width: unset; }
+}
+
+/* ── Tabbar ───────────────────────────────────────────────────────────── */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 9999;
+  display: flex; justify-content: center;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 18px));
+  background: rgba(10,10,11,0.96);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+}
+.tabbar-inner {
+  width: min(680px, 100%); display: flex; gap: 8px; padding: 8px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px; box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+}
+.tabbar-link {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center;
+  min-height: 40px; padding: 10px 10px;
+  color: rgba(255,255,255,0.75); text-decoration: none;
+  border-radius: 999px; font-size: 12px; font-weight: 700;
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+  border: 1px solid transparent;
+}
+.tabbar-link:hover { background: rgba(255,255,255,0.1); }
+.tabbar-link.active {
+  background: #fff; color: #0a0a0a;
+  border-color: rgba(255,255,255,0.16);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.18);
+  transform: translateY(-1px);
+}
+</style>
+</head>
+<body>
+<div class="fin-shell">
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SECTION 1 — NET WORTH
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="fin-divider"><span>Net Worth</span></div>
+
+  <div class="fin-card fin-hero" id="nwHero">
+    <div class="fin-hero-label">Current Net Worth</div>
+    <div class="fin-hero-value"><span class="fin-currency">$</span><span id="nwHeroVal">—</span></div>
+    <div class="fin-hero-meta" id="nwHeroMeta"></div>
+  </div>
+
+  <!-- Onboarding prompt (shown only if no history) -->
+  <div class="fin-card" id="nwOnboard" style="display:none">
+    <div class="fin-onboard">
+      <strong>Track your net worth over time</strong>
+      Log your first net worth snapshot to get started.
+    </div>
+    <div class="fin-form cols-1" style="max-width:320px;margin:0 auto 4px">
+      <div class="fin-field">
+        <label>Net worth ($)</label>
+        <input class="fin-input" type="number" id="nwInitVal" placeholder="e.g. 15000" min="0" step="1">
+      </div>
+      <button class="fin-btn primary full" id="nwInitSave">Save starting net worth</button>
+    </div>
+  </div>
+
+  <!-- Net worth chart -->
+  <div class="fin-card" id="nwChartCard" style="display:none">
+    <div class="fin-section-title">Net worth over time</div>
+    <div class="fin-chart-wrap"><canvas id="nwChart"></canvas></div>
+  </div>
+
+  <!-- Update net worth -->
+  <div class="fin-card">
+    <div class="fin-toggle-row">
+      <div class="fin-section-title" style="margin:0">Log new snapshot</div>
+      <button class="fin-btn sm" id="nwLogToggle">+ Log</button>
+    </div>
+    <div class="fin-collapse-panel" id="nwLogPanel">
+      <div class="fin-form">
+        <div class="fin-field">
+          <label>Net worth ($)</label>
+          <input class="fin-input" type="number" id="nwLogVal" placeholder="e.g. 18500" min="0" step="1">
+        </div>
+        <div class="fin-field">
+          <label>Date</label>
+          <input class="fin-input" type="date" id="nwLogDate">
+        </div>
+        <div class="fin-form-span">
+          <button class="fin-btn primary full" id="nwLogSave">Save snapshot</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Investment accounts -->
+  <div class="fin-card">
+    <div class="fin-toggle-row">
+      <div class="fin-section-title" style="margin:0">Investment accounts</div>
+      <button class="fin-btn sm" id="invToggle">+ Add</button>
+    </div>
+    <div class="fin-nw-accounts-list" id="invList"></div>
+    <div class="fin-collapse-panel" id="invPanel">
+      <div class="fin-form">
+        <div class="fin-field">
+          <label>Account name</label>
+          <input class="fin-input" type="text" id="invName" placeholder="Wealthsimple">
+        </div>
+        <div class="fin-field">
+          <label>Current value ($)</label>
+          <input class="fin-input" type="number" id="invVal" placeholder="2400" min="0" step="0.01">
+        </div>
+        <div class="fin-form-span">
+          <button class="fin-btn primary full" id="invSave">Add account</button>
+        </div>
+      </div>
+    </div>
+    <div id="invTotalRow" style="margin-top:10px;font-size:13px;color:var(--text-3);display:none">
+      Total tracked: <strong id="invTotal" style="color:var(--text-1)">$0</strong>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SECTION 2 — STOCKS
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="fin-divider"><span>Stock Portfolio</span></div>
+
+  <div class="fin-card fin-hero">
+    <div class="fin-hero-label">Portfolio value</div>
+    <div class="fin-hero-value"><span class="fin-currency">$</span><span id="stockTotalVal">—</span></div>
+    <div class="fin-hero-meta" id="stockTotalMeta"></div>
+  </div>
+
+  <div class="fin-card">
+    <div class="fin-refresh-row">
+      <button class="fin-btn sm" id="stockRefresh">↻ Refresh prices</button>
+      <span class="fin-refresh-time" id="stockRefreshTime"></span>
+    </div>
+    <div id="stockList" class="fin-list"></div>
+    <div class="fin-chart-wrap fin-donut-wrap" id="stockChartWrap" style="display:none">
+      <canvas id="stockDonut"></canvas>
+    </div>
+  </div>
+
+  <div class="fin-card">
+    <div class="fin-toggle-row">
+      <div class="fin-section-title" style="margin:0">Add holding</div>
+      <button class="fin-btn sm" id="stockAddToggle">+ Add</button>
+    </div>
+    <div class="fin-collapse-panel" id="stockAddPanel">
+      <div class="fin-form cols-3">
+        <div class="fin-field">
+          <label>Ticker</label>
+          <input class="fin-input" type="text" id="stockTicker" placeholder="AAPL" style="text-transform:uppercase">
+        </div>
+        <div class="fin-field">
+          <label>Shares</label>
+          <input class="fin-input" type="number" id="stockShares" placeholder="10" min="0.001" step="any">
+        </div>
+        <div class="fin-field">
+          <label>Avg buy price</label>
+          <input class="fin-input" type="number" id="stockBuy" placeholder="150.00" min="0" step="0.01">
+        </div>
+        <div class="fin-form-span">
+          <button class="fin-btn primary full" id="stockSave">Add holding</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SECTION 3 — INCOME
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="fin-divider"><span>Income</span></div>
+
+  <div class="fin-totals-row">
+    <div class="fin-total-chip">
+      <div class="fin-total-label">This month</div>
+      <div class="fin-total-value up" id="incomeMonthTotal">$0</div>
+    </div>
+    <div class="fin-total-chip">
+      <div class="fin-total-label">This year</div>
+      <div class="fin-total-value" id="incomeYearTotal">$0</div>
+    </div>
+    <div class="fin-total-chip">
+      <div class="fin-total-label">All time</div>
+      <div class="fin-total-value" id="incomeAllTotal">$0</div>
+    </div>
+  </div>
+
+  <div class="fin-card">
+    <div class="fin-section-title">Monthly income — last 6 months</div>
+    <div class="fin-chart-wrap"><canvas id="incomeChart" height="160"></canvas></div>
+  </div>
+
+  <div class="fin-card">
+    <div class="fin-toggle-row">
+      <div class="fin-section-title" style="margin:0">Add income</div>
+      <button class="fin-btn sm" id="incomeAddToggle">+ Add</button>
+    </div>
+    <div class="fin-collapse-panel" id="incomeAddPanel">
+      <div class="fin-form">
+        <div class="fin-field fin-form-span">
+          <label>Description</label>
+          <input class="fin-input" type="text" id="incomeDesc" placeholder="Photography session, YouTube revenue…">
+        </div>
+        <div class="fin-field">
+          <label>Amount ($)</label>
+          <input class="fin-input" type="number" id="incomeAmount" placeholder="500" min="0" step="0.01">
+        </div>
+        <div class="fin-field">
+          <label>Date</label>
+          <input class="fin-input" type="date" id="incomeDate">
+        </div>
+        <div class="fin-field fin-form-span">
+          <label>Tag (optional)</label>
+          <input class="fin-input" type="text" id="incomeTag" placeholder="photography, youtube, freelance…">
+        </div>
+        <div class="fin-form-span">
+          <button class="fin-btn primary full" id="incomeSave">Add entry</button>
+        </div>
+      </div>
+    </div>
+    <div id="incomeList" class="fin-list" style="margin-top:10px"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SECTION 4 — SUBSCRIPTIONS
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="fin-divider"><span>Subscriptions</span></div>
+
+  <div class="fin-totals-row">
+    <div class="fin-total-chip">
+      <div class="fin-total-label">Monthly cost</div>
+      <div class="fin-total-value" id="subMonthlyTotal">$0</div>
+    </div>
+    <div class="fin-total-chip">
+      <div class="fin-total-label">Yearly cost</div>
+      <div class="fin-total-value" id="subYearlyTotal">$0</div>
+    </div>
+  </div>
+  <div class="fin-warning" id="subWarning">⚠️ Subscriptions exceed 20% of last month's income.</div>
+
+  <div class="fin-card">
+    <div class="fin-section-title">Breakdown</div>
+    <div class="fin-donut-wrap"><canvas id="subDonut"></canvas></div>
+  </div>
+
+  <div class="fin-card">
+    <div class="fin-toggle-row">
+      <div class="fin-section-title" style="margin:0">Add subscription</div>
+      <button class="fin-btn sm" id="subAddToggle">+ Add</button>
+    </div>
+    <div class="fin-collapse-panel" id="subAddPanel">
+      <div class="fin-form">
+        <div class="fin-field">
+          <label>Name</label>
+          <input class="fin-input" type="text" id="subName" placeholder="Netflix, Spotify…">
+        </div>
+        <div class="fin-field">
+          <label>Monthly cost ($)</label>
+          <input class="fin-input" type="number" id="subCost" placeholder="15.99" min="0" step="0.01">
+        </div>
+        <div class="fin-field">
+          <label>Billing cycle</label>
+          <select class="fin-input" id="subCycle">
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly (÷12)</option>
+          </select>
+        </div>
+        <div class="fin-field">
+          <label>Notes (optional)</label>
+          <input class="fin-input" type="text" id="subNotes" placeholder="Shared with family…">
+        </div>
+        <div class="fin-form-span">
+          <button class="fin-btn primary full" id="subSave">Add subscription</button>
+        </div>
+      </div>
+    </div>
+    <div id="subList" class="fin-list" style="margin-top:10px"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SECTION 5 — EXPENSES
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="fin-divider"><span>Expenses</span></div>
+
+  <div class="fin-totals-row">
+    <div class="fin-total-chip">
+      <div class="fin-total-label">This month expenses</div>
+      <div class="fin-total-value down" id="expMonthTotal">$0</div>
+    </div>
+    <div class="fin-total-chip">
+      <div class="fin-total-label">Monthly P&amp;L</div>
+      <div class="fin-total-value" id="pnlMonth">$0</div>
+    </div>
+  </div>
+
+  <div class="fin-card">
+    <div class="fin-section-title">Monthly P&amp;L — last 6 months</div>
+    <div class="fin-chart-wrap"><canvas id="pnlChart" height="160"></canvas></div>
+  </div>
+
+  <div class="fin-card">
+    <div class="fin-toggle-row">
+      <div class="fin-section-title" style="margin:0">Add expense</div>
+      <button class="fin-btn sm" id="expAddToggle">+ Add</button>
+    </div>
+    <div class="fin-collapse-panel" id="expAddPanel">
+      <div class="fin-form">
+        <div class="fin-field fin-form-span">
+          <label>Description</label>
+          <input class="fin-input" type="text" id="expDesc" placeholder="Groceries, rent, gym…">
+        </div>
+        <div class="fin-field">
+          <label>Amount ($)</label>
+          <input class="fin-input" type="number" id="expAmount" placeholder="120" min="0" step="0.01">
+        </div>
+        <div class="fin-field">
+          <label>Date</label>
+          <input class="fin-input" type="date" id="expDate">
+        </div>
+        <div class="fin-field fin-form-span">
+          <label>Tag (optional)</label>
+          <input class="fin-input" type="text" id="expTag" placeholder="food, housing, transport…">
+        </div>
+        <div class="fin-form-span">
+          <button class="fin-btn primary full" id="expSave">Add expense</button>
+        </div>
+      </div>
+    </div>
+    <div id="expList" class="fin-list" style="margin-top:10px"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SECTION 6 — SAVINGS GOALS
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="fin-divider"><span>Savings Goals</span></div>
+
+  <div id="goalsList"></div>
+
+  <div class="fin-card">
+    <div class="fin-toggle-row">
+      <div class="fin-section-title" style="margin:0">Add savings goal</div>
+      <button class="fin-btn sm" id="goalAddToggle">+ Add</button>
+    </div>
+    <div class="fin-collapse-panel" id="goalAddPanel">
+      <div class="fin-form">
+        <div class="fin-field fin-form-span">
+          <label>Goal name</label>
+          <input class="fin-input" type="text" id="goalName" placeholder="Emergency fund, trip to Japan…">
+        </div>
+        <div class="fin-field">
+          <label>Target ($)</label>
+          <input class="fin-input" type="number" id="goalTarget" placeholder="10000" min="1" step="1">
+        </div>
+        <div class="fin-field">
+          <label>Saved so far ($)</label>
+          <input class="fin-input" type="number" id="goalCurrent" placeholder="2500" min="0" step="0.01">
+        </div>
+        <div class="fin-field">
+          <label>Deadline (optional)</label>
+          <input class="fin-input" type="date" id="goalDeadline">
+        </div>
+        <div class="fin-form-span">
+          <button class="fin-btn primary full" id="goalSave">Add goal</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end .fin-shell -->
+
+<nav class="tabbar" aria-label="Bottom navigation">
+  <div class="tabbar-inner">
+    <a href="index.html"   class="tabbar-link">Main</a>
+    <a href="health.html"  class="tabbar-link">Health</a>
+    <a href="gym.html"     class="tabbar-link">Gym</a>
+    <a href="finance.html" class="tabbar-link active" aria-current="page">Finance</a>
+  </div>
+</nav>
+
+<script src="topbar.js" defer></script>
+<script src="cinematic.js" defer></script>
+<script src="lockin.js" defer></script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   FINANCE PAGE — Data + UI
+═══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  // ── Storage keys ──────────────────────────────────────────────────────────
+  const K = {
+    NW:    'finance_networth_history',     // [{date,value}]
+    INV:   'finance_investment_accounts',  // [{id,name,value,lastUpdated}]
+    STK:   'finance_stocks',              // [{id,ticker,shares,avgBuy,lastPrice,lastAt}]
+    INC:   'finance_income',              // [{id,desc,amount,date,tag}]
+    SUB:   'finance_subscriptions',       // [{id,name,costMonthly,billingCycle,notes}]
+    EXP:   'finance_expenses',            // [{id,desc,amount,date,tag}]
+    GOALS: 'finance_savings_goals',       // [{id,name,target,current,deadline}]
+  };
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function load(k) { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } }
+  function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function today() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function fmt$(n, decimals) {
+    if (n == null || isNaN(n)) return '—';
+    return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: decimals ?? 0, maximumFractionDigits: decimals ?? 0 });
+  }
+  function fmtPct(n) { return (n >= 0 ? '+' : '') + n.toFixed(1) + '%'; }
+  function monthKey(date) { return (date || today()).slice(0, 7); } // YYYY-MM
+  function monthLabel(ym) {
+    const [y, m] = ym.split('-');
+    return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(m)-1] + ' ' + y.slice(2);
+  }
+  function last6Months() {
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i);
+      months.push(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'));
+    }
+    return months;
+  }
+
+  // Chart.js dark defaults
+  Chart.defaults.color = 'rgba(255,255,255,0.4)';
+  Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+  const ANIM = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600;
+
+  // ── Confirm-delete helpers ─────────────────────────────────────────────────
+  function makeDeleteBtn(id, onConfirm) {
+    const btn = document.createElement('button');
+    btn.className = 'fin-btn sm danger icon-only';
+    btn.textContent = '✕';
+    btn.title = 'Delete (tap twice)';
+    btn.dataset.confirmState = '0';
+    btn.addEventListener('click', () => {
+      if (btn.dataset.confirmState === '1') {
+        onConfirm();
+      } else {
+        btn.dataset.confirmState = '1';
+        btn.textContent = '?';
+        btn.classList.add('confirming');
+        setTimeout(() => { btn.dataset.confirmState = '0'; btn.textContent = '✕'; btn.classList.remove('confirming'); }, 2500);
+      }
+    });
+    return btn;
+  }
+
+  // ── Panel toggle helper ────────────────────────────────────────────────────
+  function wireToggle(btnId, panelId) {
+    const btn   = document.getElementById(btnId);
+    const panel = document.getElementById(panelId);
+    if (!btn || !panel) return;
+    btn.addEventListener('click', () => {
+      const open = panel.classList.toggle('open');
+      btn.textContent = open ? '× Close' : (btn.dataset.openLabel || '+ Add');
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SECTION 1 — NET WORTH
+  // ═══════════════════════════════════════════════════════════════════════════
+  let nwChart = null;
+
+  function renderNW() {
+    const history = load(K.NW);
+    const onboard = document.getElementById('nwOnboard');
+    const chartCard = document.getElementById('nwChartCard');
+
+    if (!history.length) {
+      onboard.style.display = 'block';
+      document.getElementById('nwHeroVal').textContent = '—';
+      document.getElementById('nwHeroMeta').innerHTML = '';
+      chartCard.style.display = 'none';
+      return;
+    }
+    onboard.style.display = 'none';
+    chartCard.style.display = 'block';
+
+    const sorted = [...history].sort((a,b) => a.date.localeCompare(b.date));
+    const latest = sorted[sorted.length - 1];
+    const prev   = sorted.length >= 2 ? sorted[sorted.length - 2] : null;
+
+    document.getElementById('nwHeroVal').textContent = Number(latest.value).toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+    const meta = [];
+    if (prev) {
+      const diff = latest.value - prev.value;
+      const cls  = diff >= 0 ? 'up' : 'down';
+      meta.push(`<span class="fin-hero-chip ${cls}">${diff >= 0 ? '+' : ''}${fmt$(diff)} since last</span>`);
+    }
+    if (sorted.length >= 2) {
+      const first = sorted[0];
+      const allTimePct = first.value > 0 ? ((latest.value - first.value) / first.value * 100) : 0;
+      const cls = allTimePct >= 0 ? 'up' : 'down';
+      meta.push(`<span class="fin-hero-chip ${cls}">${fmtPct(allTimePct)} all time</span>`);
+    }
+    document.getElementById('nwHeroMeta').innerHTML = meta.join('');
+
+    // Chart
+    const ctx = document.getElementById('nwChart');
+    if (!ctx) return;
+    const labels = sorted.map(e => {
+      const d = new Date(e.date + 'T00:00:00');
+      return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()] + ' ' + d.getDate();
+    });
+    const data = sorted.map(e => e.value);
+
+    if (nwChart) { nwChart.data.labels = labels; nwChart.data.datasets[0].data = data; nwChart.update(); return; }
+    nwChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          borderColor: '#6ee7b7',
+          backgroundColor: 'rgba(110,231,183,0.07)',
+          fill: true,
+          tension: 0.35,
+          pointRadius: data.length <= 10 ? 4 : 2,
+          pointBackgroundColor: '#6ee7b7',
+        }]
+      },
+      options: {
+        animation: { duration: ANIM },
+        responsive: true,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmt$(c.parsed.y) } } },
+        scales: {
+          x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 10 }, maxTicksLimit: 8 } },
+          y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 10 }, callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(0)+'k' : v) } }
+        }
+      }
+    });
+  }
+
+  function renderInvAccounts() {
+    const accounts = load(K.INV);
+    const list = document.getElementById('invList');
+    const totalRow = document.getElementById('invTotalRow');
+    if (!accounts.length) { list.innerHTML = '<div class="fin-empty">No accounts added yet.</div>'; totalRow.style.display = 'none'; return; }
+    list.innerHTML = '';
+    let total = 0;
+    accounts.forEach(acc => {
+      total += acc.value || 0;
+      const row = document.createElement('div');
+      row.className = 'fin-nw-account';
+      row.innerHTML = `<span class="fin-nw-account-name">${acc.name}</span><span class="fin-nw-account-val">${fmt$(acc.value, 2)}</span>`;
+      row.appendChild(makeDeleteBtn(acc.id, () => {
+        const arr = load(K.INV).filter(x => x.id !== acc.id); save(K.INV, arr); renderInvAccounts();
+      }));
+      // Tap name/value to edit
+      row.querySelector('.fin-nw-account-val').addEventListener('click', () => {
+        const newVal = parseFloat(prompt(`Update value for ${acc.name}:`, acc.value));
+        if (!isNaN(newVal) && newVal >= 0) {
+          const arr = load(K.INV); const idx = arr.findIndex(x => x.id === acc.id);
+          if (idx !== -1) { arr[idx].value = newVal; arr[idx].lastUpdated = today(); save(K.INV, arr); renderInvAccounts(); }
+        }
+      });
+      list.appendChild(row);
+    });
+    totalRow.style.display = 'block';
+    document.getElementById('invTotal').textContent = fmt$(total, 2);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SECTION 2 — STOCKS
+  // ═══════════════════════════════════════════════════════════════════════════
+  let stockDonutChart = null;
+
+  async function fetchPrice(ticker) {
+    try {
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('http ' + res.status);
+      const json = await res.json();
+      const result = json?.chart?.result;
+      if (!result || !result[0]) throw new Error('no result');
+      const price = result[0].meta?.regularMarketPrice;
+      const prevClose = result[0].meta?.chartPreviousClose || result[0].meta?.previousClose || price;
+      if (!price) throw new Error('no price');
+      return { price, prevClose, stale: false };
+    } catch {
+      return { price: null, prevClose: null, stale: true };
+    }
+  }
+
+  async function refreshStockPrices() {
+    const stocks = load(K.STK);
+    if (!stocks.length) { renderStocks(); return; }
+    document.getElementById('stockRefreshTime').textContent = 'Refreshing…';
+    const updated = await Promise.all(stocks.map(async s => {
+      const { price, prevClose, stale } = await fetchPrice(s.ticker);
+      if (!stale && price) { return { ...s, lastPrice: price, prevClose: prevClose || s.prevClose, lastAt: new Date().toISOString(), stale: false }; }
+      return { ...s, stale: true };
+    }));
+    save(K.STK, updated);
+    renderStocks();
+    document.getElementById('stockRefreshTime').textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function renderStocks() {
+    const stocks = load(K.STK);
+    const list = document.getElementById('stockList');
+    const wrapChart = document.getElementById('stockChartWrap');
+
+    if (!stocks.length) {
+      list.innerHTML = '<div class="fin-empty">No holdings yet — add your first stock above.</div>';
+      document.getElementById('stockTotalVal').textContent = '—';
+      document.getElementById('stockTotalMeta').innerHTML = '';
+      wrapChart.style.display = 'none';
+      return;
+    }
+
+    let portfolioValue = 0, portfolioCost = 0;
+    list.innerHTML = '';
+
+    stocks.forEach(s => {
+      const price    = s.lastPrice ?? null;
+      const prevClose = s.prevClose ?? price;
+      const value    = price != null ? price * s.shares : null;
+      const cost     = s.avgBuy * s.shares;
+      const gainLoss = value != null ? value - cost : null;
+      const gainPct  = cost > 0 && value != null ? (value - cost) / cost * 100 : null;
+      const dayChg   = price != null && prevClose ? (price - prevClose) / prevClose * 100 : null;
+
+      if (value != null) portfolioValue += value;
+      portfolioCost += cost;
+
+      const item = document.createElement('div');
+      item.className = 'fin-stock-item';
+
+      const priceColor = dayChg != null ? (dayChg >= 0 ? 'var(--good)' : 'var(--bad)') : 'var(--text-1)';
+      const glColor    = gainLoss != null ? (gainLoss >= 0 ? 'var(--good)' : 'var(--bad)') : 'var(--text-3)';
+
+      item.innerHTML = `
+        <div>
+          <div class="fin-stock-ticker">${s.ticker}</div>
+          <div class="fin-stock-shares">${s.shares} shares</div>
+        </div>
+        <div class="fin-stock-detail">
+          <span class="fin-stock-stat">Value: <span>${value != null ? fmt$(value,2) : '—'}</span></span>
+          <span class="fin-stock-stat">P/L: <span style="color:${glColor}">${gainLoss != null ? (gainLoss >= 0?'+':'') + fmt$(gainLoss,2) : '—'}${gainPct != null ? ' (' + fmtPct(gainPct) + ')' : ''}</span></span>
+          ${dayChg != null ? `<span class="fin-stock-stat">Today: <span style="color:${priceColor}">${fmtPct(dayChg)}</span></span>` : ''}
+        </div>
+        <div>
+          <div class="fin-stock-price" style="color:${priceColor}">${price != null ? '$'+price.toFixed(2) : '—'}${s.stale ? '<span class="fin-stale">stale</span>' : ''}</div>
+        </div>
+      `;
+      item.appendChild(makeDeleteBtn(s.id, () => {
+        const arr = load(K.STK).filter(x => x.id !== s.id); save(K.STK, arr); renderStocks(); buildStockDonut();
+      }));
+      list.appendChild(item);
+    });
+
+    const totalGain = portfolioValue - portfolioCost;
+    const totalGainPct = portfolioCost > 0 ? (totalGain / portfolioCost * 100) : 0;
+    document.getElementById('stockTotalVal').textContent = portfolioValue > 0 ? portfolioValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+    const cls = totalGain >= 0 ? 'up' : 'down';
+    document.getElementById('stockTotalMeta').innerHTML = portfolioValue > 0
+      ? `<span class="fin-hero-chip ${cls}">${totalGain >= 0 ? '+' : ''}${fmt$(totalGain,2)} (${fmtPct(totalGainPct)})</span>`
+      : '';
+
+    buildStockDonut();
+  }
+
+  function buildStockDonut() {
+    const stocks = load(K.STK).filter(s => s.lastPrice);
+    const wrap = document.getElementById('stockChartWrap');
+    if (!stocks.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+
+    const labels = stocks.map(s => s.ticker);
+    const data   = stocks.map(s => +(s.lastPrice * s.shares).toFixed(2));
+    const colors = ['#6ee7b7','#7dd3fc','#fbbf24','#f472b6','#a78bfa','#34d399','#60a5fa','#fb923c'];
+
+    const ctx = document.getElementById('stockDonut');
+    if (stockDonutChart) { stockDonutChart.data.labels = labels; stockDonutChart.data.datasets[0].data = data; stockDonutChart.update(); return; }
+    stockDonutChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data, backgroundColor: colors.slice(0, labels.length), borderWidth: 2, borderColor: '#0a0a0b' }] },
+      options: {
+        animation: { duration: ANIM },
+        cutout: '62%',
+        plugins: {
+          legend: { position: 'bottom', labels: { color: 'rgba(255,255,255,0.5)', font: { size: 11 }, padding: 12 } },
+          tooltip: { callbacks: { label: c => c.label + ': ' + fmt$(c.parsed, 2) } }
+        }
+      }
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SECTION 3 — INCOME
+  // ═══════════════════════════════════════════════════════════════════════════
+  let incomeChart = null;
+
+  function renderIncome() {
+    const entries = load(K.INC);
+    const thisMonth = monthKey();
+    const thisYear  = today().slice(0, 4);
+
+    let monthTotal = 0, yearTotal = 0, allTotal = 0;
+    entries.forEach(e => {
+      allTotal += e.amount;
+      if (e.date.startsWith(thisYear))  yearTotal  += e.amount;
+      if (monthKey(e.date) === thisMonth) monthTotal += e.amount;
+    });
+
+    document.getElementById('incomeMonthTotal').textContent = fmt$(monthTotal, 2);
+    document.getElementById('incomeYearTotal').textContent  = fmt$(yearTotal,  2);
+    document.getElementById('incomeAllTotal').textContent   = fmt$(allTotal,   2);
+
+    // Chart
+    const months = last6Months();
+    const monthData = months.map(m => {
+      return entries.filter(e => monthKey(e.date) === m).reduce((s, e) => s + e.amount, 0);
+    });
+    const ctx = document.getElementById('incomeChart');
+    if (incomeChart) { incomeChart.data.datasets[0].data = monthData; incomeChart.data.labels = months.map(monthLabel); incomeChart.update(); }
+    else {
+      incomeChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: months.map(monthLabel), datasets: [{ data: monthData, backgroundColor: 'rgba(110,231,183,0.55)', borderRadius: 6, borderSkipped: false }] },
+        options: {
+          animation: { duration: ANIM }, responsive: true,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmt$(c.parsed.y, 2) } } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 10 } } },
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 10 }, callback: v => '$'+(v>=1000?(v/1000)+'k':v) } }
+          }
+        }
+      });
+    }
+
+    // List
+    renderEntryList('incomeList', entries, K.INC, renderIncome);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SECTION 4 — SUBSCRIPTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+  let subDonutChart = null;
+
+  function renderSubs() {
+    const subs = load(K.SUB);
+    const monthTotal = subs.reduce((s, x) => s + (x.costMonthly || 0), 0);
+    document.getElementById('subMonthlyTotal').textContent = fmt$(monthTotal, 2);
+    document.getElementById('subYearlyTotal').textContent  = fmt$(monthTotal * 12, 2);
+
+    // Warning: check if > 20% of last month's income
+    const lastMonth = last6Months()[4];
+    const lastInc = load(K.INC).filter(e => monthKey(e.date) === lastMonth).reduce((s,e) => s + e.amount, 0);
+    const warn = document.getElementById('subWarning');
+    warn.classList.toggle('show', lastInc > 0 && monthTotal > lastInc * 0.2);
+
+    // List
+    const list = document.getElementById('subList');
+    if (!subs.length) { list.innerHTML = '<div class="fin-empty">No subscriptions yet.</div>'; }
+    else {
+      list.innerHTML = '';
+      subs.forEach(s => {
+        const item = document.createElement('div');
+        item.className = 'fin-item';
+        item.innerHTML = `
+          <div class="fin-item-body">
+            <div class="fin-item-title">${s.name}</div>
+            ${s.notes ? `<div class="fin-item-sub">${s.notes}</div>` : ''}
+          </div>
+          <div class="fin-item-right">
+            <div class="fin-item-value">${fmt$(s.costMonthly, 2)}/mo</div>
+            <div class="fin-item-sub-right">${s.billingCycle}</div>
+          </div>
+        `;
+        item.appendChild(makeDeleteBtn(s.id, () => { const arr = load(K.SUB).filter(x => x.id !== s.id); save(K.SUB, arr); renderSubs(); }));
+        list.appendChild(item);
+      });
+    }
+
+    // Donut chart
+    const ctx = document.getElementById('subDonut');
+    const colors = ['#6ee7b7','#7dd3fc','#fbbf24','#f472b6','#a78bfa','#34d399','#60a5fa','#fb923c','#f87171','#e879f9'];
+    const labels = subs.map(s => s.name);
+    const data   = subs.map(s => s.costMonthly);
+    if (!subs.length) { if (subDonutChart) { subDonutChart.destroy(); subDonutChart = null; } return; }
+    if (subDonutChart) { subDonutChart.data.labels = labels; subDonutChart.data.datasets[0].data = data; subDonutChart.update(); }
+    else {
+      subDonutChart = new Chart(ctx, {
+        type: 'pie',
+        data: { labels, datasets: [{ data, backgroundColor: colors.slice(0, labels.length), borderWidth: 2, borderColor: '#0a0a0b' }] },
+        options: {
+          animation: { duration: ANIM },
+          plugins: {
+            legend: { position: 'bottom', labels: { color: 'rgba(255,255,255,0.5)', font: { size: 11 }, padding: 10 } },
+            tooltip: { callbacks: { label: c => c.label + ': ' + fmt$(c.parsed, 2) + '/mo' } }
+          }
+        }
+      });
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SECTION 5 — EXPENSES + P&L
+  // ═══════════════════════════════════════════════════════════════════════════
+  let pnlChart = null;
+
+  function renderExpenses() {
+    const expenses = load(K.EXP);
+    const income   = load(K.INC);
+    const thisMonth = monthKey();
+
+    const expMonth = expenses.filter(e => monthKey(e.date) === thisMonth).reduce((s,e) => s + e.amount, 0);
+    const incMonth = income.filter(e => monthKey(e.date) === thisMonth).reduce((s,e) => s + e.amount, 0);
+    const pnl = incMonth - expMonth;
+
+    document.getElementById('expMonthTotal').textContent = fmt$(expMonth, 2);
+    const pnlEl = document.getElementById('pnlMonth');
+    pnlEl.textContent = (pnl >= 0 ? '+' : '') + fmt$(pnl, 2);
+    pnlEl.className = 'fin-total-value ' + (pnl >= 0 ? 'up' : 'down');
+
+    // P&L chart
+    const months = last6Months();
+    const pnlData = months.map(m => {
+      const inc = income.filter(e => monthKey(e.date) === m).reduce((s,e) => s + e.amount, 0);
+      const exp = expenses.filter(e => monthKey(e.date) === m).reduce((s,e) => s + e.amount, 0);
+      return +(inc - exp).toFixed(2);
+    });
+    const barColors = pnlData.map(v => v >= 0 ? 'rgba(110,231,183,0.6)' : 'rgba(248,113,113,0.6)');
+
+    const ctx = document.getElementById('pnlChart');
+    if (pnlChart) { pnlChart.data.datasets[0].data = pnlData; pnlChart.data.datasets[0].backgroundColor = barColors; pnlChart.data.labels = months.map(monthLabel); pnlChart.update(); }
+    else {
+      pnlChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: months.map(monthLabel), datasets: [{ data: pnlData, backgroundColor: barColors, borderRadius: 6, borderSkipped: false }] },
+        options: {
+          animation: { duration: ANIM }, responsive: true,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => (c.parsed.y >= 0 ? '+' : '') + fmt$(c.parsed.y, 2) } } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 10 } } },
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 10 }, callback: v => '$'+(v>=1000?(v/1000)+'k':v) } }
+          }
+        }
+      });
+    }
+
+    renderEntryList('expList', expenses, K.EXP, renderExpenses);
+  }
+
+  // Shared entry list renderer (income + expenses)
+  function renderEntryList(containerId, entries, storageKey, refreshFn) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    if (!entries.length) { container.innerHTML = '<div class="fin-empty">No entries yet.</div>'; return; }
+    const sorted = [...entries].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 50);
+    container.innerHTML = '';
+    sorted.forEach(e => {
+      const item = document.createElement('div');
+      item.className = 'fin-item';
+      item.innerHTML = `
+        <div class="fin-item-body">
+          <div class="fin-item-title">${e.desc}</div>
+          <div class="fin-item-sub">${e.date}${e.tag ? ' · <span class="fin-tag">'+e.tag+'</span>' : ''}</div>
+        </div>
+        <div class="fin-item-right">
+          <div class="fin-item-value neutral">${fmt$(e.amount, 2)}</div>
+        </div>
+      `;
+      item.appendChild(makeDeleteBtn(e.id, () => {
+        const arr = load(storageKey).filter(x => x.id !== e.id); save(storageKey, arr); refreshFn();
+      }));
+      container.appendChild(item);
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SECTION 6 — SAVINGS GOALS
+  // ═══════════════════════════════════════════════════════════════════════════
+  function renderGoals() {
+    const goals = load(K.GOALS);
+    const container = document.getElementById('goalsList');
+    container.innerHTML = '';
+
+    if (!goals.length) {
+      const empty = document.createElement('div');
+      empty.className = 'fin-card';
+      empty.innerHTML = '<div class="fin-empty">No savings goals yet. Add your first goal below.</div>';
+      container.appendChild(empty);
+      return;
+    }
+
+    // Estimate monthly savings rate from last 3 months
+    const income   = load(K.INC);
+    const expenses = load(K.EXP);
+    let totalSavings = 0;
+    const months = last6Months().slice(3);
+    months.forEach(m => {
+      const inc = income.filter(e => monthKey(e.date) === m).reduce((s,e) => s + e.amount, 0);
+      const exp = expenses.filter(e => monthKey(e.date) === m).reduce((s,e) => s + e.amount, 0);
+      totalSavings += Math.max(0, inc - exp);
+    });
+    const monthlySavingsRate = totalSavings / 3;
+
+    goals.forEach(g => {
+      const pct = g.target > 0 ? Math.min(100, (g.current / g.target) * 100) : 0;
+      const remaining = Math.max(0, g.target - g.current);
+      const monthsToGo = monthlySavingsRate > 0 ? Math.ceil(remaining / monthlySavingsRate) : null;
+
+      const card = document.createElement('div');
+      card.className = 'fin-card';
+      card.style.marginBottom = '0';
+
+      let deadlineInfo = '';
+      if (g.deadline) {
+        const dl = new Date(g.deadline + 'T00:00:00');
+        const now = new Date(); now.setHours(0,0,0,0);
+        const daysLeft = Math.ceil((dl - now) / 86400000);
+        deadlineInfo = ` · <span style="color:${daysLeft <= 30 ? 'var(--warn)' : 'var(--text-3)'}">${daysLeft > 0 ? daysLeft + 'd left' : 'past deadline'}</span>`;
+      }
+
+      card.innerHTML = `
+        <div style="display:flex;align-items:flex-start;gap:8px">
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:600">${g.name}</div>
+            <div style="font-size:11px;color:var(--text-3);margin-top:2px">${fmt$(g.current,2)} / ${fmt$(g.target,2)}${deadlineInfo}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:16px;font-weight:700;color:${pct>=100?'var(--good)':'var(--text-1)'}">${pct.toFixed(0)}%</div>
+          </div>
+        </div>
+        <div class="fin-goal-bar-track"><div class="fin-goal-bar-fill${pct<40?' warn':''}" style="width:${pct}%"></div></div>
+        <div class="fin-goal-stats">
+          <span class="fin-goal-stat">Remaining: <span>${fmt$(remaining,2)}</span></span>
+          ${monthsToGo != null ? `<span class="fin-goal-stat">~<span>${monthsToGo}mo</span> at current rate</span>` : '<span class="fin-goal-stat" style="color:var(--text-4)">Add income data for ETA</span>'}
+        </div>
+        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+          <button class="fin-btn sm" data-goal-update="${g.id}">Update saved amount</button>
+        </div>
+      `;
+      const delBtn = makeDeleteBtn(g.id, () => { const arr = load(K.GOALS).filter(x => x.id !== g.id); save(K.GOALS, arr); renderGoals(); });
+      card.querySelector('[style*="display:flex;gap:6px"]').appendChild(delBtn);
+      card.querySelector('[data-goal-update]').addEventListener('click', () => {
+        const newVal = parseFloat(prompt(`Amount saved so far for "${g.name}":`, g.current));
+        if (!isNaN(newVal) && newVal >= 0) {
+          const arr = load(K.GOALS); const idx = arr.findIndex(x => x.id === g.id);
+          if (idx !== -1) { arr[idx].current = newVal; save(K.GOALS, arr); renderGoals(); }
+        }
+      });
+      container.appendChild(card);
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // EVENT WIRING
+  // ═══════════════════════════════════════════════════════════════════════════
+  function wireAll() {
+    // Default dates to today
+    ['nwLogDate','incomeDate','expDate'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && !el.value) el.value = today();
+    });
+
+    // Toggles
+    wireToggle('nwLogToggle', 'nwLogPanel');
+    wireToggle('invToggle', 'invPanel');
+    wireToggle('stockAddToggle', 'stockAddPanel');
+    wireToggle('incomeAddToggle', 'incomeAddPanel');
+    wireToggle('subAddToggle', 'subAddPanel');
+    wireToggle('expAddToggle', 'expAddPanel');
+    wireToggle('goalAddToggle', 'goalAddPanel');
+
+    // ── Net worth init ──
+    document.getElementById('nwInitSave').addEventListener('click', () => {
+      const val = parseFloat(document.getElementById('nwInitVal').value);
+      if (isNaN(val) || val < 0) return;
+      const hist = load(K.NW);
+      hist.push({ date: today(), value: val });
+      save(K.NW, hist);
+      renderNW();
+    });
+
+    // ── Net worth log ──
+    document.getElementById('nwLogSave').addEventListener('click', () => {
+      const val  = parseFloat(document.getElementById('nwLogVal').value);
+      const date = document.getElementById('nwLogDate').value || today();
+      if (isNaN(val) || val < 0) return;
+      const hist = load(K.NW);
+      hist.push({ date, value: val });
+      save(K.NW, hist);
+      document.getElementById('nwLogVal').value = '';
+      document.getElementById('nwLogPanel').classList.remove('open');
+      document.getElementById('nwLogToggle').textContent = '+ Log';
+      renderNW();
+    });
+
+    // ── Investment account ──
+    document.getElementById('invSave').addEventListener('click', () => {
+      const name = document.getElementById('invName').value.trim();
+      const val  = parseFloat(document.getElementById('invVal').value);
+      if (!name || isNaN(val) || val < 0) return;
+      const arr = load(K.INV);
+      arr.push({ id: uid(), name, value: val, lastUpdated: today() });
+      save(K.INV, arr);
+      document.getElementById('invName').value = '';
+      document.getElementById('invVal').value = '';
+      document.getElementById('invPanel').classList.remove('open');
+      document.getElementById('invToggle').textContent = '+ Add';
+      renderInvAccounts();
+    });
+
+    // ── Stock ──
+    document.getElementById('stockSave').addEventListener('click', () => {
+      const ticker = document.getElementById('stockTicker').value.trim().toUpperCase();
+      const shares = parseFloat(document.getElementById('stockShares').value);
+      const buy    = parseFloat(document.getElementById('stockBuy').value);
+      if (!ticker || isNaN(shares) || isNaN(buy) || shares <= 0 || buy <= 0) return;
+      const arr = load(K.STK);
+      arr.push({ id: uid(), ticker, shares, avgBuy: buy, lastPrice: null, prevClose: null, lastAt: null, stale: false });
+      save(K.STK, arr);
+      ['stockTicker','stockShares','stockBuy'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('stockAddPanel').classList.remove('open');
+      document.getElementById('stockAddToggle').textContent = '+ Add';
+      refreshStockPrices();
+    });
+
+    document.getElementById('stockRefresh').addEventListener('click', refreshStockPrices);
+
+    // ── Income ──
+    document.getElementById('incomeSave').addEventListener('click', () => {
+      const desc   = document.getElementById('incomeDesc').value.trim();
+      const amount = parseFloat(document.getElementById('incomeAmount').value);
+      const date   = document.getElementById('incomeDate').value || today();
+      const tag    = document.getElementById('incomeTag').value.trim();
+      if (!desc || isNaN(amount) || amount <= 0) return;
+      const arr = load(K.INC);
+      arr.push({ id: uid(), desc, amount, date, tag });
+      save(K.INC, arr);
+      ['incomeDesc','incomeAmount','incomeTag'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('incomeDate').value = today();
+      document.getElementById('incomeAddPanel').classList.remove('open');
+      document.getElementById('incomeAddToggle').textContent = '+ Add';
+      renderIncome();
+      renderExpenses(); // P&L depends on income
+      renderSubs();     // subscription warning depends on income
+    });
+
+    // ── Subscription ──
+    document.getElementById('subSave').addEventListener('click', () => {
+      const name  = document.getElementById('subName').value.trim();
+      const cost  = parseFloat(document.getElementById('subCost').value);
+      const cycle = document.getElementById('subCycle').value;
+      const notes = document.getElementById('subNotes').value.trim();
+      if (!name || isNaN(cost) || cost < 0) return;
+      const costMonthly = cycle === 'yearly' ? +(cost / 12).toFixed(2) : +cost.toFixed(2);
+      const arr = load(K.SUB);
+      arr.push({ id: uid(), name, costMonthly, billingCycle: cycle, notes });
+      save(K.SUB, arr);
+      ['subName','subCost','subNotes'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('subAddPanel').classList.remove('open');
+      document.getElementById('subAddToggle').textContent = '+ Add';
+      renderSubs();
+    });
+
+    // ── Expense ──
+    document.getElementById('expSave').addEventListener('click', () => {
+      const desc   = document.getElementById('expDesc').value.trim();
+      const amount = parseFloat(document.getElementById('expAmount').value);
+      const date   = document.getElementById('expDate').value || today();
+      const tag    = document.getElementById('expTag').value.trim();
+      if (!desc || isNaN(amount) || amount <= 0) return;
+      const arr = load(K.EXP);
+      arr.push({ id: uid(), desc, amount, date, tag });
+      save(K.EXP, arr);
+      ['expDesc','expAmount','expTag'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('expDate').value = today();
+      document.getElementById('expAddPanel').classList.remove('open');
+      document.getElementById('expAddToggle').textContent = '+ Add';
+      renderExpenses();
+    });
+
+    // ── Savings goal ──
+    document.getElementById('goalSave').addEventListener('click', () => {
+      const name     = document.getElementById('goalName').value.trim();
+      const target   = parseFloat(document.getElementById('goalTarget').value);
+      const current  = parseFloat(document.getElementById('goalCurrent').value) || 0;
+      const deadline = document.getElementById('goalDeadline').value;
+      if (!name || isNaN(target) || target <= 0) return;
+      const arr = load(K.GOALS);
+      arr.push({ id: uid(), name, target, current, deadline: deadline || null });
+      save(K.GOALS, arr);
+      ['goalName','goalTarget','goalCurrent','goalDeadline'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('goalAddPanel').classList.remove('open');
+      document.getElementById('goalAddToggle').textContent = '+ Add';
+      renderGoals();
+    });
+
+    // Enter key on inputs
+    document.querySelectorAll('.fin-input').forEach(el => {
+      el.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          const form = el.closest('[id$="Panel"]');
+          if (!form) return;
+          const btn = form.querySelector('.fin-btn.primary');
+          if (btn) btn.click();
+        }
+      });
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // INIT
+  // ═══════════════════════════════════════════════════════════════════════════
+  function init() {
+    wireAll();
+    renderNW();
+    renderInvAccounts();
+    renderStocks();
+    refreshStockPrices();
+    renderIncome();
+    renderSubs();
+    renderExpenses();
+    renderGoals();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>
