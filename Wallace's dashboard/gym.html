@@ -1215,7 +1215,7 @@ img, video, canvas, svg { max-width: 100%; }
   opacity: 0; pointer-events: none;
   transition: opacity 0.2s;
   display: flex; flex-direction: column;
-  padding: 24px 16px;
+  padding: 24px 16px calc(100px + env(safe-area-inset-bottom, 0px));
 }
 .wt-viewer.is-open { opacity: 1; pointer-events: auto; }
 .wt-viewer-stage {
