@@ -695,7 +695,20 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 68px) 0 calc(env(safe-area-
   // ═════════════════════════════════════════════════════════════════════════
   let stockDonutChart = null;
 
+  // fetchPrice: tries Netlify serverless proxy first (no CORS), then direct Yahoo as fallback.
   async function fetchPrice(ticker) {
+    // Option 1: Netlify function — server-side fetch, no CORS restriction
+    try {
+      const res = await fetch(`/.netlify/functions/stock-price?ticker=${encodeURIComponent(ticker)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.price) {
+          return { price: data.price, prevClose: data.prevClose || data.price, stale: false };
+        }
+      }
+    } catch {}
+
+    // Option 2: direct Yahoo Finance (works on some networks; CORS blocks others)
     try {
       const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
       const res = await fetch(url);
@@ -707,9 +720,9 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 68px) 0 calc(env(safe-area-
       const price = meta?.regularMarketPrice;
       if (!price) throw new Error('no price');
       return { price, prevClose: meta?.chartPreviousClose || meta?.previousClose || price, stale: false };
-    } catch {
-      return { price: null, prevClose: null, stale: true };
-    }
+    } catch {}
+
+    return { price: null, prevClose: null, stale: true };
   }
 
   async function refreshStockPrices(silent) {
@@ -719,6 +732,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 68px) 0 calc(env(safe-area-
     const updated = await Promise.all(stocks.map(async s => {
       const { price, prevClose, stale } = await fetchPrice(s.ticker);
       if (!stale && price) return { ...s, lastPrice: price, prevClose, lastAt: new Date().toISOString(), stale: false };
+      // Keep last known price; mark stale but preserve lastAt timestamp for display
       return { ...s, stale: true };
     }));
     save(K.STK, updated);
@@ -776,7 +790,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 68px) 0 calc(env(safe-area-
         </div>
         <div class="fin-stock-footer">
           <span class="fin-stock-stat">Value: <span>${value != null ? fmt$(value,2) : '—'}</span></span>
-          ${s.stale ? '<span class="fin-stale">⚠ price unavailable</span>' : ''}
+          ${s.stale ? `<span class="fin-stale">⚠ ${s.lastPrice ? 'last known · ' + (s.lastAt ? new Date(s.lastAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '') : 'price unavailable'}</span>` : ''}
         </div>
       `;
 
