@@ -1,29 +1,37 @@
 // Serverless proxy for Yahoo Finance — runs server-side so no CORS issues.
-// Browser calls /.netlify/functions/stock-price?ticker=AMD
+// Tries the ticker as-is, then with .TO (TSX), then .V (TSX Venture).
+// Browser calls /.netlify/functions/stock-price?ticker=VFV
 const https = require('https');
 
 exports.handler = async function (event) {
-  const ticker = (event.queryStringParameters && event.queryStringParameters.ticker || '').trim().toUpperCase();
-  if (!ticker) {
+  const raw = ((event.queryStringParameters && event.queryStringParameters.ticker) || '').trim().toUpperCase();
+  if (!raw) {
     return { statusCode: 400, body: JSON.stringify({ error: 'ticker required' }) };
   }
 
-  const result = await fetchYahoo(ticker);
-  if (result) {
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'public, max-age=60',
-      },
-      body: JSON.stringify(result),
-    };
+  // Try suffixes in order: exact → .TO → .V
+  const candidates = [raw];
+  if (!raw.includes('.')) { candidates.push(raw + '.TO', raw + '.V'); }
+
+  for (const ticker of candidates) {
+    const result = await fetchYahoo(ticker);
+    if (result) {
+      return {
+        statusCode: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=60',
+        },
+        body: JSON.stringify({ ...result, resolvedTicker: ticker }),
+      };
+    }
   }
+
   return {
     statusCode: 502,
     headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-    body: JSON.stringify({ error: 'price unavailable', ticker }),
+    body: JSON.stringify({ error: 'price unavailable', ticker: raw }),
   };
 };
 

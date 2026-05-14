@@ -268,29 +268,7 @@
     grain.id = 'cin-grain';
     document.body.appendChild(grain);
 
-    // Wait for topbar to exist, then inject buttons
-    function injectTopbarItems() {
-      const topbar = document.getElementById('topbar');
-      if (!topbar) { setTimeout(injectTopbarItems, 80); return; }
-
-      // Weather pill
-      const weather = document.createElement('div');
-      weather.id = 'cin-weather';
-      weather.className = 'cin-weather-pill';
-      weather.textContent = '—°';
-      topbar.insertBefore(weather, topbar.firstChild);
-
-      // Toggle button
-      const btn = document.createElement('button');
-      btn.id = 'cin-toggle-btn';
-      btn.className = 'cin-toggle-btn';
-      btn.title = 'Cinematic mode';
-      btn.setAttribute('aria-label', 'Toggle cinematic mode');
-      btn.innerHTML = '✦';
-      btn.addEventListener('click', toggle);
-      topbar.appendChild(btn);
-    }
-    injectTopbarItems();
+    // Topbar removed — cinematic background, grain, transitions, and quote still active.
 
     // Restore saved state
     if (isOn()) enable();

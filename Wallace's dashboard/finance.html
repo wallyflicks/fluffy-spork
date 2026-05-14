@@ -25,7 +25,7 @@
 }
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text-1); font-family: var(--font); overflow-x: hidden; }
-body { padding: calc(env(safe-area-inset-top, 0px) + 68px) 0 calc(env(safe-area-inset-bottom, 0px) + 100px); }
+body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-inset-bottom, 0px) + 110px); }
 
 .fin-shell { width: min(720px, 100%); margin: 0 auto; padding: 0 16px; display: flex; flex-direction: column; gap: 22px; }
 
@@ -189,10 +189,31 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 68px) 0 calc(env(safe-area-
 .fin-refresh-time { font-size: 11px; color: var(--text-4); }
 .fin-empty { padding: 20px; text-align: center; color: var(--text-4); font-size: 13px; font-style: italic; }
 
+/* ── Chart container heights (allow responsive: true to work) ── */
+.fin-chart-wrap { position: relative; width: 100%; }
+.fin-chart-wrap canvas { width: 100% !important; }
+.fin-donut-wrap { max-width: 240px; margin: 14px auto 0; }
+
+/* ── Mobile ── */
 @media (max-width: 480px) {
-  .fin-hero-value { font-size: 34px; }
-  .fin-totals-row { flex-direction: column; }
+  .fin-shell { padding: 0 12px; gap: 16px; }
+  .fin-hero { padding: 18px 14px 16px; }
+  .fin-hero-value { font-size: 32px; }
+  .fin-card { padding: 14px 14px 12px; border-radius: 12px; }
+  .fin-totals-row { flex-direction: column; gap: 8px; }
   .fin-total-chip { min-width: unset; }
+  .fin-form { grid-template-columns: 1fr; }
+  .fin-form.cols-2 { grid-template-columns: 1fr; }
+  .fin-form.cols-3 { grid-template-columns: 1fr; }
+  .nw-breakdown { grid-template-columns: 1fr; }
+  .fin-btn { min-height: 44px; }
+  .fin-input { min-height: 44px; font-size: 16px; } /* 16px prevents iOS zoom */
+  .fin-item { flex-wrap: wrap; gap: 8px; }
+  .fin-stock-footer { flex-wrap: wrap; }
+  .fin-stock-actions { flex-wrap: wrap; }
+  .fin-donut-wrap { max-width: 200px; }
+  .fin-inv-account { flex-wrap: wrap; gap: 6px; }
+  .fin-goal-stats { flex-direction: column; gap: 4px; }
 }
 
 /* Tabbar */
@@ -347,7 +368,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 68px) 0 calc(env(safe-area-
 
   <div class="fin-card">
     <div class="fin-section-title">Monthly income — last 6 months</div>
-    <div class="fin-chart-wrap"><canvas id="incomeChart" height="160"></canvas></div>
+    <div class="fin-chart-wrap" style="height:160px"><canvas id="incomeChart"></canvas></div>
   </div>
 
   <div class="fin-card">
@@ -455,7 +476,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 68px) 0 calc(env(safe-area-
 
   <div class="fin-card">
     <div class="fin-section-title">Monthly P&amp;L — last 6 months</div>
-    <div class="fin-chart-wrap"><canvas id="pnlChart" height="160"></canvas></div>
+    <div class="fin-chart-wrap" style="height:160px"><canvas id="pnlChart"></canvas></div>
   </div>
 
   <div class="fin-card">
@@ -537,7 +558,6 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 68px) 0 calc(env(safe-area-
   </div>
 </nav>
 
-<script src="topbar.js" defer></script>
 <script src="cinematic.js" defer></script>
 <script src="lockin.js" defer></script>
 
@@ -695,34 +715,19 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 68px) 0 calc(env(safe-area-
   // ═════════════════════════════════════════════════════════════════════════
   let stockDonutChart = null;
 
-  // fetchPrice: tries Netlify serverless proxy first (no CORS), then direct Yahoo as fallback.
+  // fetchPrice: Netlify function (server-side, no CORS, tries .TO/.V for Canadian tickers).
+  // Returns { price, prevClose, resolvedTicker, stale }.
   async function fetchPrice(ticker) {
-    // Option 1: Netlify function — server-side fetch, no CORS restriction
     try {
       const res = await fetch(`/.netlify/functions/stock-price?ticker=${encodeURIComponent(ticker)}`);
       if (res.ok) {
         const data = await res.json();
         if (data && data.price) {
-          return { price: data.price, prevClose: data.prevClose || data.price, stale: false };
+          return { price: data.price, prevClose: data.prevClose || data.price, resolvedTicker: data.resolvedTicker || ticker, stale: false };
         }
       }
     } catch {}
-
-    // Option 2: direct Yahoo Finance (works on some networks; CORS blocks others)
-    try {
-      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('http ' + res.status);
-      const json = await res.json();
-      const result = json?.chart?.result;
-      if (!result?.[0]) throw new Error('no result');
-      const meta = result[0].meta;
-      const price = meta?.regularMarketPrice;
-      if (!price) throw new Error('no price');
-      return { price, prevClose: meta?.chartPreviousClose || meta?.previousClose || price, stale: false };
-    } catch {}
-
-    return { price: null, prevClose: null, stale: true };
+    return { price: null, prevClose: null, resolvedTicker: ticker, stale: true };
   }
 
   async function refreshStockPrices(silent) {
@@ -730,9 +735,8 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 68px) 0 calc(env(safe-area-
     if (!stocks.length) { renderStocks(); return; }
     if (!silent) document.getElementById('stockRefreshTime').textContent = 'Refreshing…';
     const updated = await Promise.all(stocks.map(async s => {
-      const { price, prevClose, stale } = await fetchPrice(s.ticker);
-      if (!stale && price) return { ...s, lastPrice: price, prevClose, lastAt: new Date().toISOString(), stale: false };
-      // Keep last known price; mark stale but preserve lastAt timestamp for display
+      const { price, prevClose, resolvedTicker, stale } = await fetchPrice(s.resolvedTicker || s.ticker);
+      if (!stale && price) return { ...s, lastPrice: price, prevClose, resolvedTicker, lastAt: new Date().toISOString(), stale: false };
       return { ...s, stale: true };
     }));
     save(K.STK, updated);
@@ -846,6 +850,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 68px) 0 calc(env(safe-area-
       data: { labels, datasets: [{ data, backgroundColor: colors.slice(0, labels.length), borderWidth: 2, borderColor: '#0a0a0b' }] },
       options: {
         animation: { duration: ANIM }, cutout: '62%',
+        responsive: true, maintainAspectRatio: true,
         plugins: {
           legend: { position: 'bottom', labels: { color: 'rgba(255,255,255,0.5)', font: { size: 11 }, padding: 12 } },
           tooltip: { callbacks: { label: c => c.label + ': ' + fmt$(c.parsed, 2) } }
@@ -964,10 +969,12 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 68px) 0 calc(env(safe-area-
       type: 'bar',
       data: { labels, datasets: [{ data, backgroundColor: data.map((v,i) => bgFn(v,i)), borderRadius: 6, borderSkipped: false }] },
       options: {
-        animation: { duration: ANIM }, responsive: true,
+        animation: { duration: ANIM },
+        responsive: true,
+        maintainAspectRatio: false,
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => tooltipFn(c.parsed.y) } } },
         scales: {
-          x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 10 } } },
+          x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 10 }, maxRotation: 0 } },
           y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 10 }, callback: v => '$'+(Math.abs(v)>=1000?(v/1000).toFixed(0)+'k':v) } }
         }
       }

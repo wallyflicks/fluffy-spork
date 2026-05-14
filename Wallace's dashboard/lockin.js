@@ -282,18 +282,27 @@
 .li-exit-btn.confirm { background: rgba(255,138,138,0.12); color: #ff8a8a; border-color: rgba(255,138,138,0.4); }
 .li-exit-btn:hover { background: rgba(255,138,138,0.08); }
 
-/* Lock In button (topbar + main page) */
-.lockin-open-btn {
-  flex: 0 0 auto;
-  padding: 8px 12px; border-radius: 10px;
-  border: 1px solid rgba(110,231,183,0.18);
-  background: rgba(110,231,183,0.06);
-  color: #6ee7b7; font-family: inherit; font-size: 11px; font-weight: 700;
-  letter-spacing: 0.1em; text-transform: uppercase;
+/* Floating Lock In button (index.html only, bottom-right above nav) */
+.lockin-float-btn {
+  position: fixed;
+  bottom: calc(110px + env(safe-area-inset-bottom, 0px));
+  right: 16px;
+  z-index: 1000;
+  padding: 11px 20px;
+  border-radius: 99px;
+  border: 1px solid rgba(110,231,183,0.35);
+  background: rgba(10,10,11,0.85);
+  color: #6ee7b7;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  font-size: 13px; font-weight: 700;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
-  transition: background 0.15s;
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  transition: background 0.15s, transform 0.1s;
+  min-height: 44px;
 }
-.lockin-open-btn:hover { background: rgba(110,231,183,0.12); }
+.lockin-float-btn:hover  { background: rgba(20,20,22,0.92); }
+.lockin-float-btn:active { transform: scale(0.96); }
 
 .lockin-stats-widget {
   display: none;
@@ -673,36 +682,25 @@
       }
     });
 
-    // Inject Lock In button into topbar
-    function injectTopbarBtn() {
-      const topbar = document.getElementById('topbar');
-      if (!topbar) { setTimeout(injectTopbarBtn, 80); return; }
+    // Floating Lock In pill — only on index.html (has .page-shell)
+    function injectFloatingBtn() {
+      if (!document.querySelector('.page-shell')) return;
+      if (document.getElementById('lockin-float-btn')) return;
       const btn = document.createElement('button');
-      btn.className = 'lockin-open-btn';
-      btn.textContent = 'Lock In';
+      btn.id = 'lockin-float-btn';
+      btn.className = 'lockin-float-btn';
+      btn.textContent = '⚡ Lock In';
+      btn.setAttribute('aria-label', 'Enter Lock In mode');
       btn.addEventListener('click', open);
-      // Insert before the cinematic toggle (last item) or append
-      const cinBtn = document.getElementById('cin-toggle-btn');
-      if (cinBtn) topbar.insertBefore(btn, cinBtn);
-      else topbar.appendChild(btn);
+      document.body.appendChild(btn);
     }
-    injectTopbarBtn();
 
-    // Inject stats widget on index.html
+    // Stats widget on index.html
     function tryInjectWidget() {
       const shell = document.querySelector('.page-shell');
       if (!shell) return;
       injectMainPageWidget();
-      // Also add a prominent Lock In button on the main page
-      if (!document.getElementById('lockin-main-btn')) {
-        const btn = document.createElement('button');
-        btn.id = 'lockin-main-btn';
-        btn.className = 'lockin-open-btn';
-        btn.style.cssText = 'padding:12px 22px;font-size:13px;width:100%;';
-        btn.textContent = '⚡ Enter Lock In Mode';
-        btn.addEventListener('click', open);
-        shell.appendChild(btn);
-      }
+      injectFloatingBtn();
     }
     setTimeout(tryInjectWidget, 200);
   }

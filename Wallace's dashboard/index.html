@@ -34,7 +34,7 @@
 
     body {
       position: relative;
-      padding: calc(env(safe-area-inset-top, 20px) + 24px) 20px calc(env(safe-area-inset-bottom, 20px) + 90px);
+      padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 110px);
       display: flex;
       justify-content: center;
     }
@@ -955,16 +955,22 @@
     }
 
     @media (max-width: 480px) {
-      body { padding: calc(env(safe-area-inset-top, 16px) + 20px) 16px calc(env(safe-area-inset-bottom, 20px) + 90px); }
+      body { padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px calc(env(safe-area-inset-bottom, 0px) + 110px); }
       .dash-title { font-size: 22px; }
+      .page-shell { gap: 14px; }
       .goal-ticker { padding: 9px 12px; }
       .goal-ticker-label { font-size: 9px; letter-spacing: 0.14em; }
       .goal-ticker-row { font-size: 12px; }
       .goal-ticker-meta { font-size: 10px; padding: 2px 7px; }
-      .day-ring-box { width: 144px; min-width: 144px; min-height: 144px; }
-      .ring-percent { font-size: 32px; }
+      .day-ring-box { width: 130px; min-width: 130px; min-height: 130px; }
+      .ring-percent { font-size: 28px; }
       .status-line { font-size: 13px; }
       .dash-charts-row { grid-template-columns: 1fr; }
+      .gm-card { padding: 14px 14px; }
+      .score-card-top { flex-direction: column; gap: 12px; }
+      .score-metric-grid { grid-template-columns: repeat(2, 1fr); }
+      button, input, select { min-height: 44px; }
+      .goal-ticker-row { font-size: 13px; white-space: normal; }
     }
 
     .dash-charts-row {
@@ -2109,7 +2115,6 @@
       <a href="finance.html" class="tabbar-link">Finance</a>
     </div>
   </nav>
-<script src="topbar.js" defer></script>
 <script src="cinematic.js" defer></script>
 <script src="lockin.js" defer></script>
 </body>

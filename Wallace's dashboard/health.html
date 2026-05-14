@@ -81,7 +81,7 @@ html, body {
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
 }
-.shell { max-width: 720px; margin: 0 auto; padding: 24px 16px 100px; }
+.shell { max-width: 720px; margin: 0 auto; padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 110px); }
 
 /* ----- Top day pill + header ----- */
 .day-pill {
@@ -450,8 +450,12 @@ html, body {
 .modal-actions .btn-primary { flex: 1; }
 
 @media (max-width: 480px) {
-  .shell { padding: 16px 12px 60px; }
+  .shell { padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px calc(env(safe-area-inset-bottom, 0px) + 110px); }
   .water-num { font-size: 48px; }
+  .water-plus-btn, .water-minus-btn { min-height: 52px; font-size: 15px; }
+  .water-actions { gap: 8px; }
+  button, input, select { min-height: 44px; }
+  .card { padding: 16px 14px; }
 }
 </style>
 </head>
@@ -1279,7 +1283,6 @@ html, body {
       <a href="finance.html" class="tabbar-link">Finance</a>
     </div>
   </nav>
-<script src="topbar.js" defer></script>
 <script src="cinematic.js" defer></script>
 <script src="lockin.js" defer></script>
 </body>
