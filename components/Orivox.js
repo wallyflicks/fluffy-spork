@@ -1171,6 +1171,27 @@ function BorderTimer({containerRef, startTimeRef, durationSecs, active}){
   );
 }
 
+// ── Pause Analysis ───────────────────────────────────────────────────────────
+function computePauseAnalysis(rawPauses, fillerTimes, sessionDuration) {
+  if (!rawPauses.length || sessionDuration < 20) return null;
+  const pauses = rawPauses.map(p => {
+    const pe = p.startTime + p.duration;
+    const filled = fillerTimes.some(ft =>
+      Math.abs(ft - p.startTime) <= 1 || Math.abs(ft - pe) <= 1
+    );
+    return filled ? { ...p, type: 'filled' } : p;
+  });
+  const intentional = pauses.filter(p => p.type === 'intentional').length;
+  const filled = pauses.filter(p => p.type === 'filled').length;
+  const tooLong = pauses.filter(p => p.type === 'too_long').length;
+  const longest = pauses.reduce((m, p) => p.duration > m ? p.duration : m, 0);
+  let score = 50;
+  score += Math.min(30, intentional * 5);
+  score -= Math.min(40, filled * 8);
+  score -= Math.min(20, tooLong * 5);
+  return { pauses, intentional, filled, tooLong, longest, score: Math.max(0, Math.min(100, score)), sessionDuration };
+}
+
 // ── App ──────────────────────────────────────────────────────────────────────
 export default function Orivox(){
   const [screen,setScreen]=useState("home");
@@ -1266,6 +1287,13 @@ export default function Orivox(){
   const [hedgingResult,setHedgingResult]=useState(null);
   // Benchmarks
   const [benchmarks,setBenchmarks]=useState(null);
+  // Pause detection
+  const [pauseAnalysis,setPauseAnalysis]=useState(null);
+  const pausesRef=useRef([]);
+  const pauseIntervalRef=useRef(null);
+  const pauseSilenceStartRef=useRef(null);
+  const fillerTimesRef=useRef([]);
+  const pauseAnalyserRef=useRef(null);
 
   // On mount: load saved username; check for program/diagnostic session context
   useEffect(()=>{
@@ -1519,6 +1547,7 @@ export default function Orivox(){
         analyser.fftSize=512;
         audioCtx.createMediaStreamSource(stream).connect(analyser);
         audioCtxRef.current=audioCtx;
+        pauseAnalyserRef.current=analyser;
         setAnalyserNode(analyser);
       }catch{}
 
@@ -1548,6 +1577,28 @@ export default function Orivox(){
         stream.getTracks().forEach(t=>t.stop());
       };
       mr.start(1000);startTimeRef.current=Date.now();setRecording(true);setRunning(true);
+      // Start pause detection
+      pausesRef.current=[];fillerTimesRef.current=[];pauseSilenceStartRef.current=null;
+      if(pauseAnalyserRef.current){
+        const _fd=new Uint8Array(pauseAnalyserRef.current.frequencyBinCount);
+        pauseIntervalRef.current=setInterval(()=>{
+          const _an=pauseAnalyserRef.current;
+          if(!_an||!startTimeRef.current)return;
+          _an.getByteFrequencyData(_fd);
+          let _s=0;for(let i=0;i<_fd.length;i++)_s+=_fd[i];
+          const _avg=_s/_fd.length;
+          const _el=(Date.now()-startTimeRef.current)/1000;
+          if(_avg<15){
+            if(pauseSilenceStartRef.current===null)pauseSilenceStartRef.current=_el;
+          }else{
+            if(pauseSilenceStartRef.current!==null){
+              const _dur=_el-pauseSilenceStartRef.current;
+              if(_dur>=0.3)pausesRef.current.push({startTime:Math.round(pauseSilenceStartRef.current*10)/10,duration:Math.round(_dur*100)/100,type:_dur<=1.5?'intentional':'too_long'});
+              pauseSilenceStartRef.current=null;
+            }
+          }
+        },100);
+      }
       setMicStarting(false);
 
       const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -1559,7 +1610,12 @@ export default function Orivox(){
           rec.onresult=e=>{
             let interim="";
             for(let i=e.resultIndex;i<e.results.length;i++){
-              if(e.results[i].isFinal) final+=e.results[i][0].transcript+" ";
+              if(e.results[i].isFinal){
+                const _chunk=e.results[i][0].transcript;
+                if(startTimeRef.current&&/\b(um|uh|basically|literally|actually|honestly|like|you know|sort of|kind of)\b/i.test(_chunk))
+                  fillerTimesRef.current.push((Date.now()-startTimeRef.current)/1000);
+                final+=_chunk+" ";
+              }
               else interim+=e.results[i][0].transcript;
             }
             const val=(final+interim).trim();
@@ -1597,6 +1653,14 @@ export default function Orivox(){
     earlyStopRef.current=early;
     if(early&&startTimeRef.current) earlyStopElapsedRef.current=Math.floor((Date.now()-startTimeRef.current)/1000);
     stoppingRef.current=true;
+    if(pauseIntervalRef.current){clearInterval(pauseIntervalRef.current);pauseIntervalRef.current=null;}
+    if(pauseSilenceStartRef.current!==null&&startTimeRef.current){
+      const _el=(Date.now()-startTimeRef.current)/1000;
+      const _dur=_el-pauseSilenceStartRef.current;
+      if(_dur>=0.3)pausesRef.current.push({startTime:Math.round(pauseSilenceStartRef.current*10)/10,duration:Math.round(_dur*100)/100,type:_dur<=1.5?'intentional':'too_long'});
+      pauseSilenceStartRef.current=null;
+    }
+    pauseAnalyserRef.current=null;
     setAnalyserNode(null);
     audioCtxRef.current?.close().catch(()=>{});
     audioCtxRef.current=null;
@@ -1606,7 +1670,7 @@ export default function Orivox(){
     setRecording(false);setRunning(false);setScreen("feedback");analyze();
   };
 
-  const saveSession=(feedbackData)=>{
+  const saveSession=(feedbackData,_pauseAnalysis)=>{
     try{
       const words=transcriptRef.current.trim().split(/\s+/).filter(Boolean).length;
       const actualDur=(earlyStopRef.current||activeCat==="Script")&&earlyStopElapsedRef.current>0?earlyStopElapsedRef.current:speakTime;
@@ -1639,6 +1703,10 @@ export default function Orivox(){
         strength:feedbackData.strength||"",
         improvement:feedbackData.improvement||"",
         feedback:feedbackData.feedback||"",
+        pauseScore:_pauseAnalysis?.score??null,
+        pauseIntentional:_pauseAnalysis?.intentional??null,
+        pauseFilled:_pauseAnalysis?.filled??null,
+        pauseLongest:_pauseAnalysis?.longest??null,
       };
       const existing=JSON.parse(localStorage.getItem("orivox_sessions")||"[]");
       existing.push(session);
@@ -1714,6 +1782,9 @@ export default function Orivox(){
       result={...result,_hedgingTotal:0};
     }
     setFeedback(result);setLoading(false);
+    const _pauseDur=(earlyStopRef.current||activeCat==="Script")&&earlyStopElapsedRef.current>0?earlyStopElapsedRef.current:speakTime;
+    const _pa=computePauseAnalysis(pausesRef.current,fillerTimesRef.current,_pauseDur);
+    setPauseAnalysis(_pa);
 
     // Diagnostic mode — store result without saving to history
     if(diagnosticSession){
@@ -1734,7 +1805,7 @@ export default function Orivox(){
       return; // skip session save and achievements
     }
 
-    const savedSession=saveSession(result);
+    const savedSession=saveSession(result,_pa);
     // Benchmarks
     const words=transcriptRef.current.trim().split(/\s+/).filter(Boolean).length;
     const dur=(earlyStopRef.current||activeCat==="Script")&&earlyStopElapsedRef.current>0?earlyStopElapsedRef.current:speakTime;
@@ -1782,6 +1853,7 @@ export default function Orivox(){
     }));
     setRetrySource(null);
     setFeedback(null);setAudioBlob(null);setTranscript("");setAudioUrl(null);transcriptRef.current="";
+    setPauseAnalysis(null);
     earlyStopRef.current=false;earlyStopElapsedRef.current=0;
     setPhase("prep");setTimer(prepTime);initialTimeRef.current=prepTime;
     if(prepTime===0){setScreen("speak");setPhase("speak");setTimer(speakTime);initialTimeRef.current=speakTime;}
@@ -1791,6 +1863,7 @@ export default function Orivox(){
   const newPrompt=()=>{
     localStorage.removeItem("orivox_retry_source");setRetrySource(null);
     setFeedback(null);setAudioBlob(null);setTranscript("");setAudioUrl(null);transcriptRef.current="";
+    setPauseAnalysis(null);
     earlyStopRef.current=false;earlyStopElapsedRef.current=0;
     if(activeCat!=="Custom"&&activeCat!=="News"&&activeCat!=="Script"){
       const pool=activeCat==="Random"?ALL_PROMPTS:(TOPICS[activeCat]?.[activeDiff]||ALL_PROMPTS);
@@ -2653,6 +2726,69 @@ export default function Orivox(){
                           </div>
                         </div>
                         <p style={{marginTop:10,fontSize:14,color:pace.color,fontWeight:600}}>{pace.label}</p>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Pause Analysis */}
+                  {pauseAnalysis&&(()=>{
+                    const {pauses,intentional,filled,tooLong,longest,score,sessionDuration}=pauseAnalysis;
+                    const bColor=score>=80?"var(--green)":score>=60?"#CC6600":score>=40?"var(--orange)":"var(--red)";
+                    const assessment=score>=80?"Excellent use of silence — your pauses show control and confidence"
+                      :score>=60?"Good pacing — you used silence intentionally in places"
+                      :score>=40?"Mixed — some good pauses but you filled others with sound. Let silence breathe."
+                      :"You rushed through without pausing — silence is a tool, use it";
+                    const TIPS=["Pausing before a key point makes it land harder — try it next session","A 0.5 second pause feels like forever to you but natural to your listener","Replace your next filler word with a silent pause — it sounds more confident","The best speakers pause more than you think — silence signals control"];
+                    const tip=TIPS[pauses.length%4];
+                    return(
+                      <div className="card fb3" style={{padding:28,marginBottom:20,borderLeft:`5px solid ${bColor}`}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:8}}>
+                          <p className="fredoka" style={{fontSize:19}}>Pause Analysis</p>
+                          <div style={{textAlign:"right"}}>
+                            <span className="fredoka" style={{fontSize:32,color:bColor,lineHeight:1}}>{score}</span>
+                            <span style={{fontSize:13,color:"var(--muted)",marginLeft:4}}>/ 100</span>
+                          </div>
+                        </div>
+                        <p style={{fontSize:14,color:bColor,fontWeight:600,marginBottom:16}}>{assessment}</p>
+                        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
+                          <div style={{padding:"12px 14px",borderRadius:12,background:"rgba(45,122,79,.08)",border:"1.5px solid rgba(45,122,79,.2)"}}>
+                            <p className="fredoka" style={{fontSize:22,color:"var(--green)",marginBottom:2}}>{intentional}</p>
+                            <p style={{fontSize:12,color:"var(--muted)",lineHeight:1.4}}>intentional pauses</p>
+                          </div>
+                          <div style={{padding:"12px 14px",borderRadius:12,background:"var(--red-dim)",border:"1.5px solid rgba(232,64,64,.2)"}}>
+                            <p className="fredoka" style={{fontSize:22,color:"var(--red)",marginBottom:2}}>{filled}</p>
+                            <p style={{fontSize:12,color:"var(--muted)",lineHeight:1.4}}>filled pauses</p>
+                          </div>
+                          <div style={{padding:"12px 14px",borderRadius:12,background:"var(--orange-dim)",border:"1.5px solid var(--orange-border)"}}>
+                            <p className="fredoka" style={{fontSize:22,color:"var(--orange)",marginBottom:2}}>{longest>0?longest.toFixed(1)+"s":"—"}</p>
+                            <p style={{fontSize:12,color:"var(--muted)",lineHeight:1.4}}>longest pause</p>
+                          </div>
+                        </div>
+                        {filled>0&&(
+                          <p style={{fontSize:13,color:"var(--red)",marginBottom:14,lineHeight:1.5}}>{filled} filled pause{filled!==1?"s":""} — you reached for a filler word instead of letting silence work</p>
+                        )}
+                        <div style={{marginBottom:14}}>
+                          <p style={{fontSize:11,color:"var(--muted)",marginBottom:6,fontWeight:600,textTransform:"uppercase",letterSpacing:".06em"}}>Pause timeline</p>
+                          <div style={{position:"relative",height:16,background:"var(--border)",borderRadius:8,overflow:"visible"}}>
+                            {pauses.map((p,i)=>{
+                              const pct=Math.max(0,Math.min(98,((p.startTime+p.duration/2)/sessionDuration)*100));
+                              const c=p.type==="intentional"?"var(--green)":p.type==="filled"?"var(--red)":"#9CA3AF";
+                              return(<div key={i} style={{position:"absolute",left:`calc(${pct}% - 5px)`,top:"50%",transform:"translateY(-50%)",width:10,height:10,borderRadius:"50%",background:c,border:"2px solid white",boxShadow:"0 1px 3px rgba(0,0,0,.25)",zIndex:1}} title={`${p.type} — ${p.duration.toFixed(1)}s at ${p.startTime.toFixed(1)}s`}/>);
+                            })}
+                          </div>
+                          <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"var(--muted)",marginTop:3}}>
+                            <span>Start</span><span>End</span>
+                          </div>
+                          <div style={{display:"flex",gap:12,marginTop:8,flexWrap:"wrap"}}>
+                            {[["var(--green)","Intentional"],["var(--red)","Filled"],["#9CA3AF","Too long"]].map(([c,l])=>(
+                              <span key={l} style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:"var(--muted)"}}>
+                                <span style={{width:8,height:8,borderRadius:"50%",background:c,display:"inline-block",flexShrink:0}}/>
+                                {l}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <p style={{fontSize:13,color:"var(--muted)",fontStyle:"italic",borderTop:"1.5px solid var(--border)",paddingTop:12,lineHeight:1.6}}>{tip}</p>
                       </div>
                     );
                   })()}

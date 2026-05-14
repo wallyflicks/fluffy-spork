@@ -571,6 +571,7 @@ export default function Progress() {
                       <th>Score</th>
                       <th>Filler Words</th>
                       <th className="hide-mobile" style={{ width: 56 }}>Eye</th>
+                      <th className="hide-mobile" style={{ width: 60 }}>Pauses</th>
                       <th style={{ width: 36 }}></th>
                     </tr>
                   </thead>
@@ -628,6 +629,13 @@ export default function Progress() {
                                 </span>
                               ) : <span style={{ color: 'var(--border)' }}>—</span>}
                             </td>
+                            <td className="hide-mobile" style={{ textAlign: 'center', fontSize: 12 }}>
+                              {s.pauseScore != null ? (
+                                <span title={`Pause score: ${s.pauseScore}/100`} style={{ fontFamily: 'Fredoka, sans-serif', fontWeight: 600, color: s.pauseScore >= 60 ? 'var(--green)' : s.pauseScore >= 40 ? '#CC6600' : 'var(--red)' }}>
+                                  P:{s.pauseScore}
+                                </span>
+                              ) : <span style={{ color: 'var(--border)' }}>—</span>}
+                            </td>
                             <td style={{ textAlign: 'center', paddingLeft: 4, paddingRight: 12 }}>
                               <svg className={`chevron${isOpen ? ' open' : ''}`} width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round">
                                 <path d="M4 6l4 4 4-4"/>
@@ -637,7 +645,7 @@ export default function Progress() {
 
                           {isOpen && (
                             <tr className="detail-row">
-                              <td colSpan={7} style={{ padding: 0 }}>
+                              <td colSpan={8} style={{ padding: 0 }}>
                                 <div style={{ padding: '22px 24px 24px', background: 'var(--orange-dim)' }}>
                                   {!hasDetail ? (
                                     <p style={{ color: 'var(--muted)', fontSize: 14, fontStyle: 'italic' }}>
@@ -656,6 +664,33 @@ export default function Progress() {
                                           <MiniBar label="Confidence" val={s.confidence} max={25} color="#8B5CF6" />
                                         </div>
                                       </div>
+
+                                      {/* Pause data */}
+                                      {s.pauseScore != null && (
+                                        <div>
+                                          <p className="fredoka" style={{ fontSize: 16, marginBottom: 10 }}>Pause Analysis</p>
+                                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                                            <span style={{ padding: '5px 14px', borderRadius: 50, fontSize: 13, fontFamily: 'Fredoka, sans-serif', fontWeight: 600, background: s.pauseScore >= 60 ? '#E8F7EE' : s.pauseScore >= 40 ? 'var(--yellow-dim)' : 'var(--red-dim)', color: s.pauseScore >= 60 ? 'var(--green)' : s.pauseScore >= 40 ? '#7A5500' : 'var(--red)', border: `1.5px solid ${s.pauseScore >= 60 ? 'rgba(45,122,79,.3)' : s.pauseScore >= 40 ? 'rgba(245,200,66,.4)' : 'rgba(232,64,64,.3)'}` }}>
+                                              Score: {s.pauseScore}/100
+                                            </span>
+                                            {s.pauseIntentional != null && (
+                                              <span style={{ padding: '5px 14px', borderRadius: 50, fontSize: 13, background: '#E8F7EE', border: '1.5px solid rgba(45,122,79,.3)', color: 'var(--green)' }}>
+                                                {s.pauseIntentional} intentional
+                                              </span>
+                                            )}
+                                            {s.pauseFilled != null && s.pauseFilled > 0 && (
+                                              <span style={{ padding: '5px 14px', borderRadius: 50, fontSize: 13, background: 'var(--red-dim)', border: '1.5px solid rgba(232,64,64,.3)', color: 'var(--red)' }}>
+                                                {s.pauseFilled} filled
+                                              </span>
+                                            )}
+                                            {s.pauseLongest != null && s.pauseLongest > 0 && (
+                                              <span style={{ fontSize: 13, color: 'var(--muted)' }}>
+                                                Longest: {s.pauseLongest.toFixed(1)}s
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
 
                                       {/* Filler words */}
                                       {Object.keys(s.fillerWordList || {}).length > 0 && (
