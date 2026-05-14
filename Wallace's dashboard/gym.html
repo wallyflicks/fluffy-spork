@@ -3451,6 +3451,11 @@ img, video, canvas, svg { max-width: 100%; }
     $('wtViewer').dataset.mode = 'single';
     activePhotoId = null;
     comparePhotoId = null;
+    pvDeleteConfirm = false;
+    $('wtViewerDelete').textContent = 'Delete';
+    $('wtViewerDelete').classList.remove('is-confirm');
+    $('wtCompareDelete').textContent = 'Delete';
+    $('wtCompareDelete').classList.remove('is-confirm');
   }
 
   // Pull a number out of "162.0 lbs" / "73.5 kg" / "—"
