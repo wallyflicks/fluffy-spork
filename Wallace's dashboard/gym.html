@@ -1309,6 +1309,52 @@ img, video, canvas, svg { max-width: 100%; }
 }
 
 .hidden { display: none !important; }
+
+/* ── Workout analytics muscle group cards ─────────────────────── */
+.analytics-group-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.analytics-group-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.analytics-group-title {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: rgba(255,255,255,0.5);
+  margin-bottom: 4px;
+}
+.analytics-group-value {
+  font-size: 18px; font-weight: 600;
+  font-variant-numeric: tabular-nums; color: #fff;
+  margin-bottom: 3px;
+}
+.analytics-group-meta {
+  font-size: 11px; color: rgba(255,255,255,0.4);
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+}
+.analytics-badge {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+  padding: 1px 6px; border-radius: 99px;
+  text-transform: uppercase;
+}
+.analytics-badge.on-track    { background: rgba(107,227,164,0.15); color: #6BE3A4; }
+.analytics-badge.needs-work  { background: rgba(242,192,99,0.15);  color: #F2C063; }
+.analytics-badge.undertrained{ background: rgba(255,138,138,0.15); color: #FF8A8A; }
+
+/* Progress bar used inside group cards and elsewhere in analytics */
+.score-bar {
+  height: 5px; border-radius: 99px;
+  background: rgba(255,255,255,0.08); overflow: hidden;
+}
+.score-bar-fill {
+  height: 100%; border-radius: 99px;
+  transition: width 0.4s ease;
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -1680,19 +1726,13 @@ img, video, canvas, svg { max-width: 100%; }
       <label style="font-size:11px;color:var(--text-3);font-weight:700;letter-spacing:0.04em;text-transform:uppercase">Starting weight</label>
       <input type="number" id="exStartWeight" step="0.5" placeholder="20" value="20">
     </div>
-    <div class="po-log-grid" id="exNumFields">
-      <div class="po-field">
-        <label style="font-size:11px;color:var(--text-3);font-weight:700;letter-spacing:0.04em;text-transform:uppercase">Reps min</label>
-        <input type="number" id="exRepMin" value="6">
-      </div>
-      <div class="po-field">
-        <label style="font-size:11px;color:var(--text-3);font-weight:700;letter-spacing:0.04em;text-transform:uppercase">Reps max</label>
-        <input type="number" id="exRepMax" value="8">
-      </div>
+    <div class="po-field" id="exNumFields">
+      <label style="font-size:11px;color:var(--text-3);font-weight:700;letter-spacing:0.04em;text-transform:uppercase">Reps min</label>
+      <input type="number" id="exRepMin" value="6">
     </div>
-    <div class="po-field" id="exStepField">
-      <label style="font-size:11px;color:var(--text-3);font-weight:700;letter-spacing:0.04em;text-transform:uppercase">Increment</label>
-      <input type="number" id="exStep" step="0.5" value="2.5">
+    <div class="po-field">
+      <label style="font-size:11px;color:var(--text-3);font-weight:700;letter-spacing:0.04em;text-transform:uppercase">Reps max</label>
+      <input type="number" id="exRepMax" value="8">
     </div>
     <div class="po-modal-actions">
       <button class="po-btn-secondary" id="exModalCancel">Cancel</button>
@@ -2608,7 +2648,6 @@ img, video, canvas, svg { max-width: 100%; }
       $('exStartWeight').value = ex.startWeight || 0;
       $('exRepMin').value = ex.repMin;
       $('exRepMax').value = ex.repMax;
-      $('exStep').value = ex.step;
     } else {
       $('exName').value = '';
       modalGym = state.filterGym;
@@ -2617,7 +2656,6 @@ img, video, canvas, svg { max-width: 100%; }
       $('exStartWeight').value = 20;
       $('exRepMin').value = 6;
       $('exRepMax').value = 8;
-      $('exStep').value = 2.5;
     }
     renderModalSegs();
     toggleBwFields();
@@ -2627,7 +2665,7 @@ img, video, canvas, svg { max-width: 100%; }
   function toggleBwFields() {
     const isBw = $('exBw').checked;
     $('exStartWeightField').style.display = isBw ? 'none' : '';
-    $('exStepField').style.display = isBw ? 'none' : '';
+    $('exNumFields').style.display = isBw ? 'none' : '';
   }
   $('exBw').addEventListener('change', toggleBwFields);
   $('addExBtn').addEventListener('click', () => openExModal('add'));
@@ -2649,7 +2687,7 @@ img, video, canvas, svg { max-width: 100%; }
       bw: isBw,
       startWeight: isBw ? 0 : (parseFloat($('exStartWeight').value) || 0),
       repMin, repMax,
-      step: isBw ? 1 : (parseFloat($('exStep').value) || 2.5)
+      step: isBw ? 1 : 2.5
     };
     if (editingExId) {
       const ex = state.exercises.find(e => e.id === editingExId);
