@@ -973,10 +973,17 @@
     }
 
     .dash-charts-row {
-      display: flex; flex-direction: column; gap: 14px;
+      display: flex; flex-direction: column; gap: 14px; width: 100%;
     }
-    .dash-chart-card { padding: 16px 16px 12px; }
-    .dash-chart-card canvas { display: block; width: 100% !important; height: 200px !important; }
+    .dash-chart-card { padding: 16px 16px 12px; width: 100%; box-sizing: border-box; }
+    .dash-chart-canvas-wrap {
+      position: relative; width: 100%; height: 200px;
+      max-height: 200px; overflow: hidden;
+    }
+    .dash-chart-canvas-wrap canvas {
+      position: absolute; inset: 0;
+      width: 100% !important; height: 200px !important;
+    }
     .dash-chart-label {
       font-size: 9px; font-weight: 700; letter-spacing: 0.16em;
       color: rgba(255,255,255,0.3); margin-bottom: 12px; text-transform: uppercase;
@@ -1119,11 +1126,15 @@
     <div class="dash-charts-row">
       <div class="gm-card dash-chart-card">
         <div class="dash-chart-label">GOAL COMPLETION — LAST 7 DAYS</div>
-        <canvas id="goalCompletionChart" height="140"></canvas>
+        <div class="dash-chart-canvas-wrap">
+          <canvas id="goalCompletionChart"></canvas>
+        </div>
       </div>
       <div class="gm-card dash-chart-card">
         <div class="dash-chart-label">WEEKLY SCORE — HABITS + GOALS + WATER</div>
-        <canvas id="weekSummaryChart" height="140"></canvas>
+        <div class="dash-chart-canvas-wrap">
+          <canvas id="weekSummaryChart"></canvas>
+        </div>
       </div>
     </div>
   </main>

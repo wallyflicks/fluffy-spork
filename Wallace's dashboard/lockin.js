@@ -285,24 +285,26 @@
 /* Floating Lock In button (index.html only, bottom-right above nav) */
 .lockin-float-btn {
   position: fixed;
-  bottom: calc(90px + env(safe-area-inset-bottom, 0px));
-  right: 16px;
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  right: 12px;
+  bottom: auto;
   z-index: 1000;
-  padding: 11px 20px;
+  padding: 6px 14px;
   border-radius: 99px;
-  border: 1px solid rgba(110,231,183,0.35);
-  background: rgba(10,10,11,0.85);
+  border: 1px solid rgba(110,231,183,0.3);
+  background: rgba(10,10,11,0.88);
   color: #6ee7b7;
   font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
-  font-size: 13px; font-weight: 700;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.03em;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.35);
   transition: background 0.15s, transform 0.1s;
-  min-height: 44px;
+  min-height: 32px;
+  line-height: 1;
 }
-.lockin-float-btn:hover  { background: rgba(20,20,22,0.92); }
-.lockin-float-btn:active { transform: scale(0.96); }
+.lockin-float-btn:hover  { background: rgba(20,20,22,0.95); }
+.lockin-float-btn:active { transform: scale(0.94); }
 
 .lockin-stats-widget {
   display: none;
