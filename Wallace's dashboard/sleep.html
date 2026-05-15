@@ -85,7 +85,7 @@ main {
   gap: 16px;
 }
 
-/* ── Tracker ── */
+/* ── Status ── */
 #st-status-row {
   display: flex;
   align-items: baseline;
@@ -113,6 +113,45 @@ main {
 #st-stats .st-red   { color: var(--danger);  font-weight: 500; }
 #st-stats .st-muted { color: var(--text-tertiary); }
 
+/* ── Debt + Streak pills ── */
+#st-pills {
+  display: none; /* shown via JS once data exists */
+  gap: 10px;
+}
+
+.st-pill {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 10px;
+}
+
+.st-pill-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.st-pill-value {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: var(--mono);
+  line-height: 1.2;
+}
+
+.st-pill-sub {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  margin-top: 1px;
+}
+
+/* ── Buttons ── */
 #st-buttons {
   display: flex;
   gap: 10px;
@@ -152,7 +191,7 @@ main {
   border-color: rgba(107,227,164,0.36);
 }
 
-/* Rating prompt — hidden by default, shown via JS with display:block */
+/* ── Rating + Notes prompt ── */
 #st-rating-prompt { display: none; }
 
 #st-rating-label {
@@ -183,11 +222,53 @@ main {
   transform: scale(1.08);
 }
 
-/* ── Chart ── */
-.chart-wrap {
-  position: relative;
+#st-notes-wrap { margin-top: 14px; }
+
+#st-notes {
   width: 100%;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-family: var(--sans);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
 }
+#st-notes::placeholder { color: var(--text-tertiary); }
+#st-notes:focus {
+  border-color: rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.05);
+}
+
+/* ── Weekly summary ── */
+.weekly-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px 16px;
+}
+
+.weekly-stat { display: flex; flex-direction: column; gap: 4px; }
+
+.weekly-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--mono);
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.weekly-stat-label {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+/* ── Chart ── */
+.chart-wrap { position: relative; width: 100%; }
 
 .chart-header {
   display: flex;
@@ -221,6 +302,7 @@ main {
   width: 6px;
   height: 6px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .chart-canvas-wrap {
@@ -228,10 +310,24 @@ main {
   height: 140px;
 }
 
-#sleepChart {
-  width: 100%;
-  height: 100%;
-  display: block;
+#sleepChart { width: 100%; height: 100%; display: block; cursor: crosshair; }
+
+#chart-tooltip {
+  position: absolute;
+  background: rgba(14,14,18,0.97);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 7px 11px;
+  font-size: 11px;
+  color: var(--text-primary);
+  font-family: var(--mono);
+  pointer-events: none;
+  white-space: nowrap;
+  display: none;
+  transform: translate(-50%, -100%);
+  margin-top: -8px;
+  z-index: 10;
+  line-height: 1.6;
 }
 
 .chart-xlabels {
@@ -249,34 +345,56 @@ main {
   flex: 1;
 }
 
-/* ── History ── */
-#st-history-list {
+/* ── History list ── */
+#st-history-list { display: flex; flex-direction: column; gap: 0; }
+
+.st-hist-item {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+  padding: 14px 0;
 }
 
-.st-hist-row {
+.st-hist-item:first-child { padding-top: 0; }
+.st-hist-item:last-child  { padding-bottom: 0; }
+
+.st-hist-item + .st-hist-item {
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+.st-hist-top {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .st-hist-date {
-  color: var(--text-tertiary);
-  font-family: var(--mono);
-  font-size: 11px;
-  flex: 0 0 76px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex: 1;
+  font-weight: 500;
 }
 
 .st-hist-dur {
-  font-size: 13px;
-  font-weight: 600;
-  flex: 0 0 52px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--mono);
+}
+
+.st-hist-rating {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: var(--mono);
+  flex-shrink: 0;
+}
+
+.st-hist-time {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: var(--mono);
 }
 
 .st-hist-bar-wrap {
-  flex: 1;
   height: 3px;
   background: rgba(255,255,255,0.06);
   border-radius: 2px;
@@ -289,12 +407,10 @@ main {
   transition: width 0.6s ease;
 }
 
-.st-hist-rating {
-  color: var(--text-tertiary);
-  font-family: var(--mono);
+.st-hist-note {
   font-size: 11px;
-  flex: 0 0 28px;
-  text-align: right;
+  color: var(--text-secondary);
+  font-style: italic;
 }
 
 .st-empty {
@@ -305,14 +421,12 @@ main {
 /* ── Tab bar ── */
 .tabbar {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 0; right: 0; bottom: 0;
   z-index: 9999;
   display: flex;
   justify-content: center;
   padding: 10px 18px calc(10px + env(safe-area-inset-bottom, 18px));
-  background: rgba(10, 10, 11, 0.96);
+  background: rgba(10,10,11,0.96);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
@@ -360,6 +474,8 @@ main {
   .st-r-btn { width: 52px; height: 52px; }
   .tabbar { padding-left: 10px; padding-right: 10px; }
   .tabbar-link { font-size: 11px; padding: 10px 6px; }
+  .weekly-grid { gap: 4px 10px; }
+  .weekly-stat-value { font-size: 18px; }
 }
 </style>
 </head>
@@ -368,7 +484,7 @@ main {
 
 <main>
 
-  <!-- ── Controls ── -->
+  <!-- ── Status + Controls ── -->
   <div class="section">
     <div class="section-title">Sleep</div>
     <div class="card">
@@ -377,11 +493,15 @@ main {
         <span id="st-stats"></span>
       </div>
 
+      <!-- Debt + Streak pills — hidden until data exists -->
+      <div id="st-pills"></div>
+
       <div id="st-buttons">
         <button id="st-btn-sleep">Start Sleeping</button>
         <button id="st-btn-wake" style="display:none">I'm Awake</button>
       </div>
 
+      <!-- Rating prompt with notes -->
       <div id="st-rating-prompt">
         <p id="st-rating-label">How did you sleep?</p>
         <div id="st-rating-btns">
@@ -391,11 +511,24 @@ main {
           <button class="st-r-btn" data-r="4">4</button>
           <button class="st-r-btn" data-r="5">5</button>
         </div>
+        <div id="st-notes-wrap">
+          <input id="st-notes" type="text" placeholder="Add a note (optional)…" autocomplete="off" />
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- ── 7-day chart ── -->
+  <!-- ── Weekly Summary ── -->
+  <div class="section">
+    <div class="section-title">This Week</div>
+    <div class="card">
+      <div class="weekly-grid" id="weekly-grid">
+        <p class="st-empty">No sessions yet.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 7-Day Chart ── -->
   <div class="section">
     <div class="section-title">7-Day Overview</div>
     <div class="card">
@@ -416,13 +549,14 @@ main {
         </div>
         <div class="chart-canvas-wrap">
           <canvas id="sleepChart"></canvas>
+          <div id="chart-tooltip"></div>
         </div>
         <div class="chart-xlabels" id="chartLabels"></div>
       </div>
     </div>
   </div>
 
-  <!-- ── History list ── -->
+  <!-- ── Recent Sessions ── -->
   <div class="section">
     <div class="section-title">Recent Sessions</div>
     <div class="card">
@@ -451,18 +585,24 @@ main {
   var START_KEY    = 'sleepStart';
   var TARGET_H     = 8;
 
+  /* ── DOM refs ── */
   var elStatus   = document.getElementById('st-status');
   var elStats    = document.getElementById('st-stats');
+  var elPills    = document.getElementById('st-pills');
   var elButtons  = document.getElementById('st-buttons');
   var elBtnSleep = document.getElementById('st-btn-sleep');
   var elBtnWake  = document.getElementById('st-btn-wake');
   var elRating   = document.getElementById('st-rating-prompt');
+  var elNotes    = document.getElementById('st-notes');
   var elHistory  = document.getElementById('st-history-list');
+  var elWeekly   = document.getElementById('weekly-grid');
   var ratingBtns = document.querySelectorAll('.st-r-btn');
 
-  var ticker  = null;
-  var pending = null;
+  var ticker   = null;
+  var pending  = null;
+  var barRects = []; /* for chart hit-testing */
 
+  /* ── Storage ── */
   function getSessions() {
     try { return JSON.parse(localStorage.getItem(SESSIONS_KEY)) || []; } catch (e) { return []; }
   }
@@ -471,20 +611,19 @@ main {
   function setStart(ts) { localStorage.setItem(START_KEY, ts); }
   function clearStart() { localStorage.removeItem(START_KEY); }
 
-  function colorClass(h) {
-    return h >= 7.5 ? 'st-green' : h >= 6 ? 'st-amber' : 'st-red';
-  }
-  function colorHex(h) {
-    return h >= 7.5 ? 'var(--success)' : h >= 6 ? 'var(--warning)' : 'var(--danger)';
-  }
-  function colorRaw(h) {
-    return h >= 7.5 ? '#6BE3A4' : h >= 6 ? '#F2C063' : '#FF6B6B';
+  /* ── Formatting ── */
+  function fmtH(h) {
+    /* always Nh Nm — rounds to nearest minute, handles 59.9→60 edge */
+    var totalMin = Math.round(h * 60);
+    var hrs = Math.floor(totalMin / 60);
+    var min = totalMin % 60;
+    return min > 0 ? hrs + 'h ' + min + 'm' : hrs + 'h';
   }
 
-  function fmtH(h) {
-    var hrs = Math.floor(h);
-    var min = Math.round((h - hrs) * 60);
-    return min > 0 ? hrs + 'h ' + min + 'm' : hrs + 'h';
+  function fmtDebtH(h) {
+    /* signed: +2h 10m ahead / −3h 45m behind */
+    var sign = h >= 0 ? '+' : '−';
+    return sign + fmtH(Math.abs(h));
   }
 
   function fmtElapsed(ms) {
@@ -497,16 +636,34 @@ main {
     return sec + 's';
   }
 
+  function fmtTime(isoStr) {
+    var d    = new Date(isoStr);
+    var h    = d.getHours();
+    var m    = d.getMinutes();
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12;
+    if (h === 0) h = 12;
+    return h + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
+  }
+
+  var DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
   function fmtDate(isoStr) {
     var d = new Date(isoStr);
-    return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    return DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()];
   }
 
   function fmtDay(isoStr) {
-    var d = new Date(isoStr);
-    return d.toLocaleDateString('en-GB', { weekday: 'short' });
+    return DAYS[new Date(isoStr).getDay()];
   }
 
+  /* ── Colors ── */
+  function colorClass(h) { return h >= 7.5 ? 'st-green' : h >= 6 ? 'st-amber' : 'st-red'; }
+  function colorHex(h)   { return h >= 7.5 ? 'var(--success)' : h >= 6 ? 'var(--warning)' : 'var(--danger)'; }
+  function colorRaw(h)   { return h >= 7.5 ? '#6BE3A4' : h >= 6 ? '#F2C063' : '#FF6B6B'; }
+
+  /* ── Stats ── */
   function getSevenDayStats() {
     var recent = getSessions().slice(-7);
     if (!recent.length) return { avg: null, qualityAvg: null };
@@ -518,10 +675,38 @@ main {
     return { avg: avg, qualityAvg: qualityAvg };
   }
 
+  function getWeeklyStats() {
+    var sessions = getSessions().slice(-7);
+    if (!sessions.length) return null;
+    var totalH = sessions.reduce(function (a, s) { return a + s.duration; }, 0);
+    var rated  = sessions.filter(function (s) { return s.rating != null; });
+    var avgQ   = rated.length ? rated.reduce(function (a, s) { return a + s.rating; }, 0) / rated.length : null;
+    var onTarget = sessions.filter(function (s) { return s.duration >= TARGET_H; }).length;
+    return { totalH: totalH, avgQ: avgQ, onTarget: onTarget, count: sessions.length };
+  }
+
+  function getDebt() {
+    /* debt vs target across logged sessions — negative = behind */
+    var sessions = getSessions().slice(-7);
+    if (!sessions.length) return null;
+    var actual = sessions.reduce(function (a, s) { return a + s.duration; }, 0);
+    return actual - sessions.length * TARGET_H;
+  }
+
+  function getStreak() {
+    /* consecutive nights ≥ TARGET_H, counting from most recent */
+    var sessions = getSessions().slice().reverse();
+    var n = 0;
+    for (var i = 0; i < sessions.length; i++) {
+      if (sessions[i].duration >= TARGET_H) n++;
+      else break;
+    }
+    return n;
+  }
+
+  /* ── Status line ── */
   function buildStats(showLast) {
-    var stats      = getSevenDayStats();
-    var avg        = stats.avg;
-    var qualityAvg = stats.qualityAvg;
+    var s7         = getSevenDayStats();
     var sessions   = getSessions();
     var last       = sessions.length ? sessions[sessions.length - 1] : null;
     var sep        = ' <span class="st-sep">·</span> ';
@@ -529,122 +714,180 @@ main {
 
     if (showLast && last) {
       var cc = colorClass(last.duration);
-      var t  = 'Last night: <span class="' + cc + '">' + fmtH(last.duration) + '</span>';
-      if (last.rating != null) t += ' <span class="st-muted">(' + last.rating + '/5)</span>';
+      var t  = 'Last night <span class="' + cc + '">' + fmtH(last.duration) + '</span>';
+      if (last.rating != null) t += ' <span class="st-muted">(' + last.rating + '/5)</span>';
       parts.push(t);
     }
 
-    if (avg !== null) {
-      parts.push('7-day avg: <span class="' + colorClass(avg) + '">' + avg.toFixed(1) + 'h</span>');
+    if (s7.avg !== null) {
+      parts.push('7-day avg <span class="' + colorClass(s7.avg) + '">' + fmtH(s7.avg) + '</span>');
     }
 
-    if (qualityAvg !== null) {
-      parts.push('Quality: <span class="st-val">' + qualityAvg.toFixed(1) + '/5</span>');
+    if (s7.qualityAvg !== null) {
+      parts.push('Quality <span class="st-val">' + s7.qualityAvg.toFixed(1) + '/5</span>');
     }
 
-    if (!parts.length) {
-      return showLast ? '<span class="st-muted">No sessions yet — press Start Sleeping tonight</span>' : '';
-    }
-
-    return parts.join(sep);
+    return parts.length
+      ? parts.join(sep)
+      : showLast ? '<span class="st-muted">No sessions yet — press Start Sleeping tonight</span>' : '';
   }
 
-  /* ── SVG bar chart ── */
-  function renderChart() {
-    var canvas = document.getElementById('sleepChart');
-    if (!canvas) return;
-    var sessions = getSessions().slice(-7);
-    var labelsEl = document.getElementById('chartLabels');
+  /* ── Render: pills ── */
+  function renderPills() {
+    var debt   = getDebt();
+    var streak = getStreak();
 
-    var W = canvas.offsetWidth || 300;
-    var H = 140;
-    canvas.width  = W * window.devicePixelRatio;
-    canvas.height = H * window.devicePixelRatio;
+    if (debt === null) {
+      elPills.style.display = 'none';
+      elPills.innerHTML = '';
+      return;
+    }
+
+    elPills.style.display = 'flex';
+
+    var debtCol   = debt >= 0 ? 'var(--success)' : 'var(--danger)';
+    var debtSub   = debt >= 0 ? 'ahead this week' : 'behind this week';
+    var streakCol = streak >= 3 ? 'var(--success)' : streak >= 1 ? 'var(--warning)' : 'var(--text-primary)';
+    var streakStr = streak > 0 ? streak + (streak === 1 ? ' night' : ' nights') : '—';
+
+    elPills.innerHTML =
+      '<div class="st-pill">' +
+        '<span class="st-pill-label">Sleep Debt</span>' +
+        '<span class="st-pill-value" style="color:' + debtCol + '">' + fmtDebtH(debt) + '</span>' +
+        '<span class="st-pill-sub">' + debtSub + '</span>' +
+      '</div>' +
+      '<div class="st-pill">' +
+        '<span class="st-pill-label">Streak</span>' +
+        '<span class="st-pill-value" style="color:' + streakCol + '">' + streakStr + '</span>' +
+        '<span class="st-pill-sub">nights at 8h target</span>' +
+      '</div>';
+  }
+
+  /* ── Render: weekly summary ── */
+  function renderWeekly() {
+    var ws = getWeeklyStats();
+
+    if (!ws) {
+      elWeekly.innerHTML = '<p class="st-empty">No sessions in the last 7 days.</p>';
+      return;
+    }
+
+    var qualityStr  = ws.avgQ !== null ? ws.avgQ.toFixed(1) + '/5' : '—';
+    var targetColor = ws.onTarget === ws.count ? 'var(--success)' : ws.onTarget > 0 ? 'var(--warning)' : 'var(--text-primary)';
+
+    elWeekly.innerHTML =
+      '<div class="weekly-stat">' +
+        '<span class="weekly-stat-value">' + fmtH(ws.totalH) + '</span>' +
+        '<span class="weekly-stat-label">Total sleep</span>' +
+      '</div>' +
+      '<div class="weekly-stat">' +
+        '<span class="weekly-stat-value">' + qualityStr + '</span>' +
+        '<span class="weekly-stat-label">Avg quality</span>' +
+      '</div>' +
+      '<div class="weekly-stat">' +
+        '<span class="weekly-stat-value" style="color:' + targetColor + '">' + ws.onTarget + '/' + ws.count + '</span>' +
+        '<span class="weekly-stat-label">On target</span>' +
+      '</div>';
+  }
+
+  /* ── Render: chart ── */
+  function renderChart() {
+    var canvas   = document.getElementById('sleepChart');
+    var labelsEl = document.getElementById('chartLabels');
+    if (!canvas) return;
+
+    var sessions = getSessions().slice(-7);
+    barRects = [];
+
+    var W  = canvas.offsetWidth || 300;
+    var H  = 140;
+    var DPR = window.devicePixelRatio || 1;
+    canvas.width  = W * DPR;
+    canvas.height = H * DPR;
     canvas.style.width  = W + 'px';
     canvas.style.height = H + 'px';
 
     var ctx = canvas.getContext('2d');
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    ctx.scale(DPR, DPR);
     ctx.clearRect(0, 0, W, H);
 
-    var padL = 28, padR = 8, padT = 8, padB = 8;
-    var chartW = W - padL - padR;
-    var chartH = H - padT - padB;
-    var maxH   = 10; // y-axis max hours
+    var padL = 28, padR = 8, padT = 12, padB = 8;
+    var cW = W - padL - padR;
+    var cH = H - padT - padB;
+    var maxH = 10;
 
     /* grid lines */
-    var gridHours = [2, 4, 6, 8, 10];
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([]);
-    gridHours.forEach(function (gh) {
-      var y = padT + chartH - (gh / maxH) * chartH;
+    [2, 4, 6, 8, 10].forEach(function (gh) {
+      var y = padT + cH - (gh / maxH) * cH;
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([]);
       ctx.beginPath();
       ctx.moveTo(padL, y);
-      ctx.lineTo(padL + chartW, y);
+      ctx.lineTo(padL + cW, y);
       ctx.stroke();
-    });
 
-    /* y-axis labels */
-    ctx.fillStyle = 'rgba(118,116,110,0.9)';
-    ctx.font = '9px ui-monospace, monospace';
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    gridHours.forEach(function (gh) {
-      var y = padT + chartH - (gh / maxH) * chartH;
+      /* y-axis label */
+      ctx.fillStyle = 'rgba(118,116,110,0.9)';
+      ctx.font = '9px ui-monospace,monospace';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
       ctx.fillText(gh + 'h', padL - 4, y);
     });
 
-    /* target line at 8h */
-    var targetY = padT + chartH - (TARGET_H / maxH) * chartH;
+    /* 8h target dashed line */
+    var tY = padT + cH - (TARGET_H / maxH) * cH;
     ctx.strokeStyle = 'rgba(255,255,255,0.18)';
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
-    ctx.moveTo(padL, targetY);
-    ctx.lineTo(padL + chartW, targetY);
+    ctx.moveTo(padL, tY);
+    ctx.lineTo(padL + cW, tY);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    /* bars */
-    if (!sessions.length) {
-      labelsEl.innerHTML = '';
-      return;
-    }
+    if (!sessions.length) { labelsEl.innerHTML = ''; return; }
 
-    var n       = sessions.length;
-    var barGap  = 6;
-    var barW    = Math.max(8, (chartW - barGap * (n - 1)) / n);
-    var startX  = padL + (chartW - (barW * n + barGap * (n - 1))) / 2;
-    var labels  = [];
+    var n      = sessions.length;
+    var gap    = 6;
+    var barW   = Math.max(8, (cW - gap * (n - 1)) / n);
+    var startX = padL + (cW - (barW * n + gap * (n - 1))) / 2;
+    var labels = [];
 
     sessions.forEach(function (s, i) {
-      var h   = Math.min(s.duration, maxH);
-      var barH = (h / maxH) * chartH;
-      var x   = startX + i * (barW + barGap);
-      var y   = padT + chartH - barH;
-      var col = colorRaw(s.duration);
+      var h    = Math.min(s.duration, maxH);
+      var barH = (h / maxH) * cH;
+      var x    = startX + i * (barW + gap);
+      var y    = padT + cH - barH;
+      var col  = colorRaw(s.duration);
 
-      /* bar with rounded top */
+      /* store for tooltip hit-test in CSS-pixel space */
+      barRects.push({ x: x, y: padT, w: barW, h: cH, barTop: y, col: col, session: s });
+
+      /* rounded-top bar */
       var r = Math.min(4, barW / 2);
       ctx.beginPath();
-      ctx.moveTo(x + r, y);
-      ctx.lineTo(x + barW - r, y);
-      ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
-      ctx.lineTo(x + barW, padT + chartH);
-      ctx.lineTo(x, padT + chartH);
-      ctx.lineTo(x, y + r);
-      ctx.quadraticCurveTo(x, y, x + r, y);
+      if (barH > r) {
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + barW - r, y);
+        ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
+        ctx.lineTo(x + barW, padT + cH);
+        ctx.lineTo(x, padT + cH);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+      } else {
+        ctx.rect(x, y, barW, barH);
+      }
       ctx.closePath();
       ctx.fillStyle = col;
       ctx.globalAlpha = 0.85;
       ctx.fill();
       ctx.globalAlpha = 1;
 
-      /* value label above bar */
+      /* compact decimal label above bar (full fmtH in tooltip) */
       if (barH > 14) {
         ctx.fillStyle = col;
-        ctx.font = 'bold 9px ui-monospace, monospace';
+        ctx.font = 'bold 9px ui-monospace,monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         ctx.fillText(s.duration.toFixed(1), x + barW / 2, y - 2);
@@ -658,6 +901,49 @@ main {
     }).join('');
   }
 
+  /* ── Chart tooltip (hover + touch) ── */
+  function initChartTooltip() {
+    var canvas = document.getElementById('sleepChart');
+    var tip    = document.getElementById('chart-tooltip');
+    if (!canvas || !tip) return;
+
+    function hitTest(cx, cy) {
+      for (var i = 0; i < barRects.length; i++) {
+        var b = barRects[i];
+        if (cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h) return b;
+      }
+      return null;
+    }
+
+    function update(clientX, clientY) {
+      var rect = canvas.getBoundingClientRect();
+      var b    = hitTest(clientX - rect.left, clientY - rect.top);
+      if (b) {
+        var s       = b.session;
+        var bed     = s.bedtime  || fmtTime(s.start);
+        var wake    = s.wakeTime || fmtTime(s.end);
+        tip.innerHTML =
+          '<span style="color:' + b.col + ';font-weight:700">' + fmtH(s.duration) + '</span>' +
+          '<br><span style="color:rgba(118,116,110,0.9)">' + bed + ' → ' + wake + '</span>';
+        tip.style.left    = (b.x + b.w / 2) + 'px';
+        tip.style.top     = (b.barTop - 8) + 'px';
+        tip.style.display = 'block';
+      } else {
+        tip.style.display = 'none';
+      }
+    }
+
+    canvas.addEventListener('mousemove', function (e) { update(e.clientX, e.clientY); });
+    canvas.addEventListener('mouseleave', function ()  { tip.style.display = 'none'; });
+    canvas.addEventListener('touchstart', function (e) {
+      update(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+    canvas.addEventListener('touchend', function () {
+      setTimeout(function () { tip.style.display = 'none'; }, 1600);
+    });
+  }
+
+  /* ── Render: history ── */
   function renderHistory() {
     var sessions = getSessions().slice(-7).reverse();
     if (!sessions.length) {
@@ -665,28 +951,50 @@ main {
       return;
     }
     elHistory.innerHTML = sessions.map(function (s) {
-      var pct    = Math.min(100, (s.duration / TARGET_H) * 100).toFixed(1);
-      var col    = colorHex(s.duration);
-      var rating = s.rating != null ? s.rating + '/5' : '—';
-      return '<div class="st-hist-row">' +
-        '<span class="st-hist-date">' + fmtDate(s.start) + '</span>' +
-        '<span class="st-hist-dur" style="color:' + col + '">' + fmtH(s.duration) + '</span>' +
-        '<div class="st-hist-bar-wrap"><div class="st-hist-bar" style="width:' + pct + '%;background:' + col + '"></div></div>' +
-        '<span class="st-hist-rating">' + rating + '</span>' +
-        '</div>';
+      var col     = colorHex(s.duration);
+      var pct     = Math.min(100, (s.duration / TARGET_H) * 100).toFixed(1);
+      var rating  = s.rating != null ? s.rating + '/5' : '—';
+      var bed     = s.bedtime  || fmtTime(s.start);
+      var wake    = s.wakeTime || fmtTime(s.end);
+
+      var html =
+        '<div class="st-hist-item">' +
+          '<div class="st-hist-top">' +
+            '<span class="st-hist-date">' + fmtDate(s.start) + '</span>' +
+            '<span class="st-hist-dur" style="color:' + col + '">' + fmtH(s.duration) + '</span>' +
+            '<span class="st-hist-rating">' + rating + '</span>' +
+          '</div>' +
+          '<div class="st-hist-time">' + bed + ' → ' + wake + '</div>' +
+          '<div class="st-hist-bar-wrap">' +
+            '<div class="st-hist-bar" style="width:' + pct + '%;background:' + col + '"></div>' +
+          '</div>';
+
+      if (s.notes) {
+        html += '<div class="st-hist-note">' + s.notes + '</div>';
+      }
+
+      return html + '</div>';
     }).join('');
   }
 
-  function showAwake() {
-    clearInterval(ticker); ticker = null;
-    elStatus.textContent = 'Awake';
-    elStats.innerHTML = buildStats(true);
-    elButtons.style.display = 'flex';
-    elBtnSleep.style.display = '';
-    elBtnWake.style.display = 'none';
-    elRating.style.display = 'none';
+  /* ── Render all data panels ── */
+  function renderAll() {
+    renderPills();
+    renderWeekly();
     renderChart();
     renderHistory();
+  }
+
+  /* ── States ── */
+  function showAwake() {
+    clearInterval(ticker); ticker = null;
+    elStatus.textContent     = 'Awake';
+    elStats.innerHTML        = buildStats(true);
+    elButtons.style.display  = 'flex';
+    elBtnSleep.style.display = '';
+    elBtnWake.style.display  = 'none';
+    elRating.style.display   = 'none';
+    renderAll();
   }
 
   function showSleeping(startTs) {
@@ -696,23 +1004,25 @@ main {
     tick();
     clearInterval(ticker);
     ticker = setInterval(tick, 1000);
-    elStats.innerHTML = buildStats(false);
-    elButtons.style.display = 'flex';
+    elStats.innerHTML        = buildStats(false);
+    elButtons.style.display  = 'flex';
     elBtnSleep.style.display = 'none';
-    elBtnWake.style.display = '';
-    elRating.style.display = 'none';
-    renderChart();
-    renderHistory();
+    elBtnWake.style.display  = '';
+    elRating.style.display   = 'none';
+    renderAll();
   }
 
   function showRating() {
     clearInterval(ticker); ticker = null;
-    elStatus.textContent = 'Rate your sleep';
-    elStats.innerHTML = '';
+    elStatus.textContent    = 'Rate your sleep';
+    elStats.innerHTML       = '';
     elButtons.style.display = 'none';
-    elRating.style.display = 'block'; /* must be explicit — CSS default is none */
+    elRating.style.display  = 'block'; /* explicit — CSS default is none */
+    if (elNotes) elNotes.value = '';
+    if (elNotes) elNotes.focus();
   }
 
+  /* ── Events ── */
   elBtnSleep.addEventListener('click', function () {
     var ts = new Date().toISOString();
     setStart(ts);
@@ -720,10 +1030,18 @@ main {
   });
 
   elBtnWake.addEventListener('click', function () {
-    var start = getStart();
-    if (!start) { showAwake(); return; }
-    var end = new Date().toISOString();
-    pending = { start: start, end: end, duration: (new Date(end) - new Date(start)) / 3600000 };
+    var startTs = getStart();
+    if (!startTs) { showAwake(); return; }
+    var endTs  = new Date().toISOString();
+    var durMs  = new Date(endTs) - new Date(startTs);
+    pending = {
+      start:           startTs,
+      end:             endTs,
+      duration:        durMs / 3600000,
+      durationMinutes: Math.round(durMs / 60000),
+      bedtime:         fmtTime(startTs),
+      wakeTime:        fmtTime(endTs)
+    };
     clearStart();
     showRating();
   });
@@ -732,6 +1050,7 @@ main {
     btn.addEventListener('click', function () {
       if (pending) {
         pending.rating = parseInt(this.dataset.r, 10);
+        pending.notes  = elNotes ? (elNotes.value.trim() || null) : null;
         var sessions = getSessions();
         sessions.push(pending);
         saveSessions(sessions);
@@ -741,11 +1060,12 @@ main {
     });
   });
 
-  /* re-render chart on resize */
   window.addEventListener('resize', function () {
     if (elRating.style.display !== 'block') renderChart();
   });
 
+  /* ── Boot ── */
+  initChartTooltip();
   var start = getStart();
   if (start) showSleeping(start);
   else showAwake();
