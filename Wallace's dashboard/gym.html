@@ -1641,9 +1641,11 @@ img, video, canvas, svg { max-width: 100%; }
       </div>
       <div class="analytics-panel show" id="analyticsVolume">
         <div class="analytics-group-grid" id="analyticsGroupGrid"></div>
-        <div class="analytics-chart-card">
-          <div class="analytics-chart-headline">Total weekly volume (last 4 weeks)</div>
-          <canvas id="volumeChart" height="230"></canvas>
+        <div class="analytics-chart-card" style="position:relative;height:220px;max-height:220px;overflow:hidden">
+          <div class="analytics-chart-headline" style="position:absolute;top:0;left:0;right:0;font-size:11px;color:rgba(255,255,255,0.4);padding:0 0 6px">Total weekly volume (last 4 weeks)</div>
+          <div style="position:absolute;top:24px;left:0;right:0;bottom:0">
+            <canvas id="volumeChart"></canvas>
+          </div>
         </div>
       </div>
       <div class="analytics-panel" id="analyticsRecords">
@@ -2410,8 +2412,13 @@ img, video, canvas, svg { max-width: 100%; }
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
-              x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.7)' } },
-              y: { grid: { color: 'rgba(255,255,255,0.08)' }, ticks: { color: 'rgba(255,255,255,0.7)' } }
+              x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.7)', maxRotation: 0 } },
+              y: {
+                beginAtZero: true,
+                suggestedMax: Math.max(...chartData, 1) * 1.35,
+                grid: { color: 'rgba(255,255,255,0.08)' },
+                ticks: { color: 'rgba(255,255,255,0.7)', maxTicksLimit: 5 }
+              }
             }
           }
         });

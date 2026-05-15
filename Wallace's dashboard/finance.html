@@ -250,10 +250,6 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
         <span class="nw-row-label">Investments</span>
         <span class="nw-row-value" id="nwInvLine">$0</span>
       </div>
-      <div class="nw-breakdown-row subtracted">
-        <span class="nw-row-label">Total Expenses</span>
-        <span class="nw-row-value neg" id="nwExpLine">−$0</span>
-      </div>
     </div>
   </div>
 
@@ -299,6 +295,36 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
           <button class="fin-btn primary full" id="invSave">Add account</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       MONTHLY CASH FLOW
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="fin-divider"><span>Monthly Cash Flow</span></div>
+
+  <div class="fin-totals-row">
+    <div class="fin-total-chip">
+      <div class="fin-total-label">Income</div>
+      <div class="fin-total-value up" id="cfIncomeVal">$0</div>
+    </div>
+    <div class="fin-total-chip">
+      <div class="fin-total-label">Expenses</div>
+      <div class="fin-total-value down" id="cfExpVal">$0</div>
+      <div style="font-size:10px;color:var(--text-4);margin-top:2px" id="cfSubNote"></div>
+    </div>
+    <div class="fin-total-chip">
+      <div class="fin-total-label">Net</div>
+      <div class="fin-total-value" id="cfNetVal">$0</div>
+    </div>
+  </div>
+
+  <div class="fin-card">
+    <div class="fin-section-title">Income vs Expenses — last 6 months</div>
+    <div class="fin-chart-wrap" style="height:180px"><canvas id="cashFlowChart"></canvas></div>
+    <div style="display:flex;gap:14px;margin-top:10px;font-size:11px;color:var(--text-3)">
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(110,231,183,0.6);margin-right:5px"></span>Income</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(248,113,113,0.6);margin-right:5px"></span>Expenses</span>
     </div>
   </div>
 
@@ -640,25 +666,23 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
 
   // ═════════════════════════════════════════════════════════════════════════
   // NET WORTH — auto-calculated
-  // Formula: Cash + Stock portfolio + Investment accounts - Total expenses
+  // Formula: Cash + Stocks + Investments (expenses don't subtract — user updates cash manually)
   // ═════════════════════════════════════════════════════════════════════════
   function calcNetWorth() {
     const cash   = (loadObj(K.CASH).value) || 0;
     const stocks = load(K.STK).reduce((s, st) => s + ((st.lastPrice || 0) * st.shares), 0);
     const inv    = load(K.INV).reduce((s, a) => s + (a.value || 0), 0);
-    const exp    = load(K.EXP).reduce((s, e) => s + (e.amount || 0), 0);
-    return { cash, stocks, inv, exp, total: cash + stocks + inv - exp };
+    return { cash, stocks, inv, total: cash + stocks + inv };
   }
 
   function renderNetWorth() {
-    const { cash, stocks, inv, exp, total } = calcNetWorth();
+    const { cash, stocks, inv, total } = calcNetWorth();
     const heroEl = document.getElementById('nwHeroVal');
     if (heroEl) heroEl.textContent = total.toLocaleString('en-US', { maximumFractionDigits: 0 });
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     set('nwCashLine',   fmt$(cash,   2));
     set('nwStocksLine', fmt$(stocks, 2));
     set('nwInvLine',    fmt$(inv,    2));
-    set('nwExpLine',    '−' + fmt$(exp, 2));
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -884,6 +908,70 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
   }
 
   // ═════════════════════════════════════════════════════════════════════════
+  // MONTHLY CASH FLOW
+  // Income + manual expenses + subscription costs for this month and last 6
+  // ═════════════════════════════════════════════════════════════════════════
+  let cashFlowChart = null;
+
+  function renderCashFlow() {
+    const income  = load(K.INC);
+    const expRaw  = load(K.EXP);
+    const subs    = load(K.SUB);
+    const subMonthly = subs.reduce((s,x) => s + (x.costMonthly||0), 0);
+    const thisMonth  = monthKey();
+
+    const incM  = income.filter(e => monthKey(e.date) === thisMonth).reduce((s,e) => s+e.amount, 0);
+    const expM  = expRaw.filter(e => monthKey(e.date) === thisMonth).reduce((s,e) => s+e.amount, 0) + subMonthly;
+    const netM  = incM - expM;
+
+    document.getElementById('cfIncomeVal').textContent = fmt$(incM, 2);
+    document.getElementById('cfExpVal').textContent    = fmt$(expM, 2);
+    const netEl = document.getElementById('cfNetVal');
+    netEl.textContent  = (netM >= 0 ? '+' : '') + fmt$(netM, 2);
+    netEl.className    = 'fin-total-value ' + (netM >= 0 ? 'up' : 'down');
+    const noteEl = document.getElementById('cfSubNote');
+    if (noteEl) noteEl.textContent = subMonthly > 0 ? 'incl. ' + fmt$(subMonthly, 2) + ' subscriptions' : '';
+
+    // 6-month chart
+    const months = last6Months();
+    const incData = months.map(m => income.filter(e => monthKey(e.date) === m).reduce((s,e) => s+e.amount, 0));
+    const expData = months.map(m => expRaw.filter(e => monthKey(e.date) === m).reduce((s,e) => s+e.amount, 0) + subMonthly);
+    const labels  = months.map(monthLabel);
+    const ctx = document.getElementById('cashFlowChart');
+    if (!ctx) return;
+    if (cashFlowChart) {
+      cashFlowChart.data.datasets[0].data = incData;
+      cashFlowChart.data.datasets[1].data = expData;
+      cashFlowChart.data.labels = labels;
+      cashFlowChart.update();
+    } else {
+      cashFlowChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Income',   data: incData, backgroundColor: 'rgba(110,231,183,0.6)', borderRadius: 5, borderSkipped: false },
+            { label: 'Expenses', data: expData, backgroundColor: 'rgba(248,113,113,0.55)', borderRadius: 5, borderSkipped: false },
+          ]
+        },
+        options: {
+          animation: { duration: ANIM },
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: c => c.dataset.label + ': ' + fmt$(c.parsed.y, 2) } }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 10 }, maxRotation: 0 } },
+            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 10 }, callback: v => '$'+(v>=1000?(v/1000).toFixed(0)+'k':v) } }
+          }
+        }
+      });
+    }
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
   // SUBSCRIPTIONS
   // ═════════════════════════════════════════════════════════════════════════
   let subDonutChart = null;
@@ -915,7 +1003,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
             <div class="fin-item-sub-right">${s.billingCycle}</div>
           </div>
         `;
-        item.appendChild(makeDeleteBtn(() => { save(K.SUB, load(K.SUB).filter(x => x.id !== s.id)); renderSubs(); }));
+        item.appendChild(makeDeleteBtn(() => { save(K.SUB, load(K.SUB).filter(x => x.id !== s.id)); renderSubs(); renderCashFlow(); }));
         list.appendChild(item);
       });
     }
@@ -960,7 +1048,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     if (pnlChart) { pnlChart.data.datasets[0].data = pnlData; pnlChart.data.datasets[0].backgroundColor = pnlData.map((v,i) => bgFn(v,i)); pnlChart.data.labels = months.map(monthLabel); pnlChart.update(); }
     else pnlChart = makeBarChart(ctx, months.map(monthLabel), pnlData, bgFn, v => (v>=0?'+':'')+fmt$(v,2));
 
-    renderEntryList('expList', expenses, K.EXP, () => { renderExpenses(); renderNetWorth(); });
+    renderEntryList('expList', expenses, K.EXP, () => { renderExpenses(); renderCashFlow(); renderNetWorth(); });
   }
 
   // Shared bar chart factory
@@ -1138,7 +1226,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
       document.getElementById('incomeDate').value = today();
       document.getElementById('incomeAddPanel').classList.remove('open');
       document.getElementById('incomeAddToggle').textContent = '+ Add';
-      renderIncome(); renderExpenses(); renderSubs();
+      renderIncome(); renderExpenses(); renderSubs(); renderCashFlow();
     });
 
     // ── Subscription ──
@@ -1153,7 +1241,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
       ['subName','subCost','subNotes'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('subAddPanel').classList.remove('open');
       document.getElementById('subAddToggle').textContent = '+ Add';
-      renderSubs();
+      renderSubs(); renderCashFlow();
     });
 
     // ── Expense ──
@@ -1168,7 +1256,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
       document.getElementById('expDate').value = today();
       document.getElementById('expAddPanel').classList.remove('open');
       document.getElementById('expAddToggle').textContent = '+ Add';
-      renderExpenses(); renderNetWorth();
+      renderExpenses(); renderCashFlow(); renderNetWorth();
     });
 
     // ── Savings goal ──
@@ -1209,8 +1297,9 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     renderSubs();
     renderExpenses();
     renderGoals();
-    renderNetWorth();          // after all component renders so values are populated
-    refreshStockPrices(true);  // fetch live prices silently on load
+    renderCashFlow();
+    renderNetWorth();
+    refreshStockPrices(true);
   }
 
   if (document.readyState === 'loading') {

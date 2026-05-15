@@ -285,7 +285,7 @@
 /* Floating Lock In button (index.html only, bottom-right above nav) */
 .lockin-float-btn {
   position: fixed;
-  bottom: calc(110px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(90px + env(safe-area-inset-bottom, 0px));
   right: 16px;
   z-index: 1000;
   padding: 11px 20px;
