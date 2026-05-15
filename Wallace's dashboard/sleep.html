@@ -31,7 +31,7 @@ html, body {
 }
 
 body {
-  padding: 24px 16px 80px;
+  padding: 24px 16px calc(110px + env(safe-area-inset-bottom, 18px));
   display: flex;
   justify-content: center;
 }
@@ -44,11 +44,8 @@ main {
   gap: 24px;
 }
 
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
+/* ── Section ── */
+.section { display: flex; flex-direction: column; gap: 14px; }
 
 .section-title {
   display: flex;
@@ -75,6 +72,7 @@ main {
   background: linear-gradient(90deg, rgba(255,255,255,0.08), transparent);
 }
 
+/* ── Card ── */
 .card {
   background: var(--card);
   border-radius: 16px;
@@ -154,10 +152,11 @@ main {
   border-color: rgba(107,227,164,0.36);
 }
 
+/* Rating prompt — hidden by default, shown via JS with display:block */
 #st-rating-prompt { display: none; }
 
 #st-rating-label {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-secondary);
   margin-bottom: 12px;
 }
@@ -165,23 +164,89 @@ main {
 #st-rating-btns { display: flex; gap: 8px; }
 
 .st-r-btn {
-  width: 44px;
-  height: 44px;
-  font-size: 14px;
+  width: 48px;
+  height: 48px;
+  font-size: 15px;
   font-weight: 700;
   font-family: var(--mono);
   background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.09);
   color: var(--text-secondary);
   border-radius: 10px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
 }
 .st-r-btn:hover {
-  background: rgba(255,255,255,0.09);
-  border-color: rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.18);
   color: var(--text-primary);
-  transform: scale(1.07);
+  transform: scale(1.08);
+}
+
+/* ── Chart ── */
+.chart-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 16px;
+}
+
+.chart-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.chart-legend {
+  display: flex;
+  gap: 12px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chart-legend-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.chart-canvas-wrap {
+  position: relative;
+  height: 140px;
+}
+
+#sleepChart {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.chart-xlabels {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 8px;
+  padding: 0 2px;
+}
+
+.chart-xlabel {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-family: var(--mono);
+  text-align: center;
+  flex: 1;
 }
 
 /* ── History ── */
@@ -201,13 +266,13 @@ main {
   color: var(--text-tertiary);
   font-family: var(--mono);
   font-size: 11px;
-  flex: 0 0 80px;
+  flex: 0 0 76px;
 }
 
 .st-hist-dur {
   font-size: 13px;
   font-weight: 600;
-  flex: 0 0 50px;
+  flex: 0 0 52px;
 }
 
 .st-hist-bar-wrap {
@@ -221,6 +286,7 @@ main {
 .st-hist-bar {
   height: 100%;
   border-radius: 2px;
+  transition: width 0.6s ease;
 }
 
 .st-hist-rating {
@@ -236,10 +302,64 @@ main {
   color: var(--text-tertiary);
 }
 
+/* ── Tab bar ── */
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  padding: 10px 18px calc(10px + env(safe-area-inset-bottom, 18px));
+  background: rgba(10, 10, 11, 0.96);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.tabbar-inner {
+  width: min(680px, 100%);
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+}
+
+.tabbar-link {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 10px 10px;
+  color: var(--text-primary);
+  text-decoration: none;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+  border: 1px solid transparent;
+}
+
+.tabbar-link:hover { background: rgba(255,255,255,0.1); }
+
+.tabbar-link.active {
+  background: #fff;
+  color: #0a0a0a;
+  border-color: rgba(255,255,255,0.16);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.18);
+  transform: translateY(-1px);
+}
+
 @media (max-width: 480px) {
+  body { padding-left: 12px; padding-right: 12px; }
   #st-status-row { flex-direction: column; gap: 4px; }
-  .st-r-btn { width: 48px; height: 48px; }
-  .st-hist-date { flex: 0 0 64px; }
+  .st-r-btn { width: 52px; height: 52px; }
+  .tabbar { padding-left: 10px; padding-right: 10px; }
+  .tabbar-link { font-size: 11px; padding: 10px 6px; }
 }
 </style>
 </head>
@@ -247,6 +367,8 @@ main {
 <script src="topbar.js" defer></script>
 
 <main>
+
+  <!-- ── Controls ── -->
   <div class="section">
     <div class="section-title">Sleep</div>
     <div class="card">
@@ -273,6 +395,34 @@ main {
     </div>
   </div>
 
+  <!-- ── 7-day chart ── -->
+  <div class="section">
+    <div class="section-title">7-Day Overview</div>
+    <div class="card">
+      <div class="chart-wrap">
+        <div class="chart-header">
+          <span class="chart-title">Hours slept</span>
+          <div class="chart-legend">
+            <span class="chart-legend-item">
+              <span class="chart-legend-dot" style="background:var(--success)"></span>7.5h+
+            </span>
+            <span class="chart-legend-item">
+              <span class="chart-legend-dot" style="background:var(--warning)"></span>6–7.5h
+            </span>
+            <span class="chart-legend-item">
+              <span class="chart-legend-dot" style="background:var(--danger)"></span>&lt;6h
+            </span>
+          </div>
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="sleepChart"></canvas>
+        </div>
+        <div class="chart-xlabels" id="chartLabels"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── History list ── -->
   <div class="section">
     <div class="section-title">Recent Sessions</div>
     <div class="card">
@@ -281,7 +431,19 @@ main {
       </div>
     </div>
   </div>
+
 </main>
+
+<!-- ── Tab bar ── -->
+<nav class="tabbar" aria-label="Bottom navigation">
+  <div class="tabbar-inner">
+    <a href="index.html"   class="tabbar-link">Main</a>
+    <a href="health.html"  class="tabbar-link">Health</a>
+    <a href="gym.html"     class="tabbar-link">Gym</a>
+    <a href="finance.html" class="tabbar-link">Finance</a>
+    <a href="sleep.html"   class="tabbar-link active" aria-current="page">Sleep</a>
+  </div>
+</nav>
 
 <script>
 (function () {
@@ -315,6 +477,9 @@ main {
   function colorHex(h) {
     return h >= 7.5 ? 'var(--success)' : h >= 6 ? 'var(--warning)' : 'var(--danger)';
   }
+  function colorRaw(h) {
+    return h >= 7.5 ? '#6BE3A4' : h >= 6 ? '#F2C063' : '#FF6B6B';
+  }
 
   function fmtH(h) {
     var hrs = Math.floor(h);
@@ -337,6 +502,11 @@ main {
     return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   }
 
+  function fmtDay(isoStr) {
+    var d = new Date(isoStr);
+    return d.toLocaleDateString('en-GB', { weekday: 'short' });
+  }
+
   function getSevenDayStats() {
     var recent = getSessions().slice(-7);
     if (!recent.length) return { avg: null, qualityAvg: null };
@@ -349,13 +519,13 @@ main {
   }
 
   function buildStats(showLast) {
-    var stats    = getSevenDayStats();
-    var avg      = stats.avg;
+    var stats      = getSevenDayStats();
+    var avg        = stats.avg;
     var qualityAvg = stats.qualityAvg;
-    var sessions = getSessions();
-    var last     = sessions.length ? sessions[sessions.length - 1] : null;
-    var sep      = ' <span class="st-sep">·</span> ';
-    var parts    = [];
+    var sessions   = getSessions();
+    var last       = sessions.length ? sessions[sessions.length - 1] : null;
+    var sep        = ' <span class="st-sep">·</span> ';
+    var parts      = [];
 
     if (showLast && last) {
       var cc = colorClass(last.duration);
@@ -379,6 +549,115 @@ main {
     return parts.join(sep);
   }
 
+  /* ── SVG bar chart ── */
+  function renderChart() {
+    var canvas = document.getElementById('sleepChart');
+    if (!canvas) return;
+    var sessions = getSessions().slice(-7);
+    var labelsEl = document.getElementById('chartLabels');
+
+    var W = canvas.offsetWidth || 300;
+    var H = 140;
+    canvas.width  = W * window.devicePixelRatio;
+    canvas.height = H * window.devicePixelRatio;
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+
+    var ctx = canvas.getContext('2d');
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    ctx.clearRect(0, 0, W, H);
+
+    var padL = 28, padR = 8, padT = 8, padB = 8;
+    var chartW = W - padL - padR;
+    var chartH = H - padT - padB;
+    var maxH   = 10; // y-axis max hours
+
+    /* grid lines */
+    var gridHours = [2, 4, 6, 8, 10];
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([]);
+    gridHours.forEach(function (gh) {
+      var y = padT + chartH - (gh / maxH) * chartH;
+      ctx.beginPath();
+      ctx.moveTo(padL, y);
+      ctx.lineTo(padL + chartW, y);
+      ctx.stroke();
+    });
+
+    /* y-axis labels */
+    ctx.fillStyle = 'rgba(118,116,110,0.9)';
+    ctx.font = '9px ui-monospace, monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    gridHours.forEach(function (gh) {
+      var y = padT + chartH - (gh / maxH) * chartH;
+      ctx.fillText(gh + 'h', padL - 4, y);
+    });
+
+    /* target line at 8h */
+    var targetY = padT + chartH - (TARGET_H / maxH) * chartH;
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(padL, targetY);
+    ctx.lineTo(padL + chartW, targetY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    /* bars */
+    if (!sessions.length) {
+      labelsEl.innerHTML = '';
+      return;
+    }
+
+    var n       = sessions.length;
+    var barGap  = 6;
+    var barW    = Math.max(8, (chartW - barGap * (n - 1)) / n);
+    var startX  = padL + (chartW - (barW * n + barGap * (n - 1))) / 2;
+    var labels  = [];
+
+    sessions.forEach(function (s, i) {
+      var h   = Math.min(s.duration, maxH);
+      var barH = (h / maxH) * chartH;
+      var x   = startX + i * (barW + barGap);
+      var y   = padT + chartH - barH;
+      var col = colorRaw(s.duration);
+
+      /* bar with rounded top */
+      var r = Math.min(4, barW / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + barW - r, y);
+      ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
+      ctx.lineTo(x + barW, padT + chartH);
+      ctx.lineTo(x, padT + chartH);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+      ctx.fillStyle = col;
+      ctx.globalAlpha = 0.85;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      /* value label above bar */
+      if (barH > 14) {
+        ctx.fillStyle = col;
+        ctx.font = 'bold 9px ui-monospace, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(s.duration.toFixed(1), x + barW / 2, y - 2);
+      }
+
+      labels.push(fmtDay(s.start));
+    });
+
+    labelsEl.innerHTML = labels.map(function (l) {
+      return '<span class="chart-xlabel">' + l + '</span>';
+    }).join('');
+  }
+
   function renderHistory() {
     var sessions = getSessions().slice(-7).reverse();
     if (!sessions.length) {
@@ -386,14 +665,13 @@ main {
       return;
     }
     elHistory.innerHTML = sessions.map(function (s) {
-      var pct     = Math.min(100, (s.duration / TARGET_H) * 100).toFixed(1);
-      var col     = colorHex(s.duration);
-      var rating  = s.rating != null ? s.rating + '/5' : '—';
-      var durStr  = '<span class="st-hist-dur" style="color:' + col + '">' + fmtH(s.duration) + '</span>';
-      var bar     = '<div class="st-hist-bar-wrap"><div class="st-hist-bar" style="width:' + pct + '%;background:' + col + '"></div></div>';
+      var pct    = Math.min(100, (s.duration / TARGET_H) * 100).toFixed(1);
+      var col    = colorHex(s.duration);
+      var rating = s.rating != null ? s.rating + '/5' : '—';
       return '<div class="st-hist-row">' +
         '<span class="st-hist-date">' + fmtDate(s.start) + '</span>' +
-        durStr + bar +
+        '<span class="st-hist-dur" style="color:' + col + '">' + fmtH(s.duration) + '</span>' +
+        '<div class="st-hist-bar-wrap"><div class="st-hist-bar" style="width:' + pct + '%;background:' + col + '"></div></div>' +
         '<span class="st-hist-rating">' + rating + '</span>' +
         '</div>';
     }).join('');
@@ -403,10 +681,11 @@ main {
     clearInterval(ticker); ticker = null;
     elStatus.textContent = 'Awake';
     elStats.innerHTML = buildStats(true);
-    elButtons.style.display = '';
+    elButtons.style.display = 'flex';
     elBtnSleep.style.display = '';
     elBtnWake.style.display = 'none';
     elRating.style.display = 'none';
+    renderChart();
     renderHistory();
   }
 
@@ -418,10 +697,11 @@ main {
     clearInterval(ticker);
     ticker = setInterval(tick, 1000);
     elStats.innerHTML = buildStats(false);
-    elButtons.style.display = '';
+    elButtons.style.display = 'flex';
     elBtnSleep.style.display = 'none';
     elBtnWake.style.display = '';
     elRating.style.display = 'none';
+    renderChart();
     renderHistory();
   }
 
@@ -430,7 +710,7 @@ main {
     elStatus.textContent = 'Rate your sleep';
     elStats.innerHTML = '';
     elButtons.style.display = 'none';
-    elRating.style.display = '';
+    elRating.style.display = 'block'; /* must be explicit — CSS default is none */
   }
 
   elBtnSleep.addEventListener('click', function () {
@@ -459,6 +739,11 @@ main {
       }
       showAwake();
     });
+  });
+
+  /* re-render chart on resize */
+  window.addEventListener('resize', function () {
+    if (elRating.style.display !== 'block') renderChart();
   });
 
   var start = getStart();
