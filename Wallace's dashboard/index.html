@@ -1137,6 +1137,283 @@
         </div>
       </div>
     </div>
+
+    <!-- ── Sleep Tracker ── -->
+    <div class="section">
+      <div class="section-title">Sleep Tracker</div>
+      <div id="sleep-tracker" class="gm-card">
+
+        <style>
+          #sleep-tracker {
+            padding: 18px 20px;
+          }
+          #st-status-row {
+            display: flex;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 6px 10px;
+            margin-bottom: 16px;
+            min-height: 20px;
+          }
+          #st-status {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+          }
+          #st-stats {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+          }
+          #st-stats .st-sep   { color: var(--text-tertiary); margin: 0 2px; }
+          #st-stats .st-val   { color: var(--text-primary); font-weight: 500; }
+          #st-stats .st-green { color: var(--success); font-weight: 500; }
+          #st-stats .st-amber { color: var(--warning); font-weight: 500; }
+          #st-stats .st-red   { color: var(--danger);  font-weight: 500; }
+          #st-stats .st-muted { color: var(--text-tertiary); }
+          #st-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+          }
+          #st-btn-sleep,
+          #st-btn-wake {
+            padding: 7px 15px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            font-family: var(--sans);
+            transition: background 0.15s, border-color 0.15s;
+            letter-spacing: 0.01em;
+          }
+          #st-btn-sleep {
+            background: rgba(255,255,255,0.05);
+            border-color: rgba(255,255,255,0.08);
+            color: var(--text-secondary);
+          }
+          #st-btn-sleep:hover {
+            background: rgba(255,255,255,0.08);
+            border-color: rgba(255,255,255,0.13);
+          }
+          #st-btn-wake {
+            background: rgba(107,227,164,0.11);
+            border-color: rgba(107,227,164,0.24);
+            color: #6BE3A4;
+          }
+          #st-btn-wake:hover {
+            background: rgba(107,227,164,0.18);
+            border-color: rgba(107,227,164,0.36);
+          }
+          #st-rating-prompt { display: none; }
+          #st-rating-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin: 0 0 10px 0;
+          }
+          #st-rating-btns { display: flex; gap: 8px; }
+          .st-r-btn {
+            width: 42px;
+            height: 42px;
+            font-size: 20px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s, transform 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            line-height: 1;
+          }
+          .st-r-btn:hover {
+            background: rgba(255,255,255,0.09);
+            border-color: rgba(255,255,255,0.14);
+            transform: scale(1.1);
+          }
+          @media (max-width: 480px) {
+            #st-status-row { flex-direction: column; gap: 4px; }
+            .st-r-btn { width: 46px; height: 46px; }
+          }
+        </style>
+
+        <div id="st-status-row">
+          <span id="st-status">☀️ Awake</span>
+          <span id="st-stats"></span>
+        </div>
+
+        <div id="st-buttons">
+          <button id="st-btn-sleep">Start Sleeping</button>
+          <button id="st-btn-wake" style="display:none">I'm Awake</button>
+        </div>
+
+        <div id="st-rating-prompt">
+          <p id="st-rating-label">How did you sleep?</p>
+          <div id="st-rating-btns">
+            <button class="st-r-btn" data-r="1">😫</button>
+            <button class="st-r-btn" data-r="2">😕</button>
+            <button class="st-r-btn" data-r="3">😐</button>
+            <button class="st-r-btn" data-r="4">😊</button>
+            <button class="st-r-btn" data-r="5">🔥</button>
+          </div>
+        </div>
+
+        <script>
+        (function () {
+          const SESSIONS_KEY  = 'sleepSessions';
+          const START_KEY     = 'sleepStart';
+          const RATING_EMOJIS = ['😫', '😕', '😐', '😊', '🔥'];
+
+          const elStatus   = document.getElementById('st-status');
+          const elStats    = document.getElementById('st-stats');
+          const elButtons  = document.getElementById('st-buttons');
+          const elBtnSleep = document.getElementById('st-btn-sleep');
+          const elBtnWake  = document.getElementById('st-btn-wake');
+          const elRating   = document.getElementById('st-rating-prompt');
+          const ratingBtns = document.querySelectorAll('.st-r-btn');
+
+          let ticker  = null;
+          let pending = null;
+
+          function getSessions() {
+            try { return JSON.parse(localStorage.getItem(SESSIONS_KEY)) || []; } catch { return []; }
+          }
+          function saveSessions(s) { localStorage.setItem(SESSIONS_KEY, JSON.stringify(s)); }
+          function getStart()   { return localStorage.getItem(START_KEY); }
+          function setStart(ts) { localStorage.setItem(START_KEY, ts); }
+          function clearStart() { localStorage.removeItem(START_KEY); }
+
+          function colorClass(h) {
+            return h >= 7.5 ? 'st-green' : h >= 6 ? 'st-amber' : 'st-red';
+          }
+
+          function fmtH(h) {
+            const hrs = Math.floor(h);
+            const min = Math.round((h - hrs) * 60);
+            return min > 0 ? `${hrs}h ${min}m` : `${hrs}h`;
+          }
+
+          function fmtElapsed(ms) {
+            const s = Math.floor(ms / 1000);
+            const h = Math.floor(s / 3600);
+            const m = Math.floor((s % 3600) / 60);
+            const sec = s % 60;
+            if (h > 0) return `${h}h ${m}m ${sec}s`;
+            if (m > 0) return `${m}m ${sec}s`;
+            return `${sec}s`;
+          }
+
+          function getSevenDayStats() {
+            const recent = getSessions().slice(-7);
+            if (!recent.length) return { avg: null, qualityAvg: null };
+            const avg = recent.reduce((a, s) => a + s.duration, 0) / recent.length;
+            const rated = recent.filter(s => s.rating != null);
+            const qualityAvg = rated.length
+              ? rated.reduce((a, s) => a + s.rating, 0) / rated.length
+              : null;
+            return { avg, qualityAvg };
+          }
+
+          function buildStats(showLast) {
+            const { avg, qualityAvg } = getSevenDayStats();
+            const sessions = getSessions();
+            const last = sessions.length ? sessions[sessions.length - 1] : null;
+            const sep = ' <span class="st-sep">·</span> ';
+            const parts = [];
+
+            if (showLast && last) {
+              const cc = colorClass(last.duration);
+              let t = `Last night: <span class="${cc}">${fmtH(last.duration)}</span>`;
+              if (last.rating != null) t += ` ${RATING_EMOJIS[last.rating - 1]}`;
+              parts.push(t);
+            }
+
+            if (avg !== null) {
+              parts.push(`7-day avg: <span class="${colorClass(avg)}">${avg.toFixed(1)}h</span>`);
+            }
+
+            if (qualityAvg !== null) {
+              parts.push(`Quality: <span class="st-val">${qualityAvg.toFixed(1)}/5</span>`);
+            }
+
+            if (!parts.length) {
+              return showLast ? '<span class="st-muted">No sessions yet — press Start Sleeping tonight</span>' : '';
+            }
+
+            return parts.join(sep);
+          }
+
+          function showAwake() {
+            clearInterval(ticker); ticker = null;
+            elStatus.textContent = '☀️ Awake';
+            elStats.innerHTML = buildStats(true);
+            elButtons.style.display = '';
+            elBtnSleep.style.display = '';
+            elBtnWake.style.display = 'none';
+            elRating.style.display = 'none';
+          }
+
+          function showSleeping(startTs) {
+            function tick() {
+              const elapsed = Date.now() - new Date(startTs).getTime();
+              elStatus.textContent = '😴 Sleeping — ' + fmtElapsed(elapsed);
+            }
+            tick();
+            clearInterval(ticker);
+            ticker = setInterval(tick, 1000);
+            elStats.innerHTML = buildStats(false);
+            elButtons.style.display = '';
+            elBtnSleep.style.display = 'none';
+            elBtnWake.style.display = '';
+            elRating.style.display = 'none';
+          }
+
+          function showRating() {
+            clearInterval(ticker); ticker = null;
+            elStatus.textContent = '😴 Rate your sleep';
+            elStats.innerHTML = '';
+            elButtons.style.display = 'none';
+            elRating.style.display = '';
+          }
+
+          elBtnSleep.addEventListener('click', function () {
+            var ts = new Date().toISOString();
+            setStart(ts);
+            showSleeping(ts);
+          });
+
+          elBtnWake.addEventListener('click', function () {
+            var start = getStart();
+            if (!start) { showAwake(); return; }
+            var end = new Date().toISOString();
+            pending = { start: start, end: end, duration: (new Date(end) - new Date(start)) / 3600000 };
+            clearStart();
+            showRating();
+          });
+
+          ratingBtns.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              if (pending) {
+                pending.rating = parseInt(this.dataset.r, 10);
+                var sessions = getSessions();
+                sessions.push(pending);
+                saveSessions(sessions);
+                pending = null;
+              }
+              showAwake();
+            });
+          });
+
+          var start = getStart();
+          if (start) showSleeping(start);
+          else showAwake();
+        })();
+        </script>
+      </div>
+    </div>
   </main>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
