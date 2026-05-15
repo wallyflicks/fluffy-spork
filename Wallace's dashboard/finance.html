@@ -743,7 +743,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
   // Returns { price, prevClose, resolvedTicker, stale }.
   async function fetchPrice(ticker) {
     try {
-      const res = await fetch(`/.netlify/functions/stock-price?ticker=${encodeURIComponent(ticker)}`);
+      const res = await fetch(`/api/stock-price?ticker=${encodeURIComponent(ticker)}`);
       if (res.ok) {
         const data = await res.json();
         if (data && data.price) {
