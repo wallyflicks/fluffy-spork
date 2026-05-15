@@ -1313,38 +1313,39 @@ img, video, canvas, svg { max-width: 100%; }
 /* ── Workout analytics muscle group cards ─────────────────────── */
 .analytics-group-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: 8px;
-  margin-bottom: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
 }
 .analytics-group-card {
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: 12px;
+  padding: 20px;
 }
 .analytics-group-title {
-  font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
-  text-transform: uppercase; color: rgba(255,255,255,0.5);
-  margin-bottom: 4px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: rgba(255,255,255,0.45);
+  margin-bottom: 8px;
 }
 .analytics-group-value {
-  font-size: 18px; font-weight: 600;
+  font-size: 22px; font-weight: 600;
   font-variant-numeric: tabular-nums; color: #fff;
-  margin-bottom: 3px;
+  margin-bottom: 6px;
 }
 .analytics-group-meta {
-  font-size: 11px; color: rgba(255,255,255,0.4);
-  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  font-size: 12px; color: rgba(255,255,255,0.4);
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 10px;
 }
 .analytics-badge {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
-  padding: 1px 6px; border-radius: 99px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
+  padding: 2px 7px; border-radius: 99px;
   text-transform: uppercase;
 }
-.analytics-badge.on-track    { background: rgba(107,227,164,0.15); color: #6BE3A4; }
-.analytics-badge.needs-work  { background: rgba(242,192,99,0.15);  color: #F2C063; }
-.analytics-badge.undertrained{ background: rgba(255,138,138,0.15); color: #FF8A8A; }
+.analytics-badge.on-track   { background: rgba(107,227,164,0.15); color: #6BE3A4; }
+.analytics-badge.needs-work { background: rgba(242,192,99,0.15);  color: #F2C063; }
+.analytics-badge.undertrained { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.38); }
 
 /* Progress bar used inside group cards and elsewhere in analytics */
 .score-bar {
@@ -1354,6 +1355,12 @@ img, video, canvas, svg { max-width: 100%; }
 .score-bar-fill {
   height: 100%; border-radius: 99px;
   transition: width 0.4s ease;
+}
+
+@media (max-width: 480px) {
+  .analytics-group-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .analytics-group-card { padding: 16px; }
+  .analytics-group-value { font-size: 19px; }
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1998,22 +2005,19 @@ img, video, canvas, svg { max-width: 100%; }
     const ex = getCurrentEx();
     if (!ex) { wrap.innerHTML = '<div class="po-rx-empty">Pick a gym and day above.</div>'; return; }
     const logs = getLogs();
-    const rx = getRx(ex, logs);
-    if (!rx) {
+    if (!logs.length) {
       const sw = ex.startWeight, sr = ex.repMin;
       const head = ex.bw
         ? '<span class="po-accent">' + sr + '</span> reps'
         : '<span class="po-accent">' + (sw || 0) + unit() + '</span> × ' + sr + ' reps';
-      const reason = ex.bw
-        ? 'Aim for ' + ex.repMin + '-' + ex.repMax + ' clean reps. Once you hit ' + ex.repMax + '+, push for more.'
-        : 'Hit ' + ex.repMin + '-' + ex.repMax + ' reps. Once logged, the coach will start prescribing.';
-      wrap.innerHTML = '<div class="po-rx-card"><div class="po-rx-label">' + escape(ex.name) + ' · starting point</div><div class="po-rx-headline">' + head + '</div><span class="po-rx-tag hold">Start here</span><p class="po-rx-reason">' + reason + '</p></div>';
+      wrap.innerHTML = '<div class="po-rx-card"><div class="po-rx-label">Starting point</div><div class="po-rx-headline">' + head + '</div><p class="po-rx-reason">Log your first set to begin tracking.</p></div>';
       return;
     }
-    const head = rx.bw
-      ? '<span class="po-accent">' + rx.reps + '</span> reps'
-      : '<span class="po-accent">' + rx.weight + unit() + '</span> × ' + rx.reps + ' reps';
-    wrap.innerHTML = '<div class="po-rx-card po-rx-' + rx.type + '"><div class="po-rx-label">' + escape(ex.name) + '</div><div class="po-rx-headline">' + head + '</div><span class="po-rx-tag ' + rx.type + '">' + rx.tag + '</span><p class="po-rx-reason">' + rx.reason + '</p></div>';
+    const last = logs[logs.length - 1];
+    const head = ex.bw
+      ? '<span class="po-accent">' + last.reps + '</span> reps'
+      : '<span class="po-accent">' + last.weight + unit() + '</span> × ' + last.reps + ' reps';
+    wrap.innerHTML = '<div class="po-rx-card"><div class="po-rx-label">Last session</div><div class="po-rx-headline">' + head + '</div><p class="po-rx-reason">Continue from here — you decide when to add weight.</p></div>';
   }
   function renderStats() {
     const ex = getCurrentEx();
