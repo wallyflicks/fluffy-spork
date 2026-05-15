@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0b">
+<title>Sleep — Dashboard</title>
+<style>
+:root {
+  --bg: #0a0a0b;
+  --text-primary: #FAFAFA;
+  --text-secondary: #B8B6B0;
+  --text-tertiary: #76746E;
+  --success: #6BE3A4;
+  --warning: #F2C063;
+  --danger: #FF6B6B;
+  --card: rgba(255,255,255,0.04);
+  --card-border: rgba(255,255,255,0.06);
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--sans);
+  overflow-x: hidden;
+}
+
+body {
+  padding: 24px 16px 80px;
+  display: flex;
+  justify-content: center;
+}
+
+main {
+  width: 100%;
+  max-width: 540px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.section-title::before {
+  content: "";
+  display: block;
+  width: 18px;
+  height: 1px;
+  background: var(--text-tertiary);
+  opacity: 0.6;
+}
+.section-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.08), transparent);
+}
+
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 20px 22px;
+  backdrop-filter: blur(24px) saturate(1.2);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+  border: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Tracker ── */
+#st-status-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+#st-status {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+#st-stats {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+#st-stats .st-sep   { color: var(--text-tertiary); margin: 0 3px; }
+#st-stats .st-val   { color: var(--text-primary); font-weight: 500; }
+#st-stats .st-green { color: var(--success); font-weight: 500; }
+#st-stats .st-amber { color: var(--warning); font-weight: 500; }
+#st-stats .st-red   { color: var(--danger);  font-weight: 500; }
+#st-stats .st-muted { color: var(--text-tertiary); }
+
+#st-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#st-btn-sleep,
+#st-btn-wake {
+  padding: 9px 18px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--sans);
+  transition: background 0.15s, border-color 0.15s;
+  letter-spacing: 0.01em;
+}
+
+#st-btn-sleep {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.08);
+  color: var(--text-secondary);
+}
+#st-btn-sleep:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.13);
+}
+
+#st-btn-wake {
+  background: rgba(107,227,164,0.11);
+  border-color: rgba(107,227,164,0.24);
+  color: #6BE3A4;
+}
+#st-btn-wake:hover {
+  background: rgba(107,227,164,0.18);
+  border-color: rgba(107,227,164,0.36);
+}
+
+#st-rating-prompt { display: none; }
+
+#st-rating-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+#st-rating-btns { display: flex; gap: 8px; }
+
+.st-r-btn {
+  width: 44px;
+  height: 44px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--mono);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  color: var(--text-secondary);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
+}
+.st-r-btn:hover {
+  background: rgba(255,255,255,0.09);
+  border-color: rgba(255,255,255,0.14);
+  color: var(--text-primary);
+  transform: scale(1.07);
+}
+
+/* ── History ── */
+#st-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.st-hist-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.st-hist-date {
+  color: var(--text-tertiary);
+  font-family: var(--mono);
+  font-size: 11px;
+  flex: 0 0 80px;
+}
+
+.st-hist-dur {
+  font-size: 13px;
+  font-weight: 600;
+  flex: 0 0 50px;
+}
+
+.st-hist-bar-wrap {
+  flex: 1;
+  height: 3px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.st-hist-bar {
+  height: 100%;
+  border-radius: 2px;
+}
+
+.st-hist-rating {
+  color: var(--text-tertiary);
+  font-family: var(--mono);
+  font-size: 11px;
+  flex: 0 0 28px;
+  text-align: right;
+}
+
+.st-empty {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 480px) {
+  #st-status-row { flex-direction: column; gap: 4px; }
+  .st-r-btn { width: 48px; height: 48px; }
+  .st-hist-date { flex: 0 0 64px; }
+}
+</style>
+</head>
+<body>
+<script src="topbar.js" defer></script>
+
+<main>
+  <div class="section">
+    <div class="section-title">Sleep</div>
+    <div class="card">
+      <div id="st-status-row">
+        <span id="st-status">Awake</span>
+        <span id="st-stats"></span>
+      </div>
+
+      <div id="st-buttons">
+        <button id="st-btn-sleep">Start Sleeping</button>
+        <button id="st-btn-wake" style="display:none">I'm Awake</button>
+      </div>
+
+      <div id="st-rating-prompt">
+        <p id="st-rating-label">How did you sleep?</p>
+        <div id="st-rating-btns">
+          <button class="st-r-btn" data-r="1">1</button>
+          <button class="st-r-btn" data-r="2">2</button>
+          <button class="st-r-btn" data-r="3">3</button>
+          <button class="st-r-btn" data-r="4">4</button>
+          <button class="st-r-btn" data-r="5">5</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Recent Sessions</div>
+    <div class="card">
+      <div id="st-history-list">
+        <p class="st-empty">No sessions recorded yet.</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+(function () {
+  var SESSIONS_KEY = 'sleepSessions';
+  var START_KEY    = 'sleepStart';
+  var TARGET_H     = 8;
+
+  var elStatus   = document.getElementById('st-status');
+  var elStats    = document.getElementById('st-stats');
+  var elButtons  = document.getElementById('st-buttons');
+  var elBtnSleep = document.getElementById('st-btn-sleep');
+  var elBtnWake  = document.getElementById('st-btn-wake');
+  var elRating   = document.getElementById('st-rating-prompt');
+  var elHistory  = document.getElementById('st-history-list');
+  var ratingBtns = document.querySelectorAll('.st-r-btn');
+
+  var ticker  = null;
+  var pending = null;
+
+  function getSessions() {
+    try { return JSON.parse(localStorage.getItem(SESSIONS_KEY)) || []; } catch (e) { return []; }
+  }
+  function saveSessions(s) { localStorage.setItem(SESSIONS_KEY, JSON.stringify(s)); }
+  function getStart()   { return localStorage.getItem(START_KEY); }
+  function setStart(ts) { localStorage.setItem(START_KEY, ts); }
+  function clearStart() { localStorage.removeItem(START_KEY); }
+
+  function colorClass(h) {
+    return h >= 7.5 ? 'st-green' : h >= 6 ? 'st-amber' : 'st-red';
+  }
+  function colorHex(h) {
+    return h >= 7.5 ? 'var(--success)' : h >= 6 ? 'var(--warning)' : 'var(--danger)';
+  }
+
+  function fmtH(h) {
+    var hrs = Math.floor(h);
+    var min = Math.round((h - hrs) * 60);
+    return min > 0 ? hrs + 'h ' + min + 'm' : hrs + 'h';
+  }
+
+  function fmtElapsed(ms) {
+    var s   = Math.floor(ms / 1000);
+    var h   = Math.floor(s / 3600);
+    var m   = Math.floor((s % 3600) / 60);
+    var sec = s % 60;
+    if (h > 0) return h + 'h ' + m + 'm ' + sec + 's';
+    if (m > 0) return m + 'm ' + sec + 's';
+    return sec + 's';
+  }
+
+  function fmtDate(isoStr) {
+    var d = new Date(isoStr);
+    return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  }
+
+  function getSevenDayStats() {
+    var recent = getSessions().slice(-7);
+    if (!recent.length) return { avg: null, qualityAvg: null };
+    var avg = recent.reduce(function (a, s) { return a + s.duration; }, 0) / recent.length;
+    var rated = recent.filter(function (s) { return s.rating != null; });
+    var qualityAvg = rated.length
+      ? rated.reduce(function (a, s) { return a + s.rating; }, 0) / rated.length
+      : null;
+    return { avg: avg, qualityAvg: qualityAvg };
+  }
+
+  function buildStats(showLast) {
+    var stats    = getSevenDayStats();
+    var avg      = stats.avg;
+    var qualityAvg = stats.qualityAvg;
+    var sessions = getSessions();
+    var last     = sessions.length ? sessions[sessions.length - 1] : null;
+    var sep      = ' <span class="st-sep">·</span> ';
+    var parts    = [];
+
+    if (showLast && last) {
+      var cc = colorClass(last.duration);
+      var t  = 'Last night: <span class="' + cc + '">' + fmtH(last.duration) + '</span>';
+      if (last.rating != null) t += ' <span class="st-muted">(' + last.rating + '/5)</span>';
+      parts.push(t);
+    }
+
+    if (avg !== null) {
+      parts.push('7-day avg: <span class="' + colorClass(avg) + '">' + avg.toFixed(1) + 'h</span>');
+    }
+
+    if (qualityAvg !== null) {
+      parts.push('Quality: <span class="st-val">' + qualityAvg.toFixed(1) + '/5</span>');
+    }
+
+    if (!parts.length) {
+      return showLast ? '<span class="st-muted">No sessions yet — press Start Sleeping tonight</span>' : '';
+    }
+
+    return parts.join(sep);
+  }
+
+  function renderHistory() {
+    var sessions = getSessions().slice(-7).reverse();
+    if (!sessions.length) {
+      elHistory.innerHTML = '<p class="st-empty">No sessions recorded yet.</p>';
+      return;
+    }
+    elHistory.innerHTML = sessions.map(function (s) {
+      var pct     = Math.min(100, (s.duration / TARGET_H) * 100).toFixed(1);
+      var col     = colorHex(s.duration);
+      var rating  = s.rating != null ? s.rating + '/5' : '—';
+      var durStr  = '<span class="st-hist-dur" style="color:' + col + '">' + fmtH(s.duration) + '</span>';
+      var bar     = '<div class="st-hist-bar-wrap"><div class="st-hist-bar" style="width:' + pct + '%;background:' + col + '"></div></div>';
+      return '<div class="st-hist-row">' +
+        '<span class="st-hist-date">' + fmtDate(s.start) + '</span>' +
+        durStr + bar +
+        '<span class="st-hist-rating">' + rating + '</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  function showAwake() {
+    clearInterval(ticker); ticker = null;
+    elStatus.textContent = 'Awake';
+    elStats.innerHTML = buildStats(true);
+    elButtons.style.display = '';
+    elBtnSleep.style.display = '';
+    elBtnWake.style.display = 'none';
+    elRating.style.display = 'none';
+    renderHistory();
+  }
+
+  function showSleeping(startTs) {
+    function tick() {
+      elStatus.textContent = 'Sleeping — ' + fmtElapsed(Date.now() - new Date(startTs).getTime());
+    }
+    tick();
+    clearInterval(ticker);
+    ticker = setInterval(tick, 1000);
+    elStats.innerHTML = buildStats(false);
+    elButtons.style.display = '';
+    elBtnSleep.style.display = 'none';
+    elBtnWake.style.display = '';
+    elRating.style.display = 'none';
+    renderHistory();
+  }
+
+  function showRating() {
+    clearInterval(ticker); ticker = null;
+    elStatus.textContent = 'Rate your sleep';
+    elStats.innerHTML = '';
+    elButtons.style.display = 'none';
+    elRating.style.display = '';
+  }
+
+  elBtnSleep.addEventListener('click', function () {
+    var ts = new Date().toISOString();
+    setStart(ts);
+    showSleeping(ts);
+  });
+
+  elBtnWake.addEventListener('click', function () {
+    var start = getStart();
+    if (!start) { showAwake(); return; }
+    var end = new Date().toISOString();
+    pending = { start: start, end: end, duration: (new Date(end) - new Date(start)) / 3600000 };
+    clearStart();
+    showRating();
+  });
+
+  ratingBtns.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (pending) {
+        pending.rating = parseInt(this.dataset.r, 10);
+        var sessions = getSessions();
+        sessions.push(pending);
+        saveSessions(sessions);
+        pending = null;
+      }
+      showAwake();
+    });
+  });
+
+  var start = getStart();
+  if (start) showSleeping(start);
+  else showAwake();
+})();
+</script>
+</body>
+</html>

@@ -185,6 +185,11 @@ body.topbar-modal-open {
     <span class="topbar-pill-label">STACK</span>
     <span class="topbar-pill-count" id="topbarStackCount">—/—</span>
   </a>
+  <a href="sleep.html" class="topbar-pill" id="topbarSleep">
+    <span class="topbar-pill-dot"></span>
+    <span class="topbar-pill-label">SLEEP</span>
+    <span class="topbar-pill-count" id="topbarSleepCount">—</span>
+  </a>
   <div class="topbar-water-wrap">
     <a href="health.html#water" class="topbar-water-pill" id="topbarWater">
       <span class="topbar-pill-dot"></span>
@@ -287,15 +292,32 @@ body.topbar-modal-open {
     if (status === 'warn' || status === 'miss') pillEl.classList.add(status);
   }
 
+  function getSleepSummary() {
+    var sessions = [];
+    try { sessions = JSON.parse(localStorage.getItem('sleepSessions')) || []; } catch (e) {}
+    if (!sessions.length) return { label: '—', status: 'idle' };
+    var last = sessions[sessions.length - 1];
+    var h = last.duration || 0;
+    var hrs = Math.floor(h);
+    var min = Math.round((h - hrs) * 60);
+    var label = min > 0 ? hrs + 'h ' + min + 'm' : hrs + 'h';
+    var isSleeping = !!localStorage.getItem('sleepStart');
+    if (isSleeping) return { label: 'sleeping', status: 'idle' };
+    var status = h >= 7.5 ? 'idle' : h >= 6 ? 'warn' : 'miss';
+    return { label: label, status: status };
+  }
+
   function render() {
     const goalsEl = document.getElementById('topbarGoals');
     const stackEl = document.getElementById('topbarStack');
     const waterEl = document.getElementById('topbarWater');
+    const sleepEl = document.getElementById('topbarSleep');
     if (!goalsEl) return; // not injected yet
 
     const g = getGoalsProgress();
     const s = getStackProgress();
     const w = getWaterProgress();
+    const sl = getSleepSummary();
 
     document.getElementById('topbarGoalsCount').textContent =
       g.total ? g.done + '/' + g.total : '0/0';
@@ -303,10 +325,12 @@ body.topbar-modal-open {
       s.total ? s.done + '/' + s.total : '0/0';
     document.getElementById('topbarWaterCount').textContent =
       w.total ? w.done + '/' + w.total : '0/0';
+    document.getElementById('topbarSleepCount').textContent = sl.label;
 
     setPillStatus(goalsEl, classifyStatus(g.done, g.total));
     setPillStatus(stackEl, classifyStatus(s.done, s.total));
     setPillStatus(waterEl, classifyStatus(w.done, w.total));
+    setPillStatus(sleepEl, sl.status);
   }
 
   // -------- Water +1 (works from any page) --------
