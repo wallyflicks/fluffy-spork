@@ -11,8 +11,11 @@
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js')
-        .then(reg => { window.__swReg = reg; })
-        .catch(() => {});
+        .then(reg => {
+          window.__swReg = reg;
+          console.log('[SW] Registered, scope:', reg.scope);
+        })
+        .catch(e => console.warn('[SW] Registration failed:', e));
     });
   }
 
@@ -42,18 +45,31 @@
     } catch {}
   }
 
-  function showNotification(title, body, tag) {
-    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  async function showNotification(title, body, tag) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') {
+      console.log('[notif] Skipped — permission:', Notification.permission);
+      return;
+    }
+    console.log('[notif] Firing:', tag, '|', title);
     markFired(tag);
-    const opts = { body, icon: ICON, badge: ICON, tag, renotify: true };
-    // Prefer service worker notification (works when app is backgrounded on iOS PWA)
-    const reg = window.__swReg || (navigator.serviceWorker && navigator.serviceWorker.controller);
-    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({ type: 'SHOW_NOTIFICATION', title, body, tag });
-    } else if (window.__swReg) {
-      window.__swReg.showNotification(title, opts);
-    } else {
+    const opts = { body, icon: ICON, badge: ICON, tag, renotify: true, data: { url: '/index.html' } };
+    // Use registration.showNotification() — most reliable on iOS PWA (works backgrounded)
+    if ('serviceWorker' in navigator) {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        await reg.showNotification(title, opts);
+        console.log('[notif] Shown via SW registration');
+        return;
+      } catch (e) {
+        console.warn('[notif] SW showNotification failed:', e);
+      }
+    }
+    // Fallback: basic Notification API (foreground only)
+    try {
       new Notification(title, opts);
+      console.log('[notif] Shown via basic Notification API');
+    } catch (e) {
+      console.error('[notif] All notification methods failed:', e);
     }
   }
 
@@ -145,14 +161,25 @@
   function scheduleDeepWorkReminder(s) {
     if (!s.enabled) return;
     const delay = msUntil(s.time || '09:00');
+    const targetHours = parseFloat(s.targetHours || localStorage.getItem('deepWorkDailyTarget') || 2);
     setTimeout(() => {
       const tag = 'deepwork';
       if (hasFiredToday(tag)) return;
       try {
         const sessions = JSON.parse(localStorage.getItem('dw_sessions')) || [];
-        const todayHas = sessions.some(s => (s.startTime || '').slice(0,10) === todayStr());
-        if (!todayHas) showNotification('🧠 Deep Work', 'No deep work yet today — lock in.', tag);
-      } catch { showNotification('🧠 Deep Work', 'No deep work yet today — lock in.', tag); }
+        const today = todayStr();
+        const todayMinutes = sessions
+          .filter(s => (s.startTime || '').slice(0,10) === today)
+          .reduce((sum, s) => sum + (s.durationMin || 0), 0);
+        const todayHours = todayMinutes / 60;
+        const remaining = Math.max(0, targetHours - todayHours);
+        if (remaining > 0.1) {
+          const remStr = remaining < 1 ? `${Math.round(remaining * 60)}m` : `${remaining.toFixed(1).replace('.0','')}h`;
+          showNotification('🧠 Deep Work', `${remStr} of deep work left today — lock in.`, tag);
+        }
+      } catch {
+        showNotification('🧠 Deep Work', `${targetHours}h deep work target — lock in.`, tag);
+      }
     }, delay);
   }
 

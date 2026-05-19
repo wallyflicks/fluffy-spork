@@ -917,6 +917,8 @@ html, body {
   function renderWater() {
     const calc = computeTargetMl();
     const targetUnits = Math.ceil(calc.total / unitVolMl());
+    // Publish target for index.html daily score (unified key)
+    try { localStorage.setItem('waterDailyTarget', JSON.stringify(targetUnits)); } catch {}
     const count = todayCount();
     const unitName = unitLabelPlural();
 

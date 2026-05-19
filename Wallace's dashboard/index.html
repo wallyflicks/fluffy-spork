@@ -728,7 +728,7 @@
     }
     .score-metric-grid {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px;
       margin: 18px 0 16px;
     }
@@ -946,15 +946,13 @@
         <div class="score-summary">
           <p class="score-verdict" id="dailyScoreVerdict">Loading your day…</p>
           <div class="score-bars">
-            <div class="score-bar-row"><span class="score-bar-label">Habits</span><span id="habitProgressLabel">0/5</span><div class="score-bar"><div id="habitFill" class="score-bar-fill" style="width:0%"></div></div></div>
             <div class="score-bar-row"><span class="score-bar-label">Goals</span><span id="goalProgressLabel">0/0</span><div class="score-bar"><div id="goalFill" class="score-bar-fill" style="width:0%"></div></div></div>
-            <div class="score-bar-row"><span class="score-bar-label">Water</span><span id="waterProgressLabel">0/9</span><div class="score-bar"><div id="waterFill" class="score-bar-fill" style="width:0%"></div></div></div>
+            <div class="score-bar-row"><span class="score-bar-label">Water</span><span id="waterProgressLabel">0/8</span><div class="score-bar"><div id="waterFill" class="score-bar-fill" style="width:0%"></div></div></div>
             <div class="score-bar-row"><span class="score-bar-label">Workout</span><span id="workoutProgressLabel">0/10</span><div class="score-bar"><div id="workoutFill" class="score-bar-fill" style="width:0%"></div></div></div>
           </div>
         </div>
       </div>
       <div class="score-metric-grid">
-        <div class="score-metric-card"><div class="score-metric-head"><span class="score-metric-dot" id="habitDot"></span><span>Habits</span></div><div class="score-metric-value" id="habitMetric">0</div><div class="score-metric-label" id="habitMetricLabel">done</div></div>
         <div class="score-metric-card"><div class="score-metric-head"><span class="score-metric-dot" id="goalDot"></span><span>Goals</span></div><div class="score-metric-value" id="goalMetric">0</div><div class="score-metric-label" id="goalMetricLabel">done</div></div>
         <div class="score-metric-card"><div class="score-metric-head"><span class="score-metric-dot" id="waterDot"></span><span>Water</span></div><div class="score-metric-value" id="waterMetric">0</div><div class="score-metric-label" id="waterMetricLabel">bottles</div></div>
         <div class="score-metric-card"><div class="score-metric-head"><span class="score-metric-dot" id="workoutDot"></span><span>Workout</span></div><div class="score-metric-value" id="workoutMetric">0</div><div class="score-metric-label" id="workoutMetricLabel">sets</div></div>
@@ -1037,7 +1035,7 @@
         </div>
       </div>
       <div class="gm-card dash-chart-card">
-        <div class="dash-chart-label">WEEKLY SCORE — HABITS + GOALS + WATER</div>
+        <div class="dash-chart-label">WEEKLY SCORE — GOALS + WATER + WORKOUT</div>
         <div class="dash-chart-canvas-wrap">
           <canvas id="weekSummaryChart"></canvas>
         </div>
@@ -1107,11 +1105,9 @@
         const dk = dateStr(d);
         const goals = parseJ('goals:' + dk) || [];
         const goalPct = goals.length ? goals.filter(g => g && g.done).length / goals.length : 0;
-        const habits = parseJ('habits:' + dk) || [];
-        const habitPct = habits.length ? habits.filter(h => h && (h.done === true || h === true)).length / habits.length : 0;
         const waterDone = waterLogs[dk] || 0;
         const waterPct = Math.min(1, waterDone / waterTarget);
-        const score = Math.round((goalPct * 0.4 + habitPct * 0.4 + waterPct * 0.2) * 100);
+        const score = Math.round((goalPct * 0.5 + waterPct * 0.5) * 100);
         labels.push(shortDay(d));
         data.push(score);
       }
@@ -1654,72 +1650,43 @@
       try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; }
     }
 
-    function getHabitsProgress() {
-      const todayKey = 'habits:' + getTodayDateString();
-      const raw = parseJsonLocalStorage(todayKey);
-      let total = 5, done = 0;
-      if (Array.isArray(raw)) {
-        total = raw.length || 5;
-        done = raw.filter(item => item && (item.done === true || item === true)).length;
-      } else if (raw && typeof raw === 'object') {
-        total = raw.total || raw.length || 5;
-        if (typeof raw.done === 'number') done = raw.done;
-        else if (Array.isArray(raw.items)) done = raw.items.filter(item => item && (item.done === true || item === true)).length;
-      }
-      return { done, total: Math.max(1, total) };
-    }
-
     function getWaterProgress() {
-      const target = 9;
-      let done = 0;
-      const raw = parseJsonLocalStorage('water_log');
-      if (raw) {
-        if (Array.isArray(raw)) {
-          const today = getTodayDateString();
-          done = raw.filter(item => {
-            if (!item) return false;
-            if (typeof item === 'number') return true;
-            const date = item.date || item.day || item.key;
-            return String(date).slice(0, 10) === today;
-          }).length;
-        } else if (typeof raw === 'object') {
-          const today = getTodayDateString();
-          if (raw[today] != null) {
-            done = Number(raw[today]) || 0;
-          } else if (Array.isArray(raw.logs)) {
-            done = raw.logs.filter(item => String((item && (item.date || item.day || item.key) || '')).slice(0, 10) === today).length;
-          } else if (typeof raw.count === 'number') {
-            done = raw.count;
-          }
-        }
-      }
-      if (!done) {
-        const alt = parseJsonLocalStorage('po_water_v1');
-        if (alt && typeof alt === 'object' && alt.logs) {
-          done = Number((alt.logs[getTodayDateString()] || 0));
-        }
-      }
-      return { done: Math.max(0, done), target };
+      // Read from po_water_v1 — same key as Water Coach on health.html
+      const water = parseJsonLocalStorage('po_water_v1') || {};
+      const done = Math.max(0, Number((water.logs || {})[getTodayDateString()] || 0));
+      // Unified target key written by health.html when it calculates the target
+      const savedTarget = parseJsonLocalStorage('waterDailyTarget');
+      const target = (typeof savedTarget === 'number' && savedTarget > 0) ? savedTarget : 8;
+      return { done, target };
     }
 
     function getWorkoutProgress() {
-      const target = 10;
-      let done = 0;
-      const raw = parseJsonLocalStorage('gym_logs') || parseJsonLocalStorage('po_coach_v1');
-      if (raw) {
-        if (raw.logs && typeof raw.logs === 'object') {
-          const today = getTodayDateString();
-          Object.values(raw.logs).forEach(arr => {
-            if (Array.isArray(arr)) {
-              done += arr.filter(item => item && String((item.date || '')).slice(0, 10) === today).length;
-            }
-          });
-        } else if (Array.isArray(raw)) {
-          const today = getTodayDateString();
-          done += raw.filter(item => item && String((item.date || item.day || '')).slice(0, 10) === today).length;
+      const gymState = parseJsonLocalStorage('po_coach_v1');
+      // Detect rest day from gym split rotation (same data as gym.html)
+      if (gymState) {
+        const rotation = gymState.splitRotation || [];
+        const anchor = gymState.splitAnchor || {};
+        if (anchor.date && anchor.index != null && rotation.length) {
+          const anchorDate = new Date(anchor.date);
+          const today = new Date(); today.setHours(0,0,0,0); anchorDate.setHours(0,0,0,0);
+          const daysDiff = Math.round((today - anchorDate) / 86400000);
+          const idx = ((anchor.index + daysDiff) % rotation.length + rotation.length) % rotation.length;
+          if ((rotation[idx] || '').toLowerCase() === 'rest') {
+            return { done: 1, target: 1, isRestDay: true };
+          }
         }
       }
-      return { done: Math.max(0, done), target };
+      // Training day — count sets logged today
+      const target = 10;
+      let done = 0;
+      const raw = gymState || parseJsonLocalStorage('gym_logs');
+      if (raw && raw.logs && typeof raw.logs === 'object') {
+        const today = getTodayDateString();
+        Object.values(raw.logs).forEach(arr => {
+          if (Array.isArray(arr)) done += arr.filter(item => item && String((item.date || '')).slice(0, 10) === today).length;
+        });
+      }
+      return { done: Math.max(0, done), target, isRestDay: false };
     }
 
     function getTodayDateString() {
@@ -1733,19 +1700,18 @@
       const goals = getGoalsFor(getTodayKey());
       const goalDone = goals.filter(g => g && g.done).length;
       const goalTotal = goals.length;
-      const habits = getHabitsProgress();
       const water = getWaterProgress();
       const workout = getWorkoutProgress();
-      const goalPct = goalTotal ? goalDone / goalTotal : 0;
-      const habitPct = habits.total ? habits.done / habits.total : 0;
-      const waterPct = Math.min(water.done / water.target, 1);
+      const goalPct    = goalTotal ? goalDone / goalTotal : 0;
+      const waterPct   = Math.min(water.done / water.target, 1);
       const workoutPct = Math.min(workout.done / workout.target, 1);
-      const score = Math.round(habitPct * 35 + goalPct * 30 + waterPct * 20 + workoutPct * 15);
+      // Goals 40% · Water 30% · Workout 30%
+      const score = Math.round(goalPct * 40 + waterPct * 30 + workoutPct * 30);
       return {
         score, verdict: getVerdict(score),
         goals: { done: goalDone, total: goalTotal },
-        habits, water, workout,
-        progress: { goalPct, habitPct, waterPct, workoutPct }
+        water, workout,
+        progress: { goalPct, waterPct, workoutPct }
       };
     }
 
@@ -1757,19 +1723,20 @@
     }
 
     function getDailyInsight(data) {
-      if (data.habits.done >= data.habits.total && data.goals.done >= data.goals.total && data.water.done >= data.water.target && data.workout.done >= data.workout.target) {
-        return 'All habits done — keep it up.';
+      if (data.goals.done >= data.goals.total && data.water.done >= data.water.target && data.workout.done >= data.workout.target) {
+        return 'Day fully locked in — solid work.';
       }
-      if (data.workout.done === 0) {
-        return 'No workout sets yet — log one when you can.';
+      if (!data.workout.isRestDay && data.workout.done === 0 && new Date().getHours() >= 12) {
+        return 'No workout sets yet — get a session in.';
       }
       if (data.water.done < Math.ceil(data.water.target * 0.5)) {
-        return `Only ${data.water.done} bottles so far — aim for ${Math.ceil(data.water.target * 0.5)} by midday.`;
+        return `Only ${data.water.done} of ${data.water.target} servings — stay hydrated.`;
       }
-      if (data.goals.done < data.goals.total) {
-        return `You have ${data.goals.total - data.goals.done} goals left — finish one more to raise the score.`;
+      if (data.goals.total > 0 && data.goals.done < data.goals.total) {
+        const left = data.goals.total - data.goals.done;
+        return `${left} goal${left !== 1 ? 's' : ''} left — knock ${left === 1 ? 'it' : 'one'} out.`;
       }
-      return 'Good momentum — stay steady through the next hour.';
+      return 'Good momentum — stay steady.';
     }
 
     function renderDailyScoreCard() {
@@ -1783,21 +1750,18 @@
       }
       document.getElementById('dailyScoreValue').textContent = data.score.toString();
       document.getElementById('dailyScoreVerdict').textContent = data.verdict;
-      document.getElementById('habitProgressLabel').textContent = `${data.habits.done}/${data.habits.total}`;
       document.getElementById('goalProgressLabel').textContent = `${data.goals.done}/${data.goals.total}`;
       document.getElementById('waterProgressLabel').textContent = `${data.water.done}/${data.water.target}`;
-      document.getElementById('workoutProgressLabel').textContent = `${data.workout.done}/${data.workout.target}`;
-      document.getElementById('habitMetric').textContent = data.habits.done;
+      document.getElementById('workoutProgressLabel').textContent = data.workout.isRestDay ? 'Rest ✓' : `${data.workout.done}/${data.workout.target}`;
       document.getElementById('goalMetric').textContent = data.goals.done;
       document.getElementById('waterMetric').textContent = data.water.done;
-      document.getElementById('workoutMetric').textContent = data.workout.done;
+      document.getElementById('workoutMetric').textContent = data.workout.isRestDay ? '✓' : data.workout.done;
+      document.getElementById('workoutMetricLabel').textContent = data.workout.isRestDay ? 'rest day' : 'sets';
       document.getElementById('dailyInsight').textContent = getDailyInsight(data);
-      document.getElementById('habitFill').style.width = `${Math.round(data.progress.habitPct * 100)}%`;
       document.getElementById('goalFill').style.width = `${Math.round(data.progress.goalPct * 100)}%`;
       document.getElementById('waterFill').style.width = `${Math.round(data.progress.waterPct * 100)}%`;
       document.getElementById('workoutFill').style.width = `${Math.round(data.progress.workoutPct * 100)}%`;
       updateDailyStreak(data);
-      setMetricDot('habitDot', data.progress.habitPct);
       setMetricDot('goalDot', data.progress.goalPct);
       setMetricDot('waterDot', data.progress.waterPct);
       setMetricDot('workoutDot', data.progress.workoutPct);
@@ -1821,12 +1785,10 @@
         day.setDate(monday.getDate() + i);
         const dk = day.toISOString().slice(0, 10);
         const dayGoals = getGoalsFor('goals:' + dk);
-        const dayHabits = parseJsonLocalStorage('habits:' + dk) || [];
-        const dayWater = parseJsonLocalStorage('water_log');
         const dayWorkout = parseJsonLocalStorage('po_coach_v1') || parseJsonLocalStorage('gym_logs');
-        const complete = dayGoals.length && dayGoals.filter(g => g && g.done).length === dayGoals.length &&
-          ((Array.isArray(dayHabits) && dayHabits.filter(item => item && (item.done === true || item === true)).length) === dayHabits.length) &&
-          countSetsForDate(dayWorkout, dk) > 0;
+        const allGoalsDone = dayGoals.length > 0 && dayGoals.filter(g => g && g.done).length === dayGoals.length;
+        const hadWorkout = countSetsForDate(dayWorkout, dk) > 0;
+        const complete = allGoalsDone && hadWorkout;
         const dot = document.createElement('div');
         dot.className = 'score-streak-day' + (complete ? ' complete' : '') + (dk === getTodayDateString() ? ' today' : '');
         dot.title = ['SUN','MON','TUE','WED','THU','FRI','SAT'][day.getDay()];

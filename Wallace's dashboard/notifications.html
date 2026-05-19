@@ -284,13 +284,23 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
   <span class="notif-card-emoji">🧠</span>
   <div class="notif-card-body">
     <div class="notif-card-title">Deep work reminder</div>
-    <div class="notif-card-desc">Fires if no deep work session logged yet today</div>
+    <div class="notif-card-desc">Fires if today's deep work is below your daily target</div>
     <div class="notif-card-control">
       <input type="time" class="notif-time-input" id="deepworkTime" value="09:00">
+    </div>
+    <div class="notif-card-control" style="margin-top:8px;gap:8px">
+      <label style="font-size:11px;color:var(--text-tertiary);white-space:nowrap">Daily target</label>
+      <input type="number" class="notif-time-input" id="deepworkTarget" value="2" min="0.5" max="6" step="0.5" style="width:64px">
+      <span style="font-size:12px;color:var(--text-tertiary)">hours</span>
     </div>
   </div>
   <label class="notif-toggle"><input type="checkbox" id="deepworkEnabled"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
 </div>
+
+<!-- Test notification button -->
+<button id="testNotifBtn" style="width:100%;margin-top:8px;padding:12px;border-radius:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent" onclick="sendTestNotification()">
+  🔔 Send test notification
+</button>
 
 <nav class="tabbar" aria-label="Bottom navigation">
   <div class="tabbar-inner">
@@ -336,6 +346,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
     document.getElementById('gymTime').value          = g.time || '08:00';
     document.getElementById('deepworkEnabled').checked = !!d.enabled;
     document.getElementById('deepworkTime').value    = d.time || '09:00';
+    document.getElementById('deepworkTarget').value  = d.targetHours || '2';
     updateDisabledState();
   }
 
@@ -345,8 +356,10 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
       todoReminder:     { enabled: document.getElementById('todoEnabled').checked,     time: document.getElementById('todoTime').value },
       bedtimeReminder:  { enabled: document.getElementById('bedtimeEnabled').checked,  time: document.getElementById('bedtimeTime').value },
       gymReminder:      { enabled: document.getElementById('gymEnabled').checked,      time: document.getElementById('gymTime').value },
-      deepWorkReminder: { enabled: document.getElementById('deepworkEnabled').checked, time: document.getElementById('deepworkTime').value }
+      deepWorkReminder: { enabled: document.getElementById('deepworkEnabled').checked, time: document.getElementById('deepworkTime').value, targetHours: parseFloat(document.getElementById('deepworkTarget').value) || 2 }
     });
+    // Also save target to unified key for other pages
+    localStorage.setItem('deepWorkDailyTarget', String(parseFloat(document.getElementById('deepworkTarget').value) || 2));
   }
 
   function updatePermBanner() {
@@ -381,6 +394,37 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
     const result = await (window.requestNotifPermission ? window.requestNotifPermission() : Notification.requestPermission());
     updatePermBanner();
     updateDisabledState();
+  };
+
+  window.sendTestNotification = async function () {
+    if (!('Notification' in window)) { alert('Notifications not supported'); return; }
+    if (Notification.permission !== 'granted') {
+      alert('Enable notifications first, then try again.');
+      return;
+    }
+    console.log('[test notif] Attempting test notification...');
+    if ('serviceWorker' in navigator) {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        await reg.showNotification("Wallace's Dashboard", {
+          body: '✅ Notifications are working correctly!',
+          icon: '/icons/w-192.png',
+          badge: '/icons/w-192.png',
+          tag: 'test',
+          renotify: true
+        });
+        console.log('[test notif] Sent via service worker registration');
+        return;
+      } catch (e) {
+        console.warn('[test notif] SW registration.showNotification failed:', e);
+      }
+    }
+    try {
+      new Notification("Wallace's Dashboard", { body: '✅ Notifications are working!', icon: '/icons/w-192.png' });
+      console.log('[test notif] Sent via basic Notification API');
+    } catch (e) {
+      console.error('[test notif] All methods failed:', e);
+    }
   };
 
   // Auto-save on any input change
