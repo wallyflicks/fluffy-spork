@@ -740,7 +740,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
   // ═════════════════════════════════════════════════════════════════════════
   let stockDonutChart = null;
 
-  // fetchPrice: Netlify function (server-side, no CORS, tries .TO/.V for Canadian tickers).
+  // fetchPrice: Vercel serverless proxy (server-side, no CORS, tries .TO/.V for Canadian tickers).
   // Returns { price, prevClose, resolvedTicker, stale }.
   async function fetchPrice(ticker) {
     try {
