@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0b">
+<title>Deep Work — Dashboard</title>
+<style>
+:root {
+  --bg: #0a0a0b;
+  --text-primary: #FAFAFA;
+  --text-secondary: #B8B6B0;
+  --text-tertiary: #76746E;
+  --success: #6BE3A4;
+  --warning: #F2C063;
+  --danger: #FF6B6B;
+  --card: rgba(255,255,255,0.04);
+  --card-border: rgba(255,255,255,0.06);
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--sans);
+  overflow-x: hidden;
+}
+
+body {
+  padding: 24px 16px calc(110px + env(safe-area-inset-bottom, 18px));
+  display: flex;
+  justify-content: center;
+}
+
+main {
+  width: 100%;
+  max-width: 540px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── Section ── */
+.section { display: flex; flex-direction: column; gap: 14px; }
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.section-title::before {
+  content: "";
+  display: block;
+  width: 18px;
+  height: 1px;
+  background: var(--text-tertiary);
+  opacity: 0.6;
+}
+.section-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.08), transparent);
+}
+
+/* ── Card ── */
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 20px 22px;
+  backdrop-filter: blur(24px) saturate(1.2);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+  border: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Timer ── */
+#dw-today-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.6;
+}
+
+#dw-timer-display {
+  font-family: var(--mono);
+  font-size: 56px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-align: center;
+  color: var(--text-tertiary);
+  line-height: 1;
+  padding: 8px 0;
+}
+
+#dw-timer-display.running {
+  color: var(--text-primary);
+}
+
+/* ── State views ── */
+#dw-view-idle,
+#dw-view-running,
+#dw-view-saving {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+#dw-idle-label {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+#dw-btn-start {
+  background: #fff;
+  color: #0a0a0a;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 28px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--sans);
+  transition: opacity 0.15s, transform 0.1s;
+}
+#dw-btn-start:hover { opacity: 0.88; transform: translateY(-1px); }
+
+#dw-btn-end {
+  background: rgba(255,107,107,0.15);
+  color: var(--danger);
+  border: 1px solid rgba(255,107,107,0.3);
+  border-radius: 999px;
+  padding: 12px 28px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--sans);
+  transition: background 0.15s, border-color 0.15s;
+}
+#dw-btn-end:hover {
+  background: rgba(255,107,107,0.25);
+  border-color: rgba(255,107,107,0.5);
+}
+
+#dw-saving-label-wrap {
+  width: 100%;
+}
+
+#dw-session-label {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 11px 14px;
+  color: var(--text-primary);
+  font-size: 14px;
+  width: 100%;
+  font-family: var(--sans);
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+#dw-session-label::placeholder { color: var(--text-tertiary); }
+#dw-session-label:focus {
+  border-color: rgba(255,255,255,0.22);
+  background: rgba(255,255,255,0.08);
+}
+#dw-session-label.error {
+  border-color: var(--danger);
+  animation: shake 0.3s;
+}
+
+@keyframes shake {
+  0%   { transform: translateX(0); }
+  20%  { transform: translateX(-6px); }
+  40%  { transform: translateX(6px); }
+  60%  { transform: translateX(-4px); }
+  80%  { transform: translateX(4px); }
+  100% { transform: translateX(0); }
+}
+
+#dw-saving-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  justify-content: center;
+}
+
+#dw-btn-save {
+  background: rgba(107,227,164,0.13);
+  color: var(--success);
+  border: 1px solid rgba(107,227,164,0.28);
+  border-radius: 999px;
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--sans);
+  transition: background 0.15s, border-color 0.15s;
+}
+#dw-btn-save:hover {
+  background: rgba(107,227,164,0.22);
+  border-color: rgba(107,227,164,0.45);
+}
+
+#dw-btn-keep {
+  background: rgba(255,255,255,0.05);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px;
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--sans);
+  transition: background 0.15s;
+}
+#dw-btn-keep:hover { background: rgba(255,255,255,0.1); }
+
+/* ── Weekly stats ── */
+#dw-weekly-stats {
+  display: flex;
+  gap: 12px;
+}
+
+.dw-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dw-stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.dw-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--mono);
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+/* ── Chart ── */
+.chart-canvas-wrap {
+  position: relative;
+  height: 140px;
+}
+
+#dwChart { width: 100%; height: 100%; display: block; }
+
+.chart-xlabels {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 8px;
+  padding: 0 2px;
+}
+
+.chart-xlabel {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-family: var(--mono);
+  text-align: center;
+  flex: 1;
+}
+
+/* ── Session list ── */
+#dw-session-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.dw-session-item {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dw-session-item:last-child { border-bottom: none; padding-bottom: 0; }
+.dw-session-item:first-child { padding-top: 0; }
+
+.dw-session-label-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dw-session-meta {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-family: var(--mono);
+}
+
+.dw-empty {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+/* ── Tab bar ── */
+.tabbar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  padding: 10px 18px calc(10px + env(safe-area-inset-bottom, 18px));
+  background: rgba(10,10,11,0.96);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.tabbar-inner {
+  width: min(680px, 100%);
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+}
+
+.tabbar-link {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 10px 10px;
+  color: var(--text-primary);
+  text-decoration: none;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+  border: 1px solid transparent;
+}
+
+.tabbar-link:hover { background: rgba(255,255,255,0.1); }
+
+.tabbar-link.active {
+  background: #fff;
+  color: #0a0a0a;
+  border-color: rgba(255,255,255,0.16);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.18);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 480px) {
+  body { padding-left: 12px; padding-right: 12px; }
+  .tabbar { padding-left: 10px; padding-right: 10px; }
+  .tabbar-link { font-size: 10px; padding: 8px 4px; }
+  #dw-timer-display { font-size: 44px; }
+  #dw-weekly-stats { flex-wrap: wrap; }
+  .dw-stat { min-width: 80px; }
+}
+</style>
+</head>
+<body>
+<script src="topbar.js" defer></script>
+
+<main>
+
+  <!-- ── Timer / Session Control ── -->
+  <div class="section">
+    <div class="section-title">Deep Work</div>
+    <div class="card">
+      <div id="dw-today-meta">Today: 0h 0m &middot; 0 sessions</div>
+
+      <div id="dw-timer-display">--:--:--</div>
+
+      <!-- Idle state -->
+      <div id="dw-view-idle">
+        <span id="dw-idle-label">No active session</span>
+        <button id="dw-btn-start">Start Session</button>
+      </div>
+
+      <!-- Running state -->
+      <div id="dw-view-running" style="display:none">
+        <button id="dw-btn-end">End Session</button>
+      </div>
+
+      <!-- Saving state -->
+      <div id="dw-view-saving" style="display:none">
+        <div id="dw-saving-label-wrap" style="width:100%">
+          <input id="dw-session-label" type="text" placeholder="What did you work on?" autocomplete="off" />
+        </div>
+        <div id="dw-saving-actions">
+          <button id="dw-btn-save">Save Session</button>
+          <button id="dw-btn-keep">Keep Going</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── This Week ── -->
+  <div class="section">
+    <div class="section-title">This Week</div>
+    <div class="card">
+      <div id="dw-weekly-stats">
+        <div class="dw-stat">
+          <span class="dw-stat-label">Total</span>
+          <span class="dw-stat-value" id="dw-stat-total">0h</span>
+        </div>
+        <div class="dw-stat">
+          <span class="dw-stat-label">Longest</span>
+          <span class="dw-stat-value" id="dw-stat-longest">—</span>
+        </div>
+        <div class="dw-stat">
+          <span class="dw-stat-label">Top Focus</span>
+          <span class="dw-stat-value" id="dw-stat-top" style="font-size:14px;line-height:1.4">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 7-Day Chart ── -->
+  <div class="section">
+    <div class="section-title">7-Day Overview</div>
+    <div class="card">
+      <div class="chart-canvas-wrap">
+        <canvas id="dwChart"></canvas>
+      </div>
+      <div class="chart-xlabels" id="dw-chart-labels"></div>
+    </div>
+  </div>
+
+  <!-- ── Today's Sessions ── -->
+  <div class="section">
+    <div class="section-title">Today's Sessions</div>
+    <div class="card">
+      <div id="dw-session-list">
+        <p class="dw-empty">No sessions today.</p>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── Tab bar ── -->
+<nav class="tabbar" aria-label="Bottom navigation">
+  <div class="tabbar-inner">
+    <a href="index.html"    class="tabbar-link">Main</a>
+    <a href="health.html"   class="tabbar-link">Health</a>
+    <a href="gym.html"      class="tabbar-link">Gym</a>
+    <a href="finance.html"  class="tabbar-link">Finance</a>
+    <a href="sleep.html"    class="tabbar-link">Sleep</a>
+    <a href="deepwork.html" class="tabbar-link active" aria-current="page">Deep Work</a>
+  </div>
+</nav>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── Constants ── */
+  var SUPA_URL  = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
+  var SUPA_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
+  var SB_HEADERS = {
+    'apikey': SUPA_KEY,
+    'Authorization': 'Bearer ' + SUPA_KEY,
+    'Content-Type': 'application/json'
+  };
+  var LS_KEY    = 'dw_sessions';
+  var LS_ACTIVE = 'dw_active_start';
+
+  /* ── State ── */
+  var sessionStartTime = null;
+  var timerInterval    = null;
+  var pendingEndTime   = null;
+
+  /* ── DOM refs ── */
+  var elTimer       = document.getElementById('dw-timer-display');
+  var elTodayMeta   = document.getElementById('dw-today-meta');
+  var elViewIdle    = document.getElementById('dw-view-idle');
+  var elViewRunning = document.getElementById('dw-view-running');
+  var elViewSaving  = document.getElementById('dw-view-saving');
+  var elLabelInput  = document.getElementById('dw-session-label');
+  var elBtnStart    = document.getElementById('dw-btn-start');
+  var elBtnEnd      = document.getElementById('dw-btn-end');
+  var elBtnSave     = document.getElementById('dw-btn-save');
+  var elBtnKeep     = document.getElementById('dw-btn-keep');
+  var elSessionList = document.getElementById('dw-session-list');
+  var elStatTotal   = document.getElementById('dw-stat-total');
+  var elStatLongest = document.getElementById('dw-stat-longest');
+  var elStatTop     = document.getElementById('dw-stat-top');
+  var elChartLabels = document.getElementById('dw-chart-labels');
+
+  /* ── localStorage helpers ── */
+  function getSessions() {
+    try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch { return []; }
+  }
+  function saveSessions(arr) {
+    localStorage.setItem(LS_KEY, JSON.stringify(arr));
+  }
+
+  /* ── UID ── */
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  /* ── Supabase ── */
+  async function sbFetchSessions() {
+    var since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    var url = SUPA_URL + '/rest/v1/deep_work_sessions?start_time=gte.' + encodeURIComponent(since) + '&order=start_time.desc';
+    var res = await fetch(url, { headers: SB_HEADERS });
+    if (!res.ok) throw new Error('fetch failed ' + res.status);
+    return await res.json();
+  }
+
+  async function sbInsertSession(s) {
+    var res = await fetch(SUPA_URL + '/rest/v1/deep_work_sessions', {
+      method: 'POST',
+      headers: SB_HEADERS,
+      body: JSON.stringify({
+        start_time:       s.startTime,
+        end_time:         s.endTime,
+        duration_minutes: s.durationMin,
+        label:            s.label,
+        created_at:       new Date().toISOString()
+      })
+    });
+    if (!res.ok) throw new Error('insert failed ' + res.status);
+  }
+
+  /* ── Formatting ── */
+  function fmtDuration(minutes) {
+    var h = Math.floor(minutes / 60);
+    var m = Math.round(minutes % 60);
+    if (h > 0 && m > 0) return h + 'h ' + m + 'm';
+    if (h > 0) return h + 'h';
+    return m + 'm';
+  }
+
+  function fmtTime(isoStr) {
+    var d = new Date(isoStr);
+    var h = d.getHours(), m = d.getMinutes();
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return h + ':' + (m < 10 ? '0' + m : m) + ' ' + ampm;
+  }
+
+  function fmtElapsed(ms) {
+    var totalSec = Math.floor(ms / 1000);
+    var h = Math.floor(totalSec / 3600);
+    var m = Math.floor((totalSec % 3600) / 60);
+    var s = totalSec % 60;
+    return pad2(h) + ':' + pad2(m) + ':' + pad2(s);
+  }
+
+  function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+
+  function dateStr(d) {
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  }
+
+  function isToday(isoStr) {
+    return dateStr(new Date(isoStr)) === dateStr(new Date());
+  }
+
+  /* ── Timer control ── */
+  function startTimer(startDate) {
+    sessionStartTime = startDate;
+    localStorage.setItem(LS_ACTIVE, startDate.toISOString());
+    setTimerState('running');
+    timerInterval = setInterval(updateTimerDisplay, 1000);
+    updateTimerDisplay();
+  }
+
+  function stopTimer() {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+
+  function setTimerState(state) {
+    elViewIdle.style.display    = 'none';
+    elViewRunning.style.display = 'none';
+    elViewSaving.style.display  = 'none';
+
+    if (state === 'idle') {
+      elTimer.textContent = '--:--:--';
+      elTimer.classList.remove('running');
+      elViewIdle.style.display = 'flex';
+    } else if (state === 'running') {
+      elTimer.classList.add('running');
+      elViewRunning.style.display = 'flex';
+    } else if (state === 'saving') {
+      elTimer.classList.remove('running');
+      elViewSaving.style.display = 'flex';
+      elLabelInput.value = '';
+      elLabelInput.classList.remove('error');
+      setTimeout(function () { elLabelInput.focus(); }, 50);
+    }
+  }
+
+  function updateTimerDisplay() {
+    if (!sessionStartTime) return;
+    elTimer.textContent = fmtElapsed(Date.now() - sessionStartTime.getTime());
+  }
+
+  /* ── Data queries ── */
+  function getTodaySessions() {
+    return getSessions().filter(function (s) { return isToday(s.startTime); });
+  }
+
+  function getWeekDays() {
+    var today = new Date();
+    var dow   = today.getDay(); // 0 = Sun
+    var monday = new Date(today);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(today.getDate() - ((dow + 6) % 7));
+    var days = [];
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      days.push(d);
+    }
+    return days;
+  }
+
+  function getWeekTotals() {
+    var sessions = getSessions();
+    return getWeekDays().map(function (d) {
+      var ds = dateStr(d);
+      var mins = sessions
+        .filter(function (s) { return dateStr(new Date(s.startTime)) === ds; })
+        .reduce(function (acc, s) { return acc + (s.durationMin || 0); }, 0);
+      return { date: d, totalMin: mins, totalH: mins / 60 };
+    });
+  }
+
+  /* ── Render functions ── */
+  function renderTodayMeta() {
+    var ts = getTodaySessions();
+    var totalMin = ts.reduce(function (a, s) { return a + (s.durationMin || 0); }, 0);
+    var h = Math.floor(totalMin / 60);
+    var m = Math.round(totalMin % 60);
+    elTodayMeta.textContent = 'Today: ' + h + 'h ' + m + 'm · ' + ts.length + ' session' + (ts.length !== 1 ? 's' : '');
+  }
+
+  function renderSessionLog() {
+    var ts = getTodaySessions().slice().reverse();
+    if (!ts.length) {
+      elSessionList.innerHTML = '<p class="dw-empty">No sessions today.</p>';
+      return;
+    }
+    elSessionList.innerHTML = ts.map(function (s) {
+      var start = fmtTime(s.startTime);
+      var end   = fmtTime(s.endTime);
+      var dur   = fmtDuration(s.durationMin);
+      return '<div class="dw-session-item">' +
+        '<span class="dw-session-label-text">' + escHtml(s.label || 'Untitled') + '</span>' +
+        '<span class="dw-session-meta">' + start + ' – ' + end + ' &nbsp;&middot;&nbsp; ' + dur + '</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  function renderWeeklySummary() {
+    var sessions = getSessions();
+    var weekDays = getWeekDays();
+    var weekStrs = weekDays.map(dateStr);
+    var weekSess = sessions.filter(function (s) {
+      return weekStrs.indexOf(dateStr(new Date(s.startTime))) !== -1;
+    });
+
+    var totalMin = weekSess.reduce(function (a, s) { return a + (s.durationMin || 0); }, 0);
+    elStatTotal.textContent = fmtDuration(totalMin) || '0m';
+
+    var longestMin = weekSess.reduce(function (a, s) { return Math.max(a, s.durationMin || 0); }, 0);
+    elStatLongest.textContent = longestMin > 0 ? fmtDuration(longestMin) : '—';
+
+    // Top focus label by total minutes
+    var labelMap = {};
+    weekSess.forEach(function (s) {
+      var lbl = s.label || 'Untitled';
+      labelMap[lbl] = (labelMap[lbl] || 0) + (s.durationMin || 0);
+    });
+    var topLabel = '—';
+    var topMin = 0;
+    Object.keys(labelMap).forEach(function (lbl) {
+      if (labelMap[lbl] > topMin) { topMin = labelMap[lbl]; topLabel = lbl; }
+    });
+    elStatTop.textContent = topLabel;
+  }
+
+  function renderWeeklyChart() {
+    var canvas = document.getElementById('dwChart');
+    if (!canvas) return;
+    var wrap   = canvas.parentElement;
+    var dpr    = window.devicePixelRatio || 1;
+    var W      = wrap.offsetWidth;
+    var H      = 140;
+    canvas.width  = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+
+    var ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, W, H);
+
+    var totals   = getWeekTotals();
+    var todayStr = dateStr(new Date());
+    var n        = totals.length; // 7
+    var maxH     = 5; // hours scale max
+    var padLeft  = 28;
+    var padRight = 8;
+    var padTop   = 8;
+    var padBot   = 8;
+    var chartW   = W - padLeft - padRight;
+    var chartH   = H - padTop - padBot;
+    var barW     = (chartW / n) * 0.55;
+    var gap      = chartW / n;
+
+    // Y-axis grid lines + labels: 1h 2h 3h 4h
+    ctx.font = '9px ' + getComputedStyle(document.body).getPropertyValue('--mono').trim();
+    ctx.fillStyle = 'rgba(118,116,110,0.7)';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    [1, 2, 3, 4].forEach(function (yh) {
+      var y = padTop + chartH - (yh / maxH) * chartH;
+      ctx.fillStyle = 'rgba(118,116,110,0.6)';
+      ctx.fillText(yh + 'h', padLeft - 4, y);
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padLeft, y);
+      ctx.lineTo(padLeft + chartW, y);
+      ctx.stroke();
+    });
+
+    // Bars
+    totals.forEach(function (t, i) {
+      var barH  = Math.min(t.totalH / maxH, 1) * chartH;
+      var x     = padLeft + i * gap + (gap - barW) / 2;
+      var y     = padTop + chartH - barH;
+      var isNow = dateStr(t.date) === todayStr;
+
+      var color;
+      if (t.totalH >= 4) {
+        color = isNow ? '#6BE3A4' : 'rgba(107,227,164,0.65)';
+      } else if (t.totalH >= 2) {
+        color = isNow ? '#F2C063' : 'rgba(242,192,99,0.65)';
+      } else {
+        color = isNow ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.12)';
+      }
+
+      ctx.fillStyle = color;
+      var radius = Math.min(4, barW / 2);
+      roundRect(ctx, x, y, barW, barH, radius);
+      ctx.fill();
+    });
+
+    // X-axis labels
+    var dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    elChartLabels.innerHTML = '';
+    dayLabels.forEach(function (lbl, i) {
+      var span = document.createElement('span');
+      span.className = 'chart-xlabel';
+      span.textContent = lbl;
+      var isNow = dateStr(totals[i].date) === todayStr;
+      if (isNow) span.style.color = 'var(--text-primary)';
+      elChartLabels.appendChild(span);
+    });
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    if (h <= 0) return;
+    if (h < r * 2) r = h / 2;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function renderAll() {
+    renderTodayMeta();
+    renderSessionLog();
+    renderWeeklyChart();
+    renderWeeklySummary();
+  }
+
+  /* ── Supabase init ── */
+  async function initData() {
+    try {
+      var sbSessions = await sbFetchSessions();
+      if (Array.isArray(sbSessions) && sbSessions.length) {
+        // Merge into localStorage (Supabase is source of truth for history)
+        var local = getSessions();
+        var localIds = local.map(function (s) { return s.id; });
+        sbSessions.forEach(function (row) {
+          var mapped = {
+            id:          row.id || uid(),
+            startTime:   row.start_time,
+            endTime:     row.end_time,
+            durationMin: row.duration_minutes,
+            label:       row.label || ''
+          };
+          if (!localIds.includes(mapped.id)) {
+            local.push(mapped);
+          }
+        });
+        saveSessions(local);
+      }
+    } catch (e) {
+      // silent fail — use localStorage
+    }
+    renderAll();
+  }
+
+  /* ── Event listeners ── */
+  elBtnStart.addEventListener('click', function () {
+    startTimer(new Date());
+  });
+
+  elBtnEnd.addEventListener('click', function () {
+    stopTimer();
+    pendingEndTime = new Date();
+    // Show frozen elapsed time while saving
+    if (sessionStartTime) {
+      elTimer.textContent = fmtElapsed(pendingEndTime.getTime() - sessionStartTime.getTime());
+    }
+    setTimerState('saving');
+  });
+
+  elBtnSave.addEventListener('click', function () {
+    var label = elLabelInput.value.trim();
+    if (!label) {
+      elLabelInput.classList.add('error');
+      elLabelInput.addEventListener('animationend', function () {
+        elLabelInput.classList.remove('error');
+      }, { once: true });
+      elLabelInput.focus();
+      return;
+    }
+
+    var start = sessionStartTime;
+    var end   = pendingEndTime || new Date();
+    var durMin = (end.getTime() - start.getTime()) / 60000;
+
+    var session = {
+      id:          uid(),
+      startTime:   start.toISOString(),
+      endTime:     end.toISOString(),
+      durationMin: Math.round(durMin),
+      label:       label
+    };
+
+    // Save to localStorage first
+    var sessions = getSessions();
+    sessions.push(session);
+    saveSessions(sessions);
+
+    // Clear active session
+    localStorage.removeItem(LS_ACTIVE);
+    sessionStartTime = null;
+    pendingEndTime   = null;
+
+    setTimerState('idle');
+    renderAll();
+
+    // Background Supabase insert (silent fail)
+    sbInsertSession(session).catch(function () {});
+  });
+
+  elBtnKeep.addEventListener('click', function () {
+    // Resume timer from the original start time
+    if (sessionStartTime) {
+      setTimerState('running');
+      timerInterval = setInterval(updateTimerDisplay, 1000);
+      updateTimerDisplay();
+    } else {
+      // Fallback: start fresh
+      startTimer(new Date());
+    }
+  });
+
+  window.addEventListener('resize', renderWeeklyChart);
+
+  /* ── Restore active session on load ── */
+  var savedStart = localStorage.getItem(LS_ACTIVE);
+  if (savedStart) {
+    var restoredDate = new Date(savedStart);
+    if (!isNaN(restoredDate.getTime())) {
+      startTimer(restoredDate);
+    }
+  } else {
+    setTimerState('idle');
+  }
+
+  /* ── Boot ── */
+  initData();
+
+})();
+</script>
+</body>
+</html>

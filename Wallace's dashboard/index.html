@@ -1294,13 +1294,30 @@
     }
 
     async function sbUpsertGoals(dayKey, goals) {
-      const url = `${SUPABASE_URL}/rest/v1/goals?on_conflict=day_key`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { ...SB_HEADERS, 'Prefer': 'resolution=merge-duplicates' },
-        body: JSON.stringify({ day_key: dayKey, goals_json: JSON.stringify(goals), updated_at: new Date().toISOString() }),
-      });
-      if (!res.ok) throw new Error('upsert failed ' + res.status);
+      const checkRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/goals?day_key=eq.${encodeURIComponent(dayKey)}&select=id&limit=1`,
+        { headers: SB_HEADERS }
+      );
+      if (!checkRes.ok) {
+        const errBody = await checkRes.text();
+        console.error('Supabase check error:', checkRes.status, errBody);
+        throw new Error('check failed ' + checkRes.status);
+      }
+      const existing = await checkRes.json();
+      const payload = JSON.stringify({ day_key: dayKey, goals_json: JSON.stringify(goals), updated_at: new Date().toISOString() });
+      let res;
+      if (existing.length > 0) {
+        res = await fetch(`${SUPABASE_URL}/rest/v1/goals?day_key=eq.${encodeURIComponent(dayKey)}`,
+          { method: 'PATCH', headers: SB_HEADERS, body: payload });
+      } else {
+        res = await fetch(`${SUPABASE_URL}/rest/v1/goals`,
+          { method: 'POST', headers: SB_HEADERS, body: payload });
+      }
+      if (!res.ok) {
+        const errBody = await res.text();
+        console.error('Supabase upsert error:', res.status, errBody);
+        throw new Error('upsert failed ' + res.status + ': ' + errBody);
+      }
     }
 
     async function sbDeleteGoals(dayKey) {
@@ -1335,7 +1352,7 @@
         syncReady = true;
         setSyncState('ok', 'synced');
       } catch (err) {
-        console.warn('Supabase load failed, using localStorage', err);
+        console.error('Supabase load failed:', err.message, err);
         setSyncState('err', 'offline — local only');
         // fall back to localStorage
         for (let i = 0; i < localStorage.length; i++) {
@@ -1362,7 +1379,7 @@
           }
           setSyncState('ok', 'synced');
         } catch (err) {
-          console.warn('sync error', err);
+          console.error('Supabase sync error:', err.message, err);
           setSyncState('err', 'sync failed');
         }
       }, SYNC_DEBOUNCE_MS);
@@ -2127,6 +2144,7 @@
       <a href="gym.html" class="tabbar-link">Gym</a>
       <a href="finance.html" class="tabbar-link">Finance</a>
       <a href="sleep.html" class="tabbar-link">Sleep</a>
+      <a href="deepwork.html" class="tabbar-link">Deep Work</a>
     </div>
   </nav>
 <script src="cinematic.js" defer></script>
