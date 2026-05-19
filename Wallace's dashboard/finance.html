@@ -654,10 +654,39 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     GOALS: 'finance_savings_goals',       // [{ id, name, target, current, deadline }]
   };
 
+  // ── Supabase sync ────────────────────────────────────────────────────────
+  const SUPA_URL = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
+  const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
+  const SB_H = { 'Content-Type': 'application/json', 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Prefer': 'resolution=merge-duplicates' };
+  let _finSyncTimer = null;
+  function scheduleFinSync() {
+    clearTimeout(_finSyncTimer);
+    _finSyncTimer = setTimeout(async () => {
+      try {
+        const bundle = {};
+        Object.values(K).forEach(k => { const v = localStorage.getItem(k); if (v != null) try { bundle[k] = JSON.parse(v); } catch {} });
+        await fetch(SUPA_URL + '/rest/v1/app_state?on_conflict=key', {
+          method: 'POST', headers: SB_H,
+          body: JSON.stringify({ key: 'finance', data: bundle, updated_at: new Date().toISOString() })
+        });
+      } catch (e) { console.warn('[finance sync] write failed:', e.message); }
+    }, 1500);
+  }
+  async function finLoadFromSupabase() {
+    try {
+      const res = await fetch(SUPA_URL + '/rest/v1/app_state?key=eq.finance&select=data', { headers: SB_H });
+      if (!res.ok) return;
+      const rows = await res.json();
+      if (!rows.length || !rows[0].data) return;
+      const d = rows[0].data;
+      Object.values(K).forEach(k => { if (k in d) try { localStorage.setItem(k, JSON.stringify(d[k])); } catch {} });
+    } catch (e) { console.warn('[finance sync] read failed:', e.message); }
+  }
+
   // ── Helpers ──────────────────────────────────────────────────────────────
   function load(k)    { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } }
   function loadObj(k) { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch { return {}; } }
-  function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+  function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} scheduleFinSync(); }
   function uid()      { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
   function today()    {
     const d = new Date();
@@ -1380,7 +1409,8 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
   // ═════════════════════════════════════════════════════════════════════════
   // INIT
   // ═════════════════════════════════════════════════════════════════════════
-  function init() {
+  async function init() {
+    await finLoadFromSupabase();
     wireAll();
     processSubscriptionBilling(); // auto-log any subscriptions due today
     renderCash();

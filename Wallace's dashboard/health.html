@@ -793,6 +793,26 @@ html, body {
   // STATE
   // ============================================================
   const LS_KEY = 'po_water_v1';
+
+  /* ── Supabase sync ── */
+  const SUPA_URL_H = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
+  const SUPA_KEY_H = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
+  const SB_H_H = { 'Content-Type': 'application/json', 'apikey': SUPA_KEY_H, 'Authorization': 'Bearer ' + SUPA_KEY_H, 'Prefer': 'resolution=merge-duplicates' };
+  let _healthSyncTimer = null;
+  function scheduleHealthSync() {
+    clearTimeout(_healthSyncTimer);
+    _healthSyncTimer = setTimeout(async () => {
+      try {
+        const v = localStorage.getItem(LS_KEY);
+        if (!v) return;
+        await fetch(SUPA_URL_H + '/rest/v1/app_state?on_conflict=key', {
+          method: 'POST', headers: SB_H_H,
+          body: JSON.stringify({ key: 'health', data: { [LS_KEY]: JSON.parse(v) }, updated_at: new Date().toISOString() })
+        });
+      } catch (e) { console.warn('[health sync] write failed:', e.message); }
+    }, 1500);
+  }
+
   function loadState() {
     try {
       const raw = localStorage.getItem(LS_KEY);
@@ -814,6 +834,7 @@ html, body {
   }
   function saveState() {
     try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {}
+    scheduleHealthSync();
   }
   let state = loadState();
   $('appTitle').textContent = CONFIG.appTitle || 'Water Coach';
@@ -1199,6 +1220,22 @@ html, body {
 
   // BOOT
   renderAll();
+
+  /* ── Pull from Supabase on load ── */
+  (async () => {
+    try {
+      const res = await fetch(SUPA_URL_H + '/rest/v1/app_state?key=eq.health&select=data', { headers: SB_H_H });
+      if (!res.ok) return;
+      const rows = await res.json();
+      if (!rows.length || !rows[0].data || !rows[0].data[LS_KEY]) return;
+      const remoteJson = JSON.stringify(rows[0].data[LS_KEY]);
+      if (remoteJson !== localStorage.getItem(LS_KEY)) {
+        localStorage.setItem(LS_KEY, remoteJson);
+        state = loadState();
+        renderAll();
+      }
+    } catch (e) { console.warn('[health sync] read failed:', e.message); }
+  })();
 })();
 </script>
 <style>

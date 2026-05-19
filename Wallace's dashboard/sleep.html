@@ -611,6 +611,24 @@ main {
   var START_KEY    = 'sleepStart';
   var TARGET_H     = 8;
 
+  /* ── Supabase sync ── */
+  var SUPA_URL_SL = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
+  var SUPA_KEY_SL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
+  var SB_H_SL = { 'Content-Type': 'application/json', 'apikey': SUPA_KEY_SL, 'Authorization': 'Bearer ' + SUPA_KEY_SL, 'Prefer': 'resolution=merge-duplicates' };
+  var _sleepSyncTimer = null;
+  function scheduleSleepSync() {
+    clearTimeout(_sleepSyncTimer);
+    _sleepSyncTimer = setTimeout(function() {
+      var data = {};
+      var s = localStorage.getItem(SESSIONS_KEY); if (s) try { data[SESSIONS_KEY] = JSON.parse(s); } catch {}
+      var st = localStorage.getItem(START_KEY); if (st) data[START_KEY] = st;
+      fetch(SUPA_URL_SL + '/rest/v1/app_state?on_conflict=key', {
+        method: 'POST', headers: SB_H_SL,
+        body: JSON.stringify({ key: 'sleep', data: data, updated_at: new Date().toISOString() })
+      }).catch(function(e) { console.warn('[sleep sync] write failed:', e.message); });
+    }, 1500);
+  }
+
   /* ── DOM refs ── */
   var elStatus   = document.getElementById('st-status');
   var elStats    = document.getElementById('st-stats');
@@ -632,10 +650,10 @@ main {
   function getSessions() {
     try { return JSON.parse(localStorage.getItem(SESSIONS_KEY)) || []; } catch (e) { return []; }
   }
-  function saveSessions(s) { localStorage.setItem(SESSIONS_KEY, JSON.stringify(s)); }
+  function saveSessions(s) { localStorage.setItem(SESSIONS_KEY, JSON.stringify(s)); scheduleSleepSync(); }
   function getStart()   { return localStorage.getItem(START_KEY); }
-  function setStart(ts) { localStorage.setItem(START_KEY, ts); }
-  function clearStart() { localStorage.removeItem(START_KEY); }
+  function setStart(ts) { localStorage.setItem(START_KEY, ts); scheduleSleepSync(); }
+  function clearStart() { localStorage.removeItem(START_KEY); scheduleSleepSync(); }
 
   /* ── Formatting ── */
   function fmtH(h) {
@@ -1152,6 +1170,22 @@ main {
   var start = getStart();
   if (start) showSleeping(start);
   else showAwake();
+
+  /* ── Pull from Supabase on load ── */
+  fetch(SUPA_URL_SL + '/rest/v1/app_state?key=eq.sleep&select=data', { headers: SB_H_SL })
+    .then(function(r) { return r.ok ? r.json() : []; })
+    .then(function(rows) {
+      if (!rows.length || !rows[0] || !rows[0].data) return;
+      var d = rows[0].data;
+      var remoteSessions = d[SESSIONS_KEY];
+      var localJson = localStorage.getItem(SESSIONS_KEY);
+      var remoteJson = remoteSessions ? JSON.stringify(remoteSessions) : null;
+      if (remoteJson && remoteJson !== localJson) {
+        localStorage.setItem(SESSIONS_KEY, remoteJson);
+        renderAll();
+      }
+    })
+    .catch(function(e) { console.warn('[sleep sync] read failed:', e.message); });
 })();
 </script>
 </body>

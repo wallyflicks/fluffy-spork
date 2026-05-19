@@ -480,7 +480,8 @@ main {
   var SB_HEADERS = {
     'apikey': SUPA_KEY,
     'Authorization': 'Bearer ' + SUPA_KEY,
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Prefer': 'resolution=merge-duplicates'
   };
   var LS_KEY    = 'dw_sessions';
   var LS_ACTIVE = 'dw_active_start';
@@ -520,28 +521,22 @@ main {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   }
 
-  /* ── Supabase ── */
+  /* ── Supabase sync via app_state table ── */
   async function sbFetchSessions() {
-    var since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    var url = SUPA_URL + '/rest/v1/deep_work_sessions?start_time=gte.' + encodeURIComponent(since) + '&order=start_time.desc';
-    var res = await fetch(url, { headers: SB_HEADERS });
+    var res = await fetch(SUPA_URL + '/rest/v1/app_state?key=eq.deepwork&select=data', { headers: SB_HEADERS });
     if (!res.ok) throw new Error('fetch failed ' + res.status);
-    return await res.json();
+    var rows = await res.json();
+    if (!rows.length || !rows[0].data || !Array.isArray(rows[0].data.sessions)) return [];
+    return rows[0].data.sessions;
   }
 
-  async function sbInsertSession(s) {
-    var res = await fetch(SUPA_URL + '/rest/v1/deep_work_sessions', {
+  async function sbSaveAllSessions() {
+    var sessions = getSessions();
+    await fetch(SUPA_URL + '/rest/v1/app_state?on_conflict=key', {
       method: 'POST',
       headers: SB_HEADERS,
-      body: JSON.stringify({
-        start_time:       s.startTime,
-        end_time:         s.endTime,
-        duration_minutes: s.durationMin,
-        label:            s.label,
-        created_at:       new Date().toISOString()
-      })
+      body: JSON.stringify({ key: 'deepwork', data: { sessions: sessions }, updated_at: new Date().toISOString() })
     });
-    if (!res.ok) throw new Error('insert failed ' + res.status);
   }
 
   /* ── Formatting ── */
@@ -813,28 +808,19 @@ main {
   /* ── Supabase init ── */
   async function initData() {
     try {
-      var sbSessions = await sbFetchSessions();
-      if (Array.isArray(sbSessions) && sbSessions.length) {
-        // Merge into localStorage (Supabase is source of truth for history)
+      var remote = await sbFetchSessions();
+      if (Array.isArray(remote) && remote.length) {
+        // Merge: remote wins for same id, keep any local-only sessions (offline adds)
         var local = getSessions();
-        var localIds = local.map(function (s) { return s.id; });
-        sbSessions.forEach(function (row) {
-          var mapped = {
-            id:          row.id || uid(),
-            startTime:   row.start_time,
-            endTime:     row.end_time,
-            durationMin: row.duration_minutes,
-            label:       row.label || ''
-          };
-          if (!localIds.includes(mapped.id)) {
-            local.push(mapped);
-          }
+        var byId = {};
+        local.forEach(function(s) { if (s.id) byId[s.id] = s; });
+        remote.forEach(function(s) { if (s.id) byId[s.id] = s; });
+        var merged = Object.values(byId).sort(function(a, b) {
+          return (a.startTime || '') < (b.startTime || '') ? -1 : 1;
         });
-        saveSessions(local);
+        saveSessions(merged);
       }
-    } catch (e) {
-      // silent fail — use localStorage
-    }
+    } catch (e) { /* silent fail — use localStorage */ }
     renderAll();
   }
 
@@ -889,8 +875,8 @@ main {
     setTimerState('idle');
     renderAll();
 
-    // Background Supabase insert (silent fail)
-    sbInsertSession(session).catch(function () {});
+    // Sync full sessions array to Supabase (silent fail)
+    sbSaveAllSessions().catch(function () {});
   });
 
   elBtnKeep.addEventListener('click', function () {
