@@ -740,18 +740,29 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
   // ═════════════════════════════════════════════════════════════════════════
   let stockDonutChart = null;
 
-  // fetchPrice: Vercel serverless proxy (server-side, no CORS, tries .TO/.V for Canadian tickers).
+  // fetchPrice: Vercel rewrite proxies /yahoo-proxy/:ticker → Yahoo Finance (no CORS, server-side).
+  // Tries ticker as-is, then .TO (TSX), then .V (TSX Venture).
   // Returns { price, prevClose, resolvedTicker, stale }.
   async function fetchPrice(ticker) {
-    try {
-      const res = await fetch(`/api/stock-price?ticker=${encodeURIComponent(ticker)}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.price) {
-          return { price: data.price, prevClose: data.prevClose || data.price, resolvedTicker: data.resolvedTicker || ticker, stale: false };
+    const candidates = [ticker];
+    if (!ticker.includes('.')) candidates.push(ticker + '.TO', ticker + '.V');
+    for (const t of candidates) {
+      try {
+        const res = await fetch(`/yahoo-proxy/${encodeURIComponent(t)}`);
+        if (res.ok) {
+          const json = await res.json();
+          const meta = json?.chart?.result?.[0]?.meta;
+          if (meta?.regularMarketPrice) {
+            return {
+              price: meta.regularMarketPrice,
+              prevClose: meta.chartPreviousClose || meta.previousClose || meta.regularMarketPrice,
+              resolvedTicker: t,
+              stale: false,
+            };
+          }
         }
-      }
-    } catch {}
+      } catch {}
+    }
     return { price: null, prevClose: null, resolvedTicker: ticker, stale: true };
   }
 
