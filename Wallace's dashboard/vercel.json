@@ -1,6 +1,12 @@
 {
   "version": 2,
   "framework": null,
+  "functions": {
+    "api/*.js": {
+      "memory": 128,
+      "maxDuration": 5
+    }
+  },
   "rewrites": [
     {
       "source": "/yahoo-proxy/:ticker",
