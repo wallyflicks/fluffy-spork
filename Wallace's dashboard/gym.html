@@ -136,52 +136,55 @@ img, video, canvas, svg { max-width: 100%; }
 /* ---------- Bottom tab bar (shared with dashboard) ---------- */
 .tabbar {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 0; right: 0; bottom: 0;
   z-index: 9999;
   display: flex;
   justify-content: center;
-  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 18px));
-  background: rgba(10, 10, 11, 0.96);
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
+  background: rgba(10,10,11,0.95);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
+  border-top: 1px solid rgba(255,255,255,0.06);
 }
 .tabbar-inner {
+  width: 100%;
+  max-width: 480px;
   display: flex;
-  width: min(680px, 100%);
-  gap: 10px;
-  padding: 8px;
-  background: rgba(255,255,255,0.05);
+  align-items: center;
+  padding: 6px;
+  background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 999px;
-  box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+  gap: 4px;
 }
 .tabbar-link {
   flex: 1;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 12px 14px;
-  color: var(--text-1);
+  height: 44px;
+  min-width: 0;
+  color: rgba(255,255,255,0.38);
   text-decoration: none;
   border-radius: 999px;
-  font-size: 13px;
-  font-weight: 700;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-  border: 1px solid transparent;
+  transition: color 0.15s;
+  -webkit-tap-highlight-color: transparent;
 }
-.tabbar-link:hover {
-  background: rgba(255,255,255,0.12);
+.tabbar-link svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .tabbar-link.active {
   background: #ffffff;
   color: #0a0a0a;
-  border-color: rgba(255,255,255,0.16);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.18);
-  transform: translateY(-1px);
+}
+.tabbar-link:hover:not(.active) {
+  color: rgba(255,255,255,0.65);
 }
 .tab {
   flex: 1 1 0;
@@ -747,10 +750,6 @@ img, video, canvas, svg { max-width: 100%; }
 
   /* Progress photos grid — match the available width */
   .wt-photo-grid { gap: 8px; }
-
-  /* Bottom tab bar — slightly smaller pills so both labels always fit */
-  .tab { padding: 11px 10px; font-size: 13px; }
-  .tabbar { padding-left: 12px; padding-right: 12px; }
 
   /* Min tap targets */
   .po-btn-icon, .po-w-btn { min-height: 44px; }
@@ -1319,6 +1318,7 @@ img, video, canvas, svg { max-width: 100%; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
 
@@ -1671,18 +1671,6 @@ img, video, canvas, svg { max-width: 100%; }
       <input type="checkbox" id="exBw">
       Bodyweight (track reps only, no weight)
     </label>
-    <div class="po-field" id="exStartWeightField">
-      <label style="font-size:11px;color:var(--text-3);font-weight:700;letter-spacing:0.04em;text-transform:uppercase">Starting weight</label>
-      <input type="number" id="exStartWeight" step="0.5" placeholder="20" value="20">
-    </div>
-    <div class="po-field" id="exNumFields">
-      <label style="font-size:11px;color:var(--text-3);font-weight:700;letter-spacing:0.04em;text-transform:uppercase">Reps min</label>
-      <input type="number" id="exRepMin" value="6">
-    </div>
-    <div class="po-field">
-      <label style="font-size:11px;color:var(--text-3);font-weight:700;letter-spacing:0.04em;text-transform:uppercase">Reps max</label>
-      <input type="number" id="exRepMax" value="8">
-    </div>
     <div class="po-modal-actions">
       <button class="po-btn-secondary" id="exModalCancel">Cancel</button>
       <button class="po-btn-primary" id="exModalSave">Save</button>
@@ -2521,17 +2509,11 @@ img, video, canvas, svg { max-width: 100%; }
       modalGym = ex.gym;
       modalDay = ex.day;
       $('exBw').checked = !!ex.bw;
-      $('exStartWeight').value = ex.startWeight || 0;
-      $('exRepMin').value = ex.repMin;
-      $('exRepMax').value = ex.repMax;
     } else {
       $('exName').value = '';
       modalGym = state.filterGym;
       modalDay = state.filterDay;
       $('exBw').checked = false;
-      $('exStartWeight').value = 20;
-      $('exRepMin').value = 6;
-      $('exRepMax').value = 8;
     }
     renderModalSegs();
     toggleBwFields();
@@ -2539,9 +2521,7 @@ img, video, canvas, svg { max-width: 100%; }
     setTimeout(() => $('exName').focus(), 60);
   }
   function toggleBwFields() {
-    const isBw = $('exBw').checked;
-    $('exStartWeightField').style.display = isBw ? 'none' : '';
-    $('exNumFields').style.display = isBw ? 'none' : '';
+    // fields removed; bw checkbox change is still wired for future use
   }
   $('exBw').addEventListener('change', toggleBwFields);
   $('addExBtn').addEventListener('click', () => openExModal('add'));
@@ -2556,20 +2536,11 @@ img, video, canvas, svg { max-width: 100%; }
     if (!modalGym) { alert('Pick a gym.'); return; }
     if (!modalDay) { alert('Pick a day.'); return; }
     const isBw = $('exBw').checked;
-    const repMin = parseInt($('exRepMin').value, 10) || 6;
-    const repMax = parseInt($('exRepMax').value, 10) || 8;
-    const data = {
-      name, gym: modalGym, day: modalDay,
-      bw: isBw,
-      startWeight: isBw ? 0 : (parseFloat($('exStartWeight').value) || 0),
-      repMin, repMax,
-      step: isBw ? 1 : 2.5
-    };
     if (editingExId) {
       const ex = state.exercises.find(e => e.id === editingExId);
-      if (ex) Object.assign(ex, data);
+      if (ex) Object.assign(ex, { name, gym: modalGym, day: modalDay, bw: isBw, step: isBw ? 1 : (ex.step || 2.5) });
     } else {
-      const ex = Object.assign({ id: uid() }, data);
+      const ex = Object.assign({ id: uid() }, { name, gym: modalGym, day: modalDay, bw: isBw, startWeight: isBw ? 0 : 20, repMin: 6, repMax: 8, step: isBw ? 1 : 2.5 });
       state.exercises.push(ex);
       state.currentEx = ex.id;
       state.filterGym = (modalGym === 'both') ? state.filterGym : modalGym;
@@ -3714,16 +3685,15 @@ img, video, canvas, svg { max-width: 100%; }
 </script>
 
   <nav class="tabbar" aria-label="Bottom navigation">
-    <div class="tabbar-inner">
-      <a href="index.html" class="tabbar-link">Main</a>
-      <a href="health.html" class="tabbar-link">Health</a>
-      <a href="gym.html" class="tabbar-link active" aria-current="page">Gym</a>
-      <a href="finance.html" class="tabbar-link">Finance</a>
-      <a href="sleep.html" class="tabbar-link">Sleep</a>
-      <a href="deepwork.html" class="tabbar-link">Deep Work</a>
-    </div>
-  </nav>
-<script src="cinematic.js" defer></script>
-<script src="lockin.js" defer></script>
+  <div class="tabbar-inner">
+    <a href="index.html"    class="tabbar-link" aria-label="Main"><i data-lucide="home"></i></a>
+    <a href="health.html"   class="tabbar-link" aria-label="Health"><i data-lucide="heart"></i></a>
+    <a href="gym.html"      class="tabbar-link active" aria-current="page" aria-label="Gym"><i data-lucide="dumbbell"></i></a>
+    <a href="finance.html"  class="tabbar-link" aria-label="Finance"><i data-lucide="dollar-sign"></i></a>
+    <a href="sleep.html"    class="tabbar-link" aria-label="Sleep"><i data-lucide="moon"></i></a>
+    <a href="deepwork.html" class="tabbar-link" aria-label="Deep Work"><i data-lucide="brain"></i></a>
+  </div>
+</nav>
+<script>if(window.lucide)lucide.createIcons();</script>
 </body>
 </html>

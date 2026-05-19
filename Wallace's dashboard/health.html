@@ -536,6 +536,7 @@ html, body {
   </div>
 </div>
 
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 (function() {
@@ -1222,70 +1223,68 @@ html, body {
 
   .tabbar {
     position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    left: 0; right: 0; bottom: 0;
     z-index: 9999;
     display: flex;
     justify-content: center;
-    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 18px));
-    background: rgba(10, 10, 11, 0.96);
+    padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
+    background: rgba(10,10,11,0.95);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
+    border-top: 1px solid rgba(255,255,255,0.06);
   }
-
   .tabbar-inner {
+    width: 100%;
+    max-width: 480px;
     display: flex;
-    width: min(680px, 100%);
-    gap: 10px;
-    padding: 8px;
-    background: rgba(255,255,255,0.05);
+    align-items: center;
+    padding: 6px;
+    background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 999px;
-    box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+    gap: 4px;
   }
-
   .tabbar-link {
     flex: 1;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    min-height: 44px;
-    padding: 12px 14px;
-    color: var(--text-1);
+    height: 44px;
+    min-width: 0;
+    color: rgba(255,255,255,0.38);
     text-decoration: none;
     border-radius: 999px;
-    font-size: 13px;
-    font-weight: 700;
-    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-    border: 1px solid transparent;
+    transition: color 0.15s;
+    -webkit-tap-highlight-color: transparent;
   }
-
-  .tabbar-link:hover {
-    background: rgba(255,255,255,0.12);
+  .tabbar-link svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
-
   .tabbar-link.active {
     background: #ffffff;
     color: #0a0a0a;
-    border-color: rgba(255,255,255,0.16);
-    box-shadow: 0 20px 40px rgba(0,0,0,0.18);
-    transform: translateY(-1px);
+  }
+  .tabbar-link:hover:not(.active) {
+    color: rgba(255,255,255,0.65);
   }
 </style>
 
   <nav class="tabbar" aria-label="Bottom navigation">
-    <div class="tabbar-inner">
-      <a href="index.html" class="tabbar-link">Main</a>
-      <a href="health.html" class="tabbar-link active" aria-current="page">Health</a>
-      <a href="gym.html" class="tabbar-link">Gym</a>
-      <a href="finance.html" class="tabbar-link">Finance</a>
-      <a href="sleep.html" class="tabbar-link">Sleep</a>
-      <a href="deepwork.html" class="tabbar-link">Deep Work</a>
-    </div>
-  </nav>
-<script src="cinematic.js" defer></script>
-<script src="lockin.js" defer></script>
+  <div class="tabbar-inner">
+    <a href="index.html"    class="tabbar-link" aria-label="Main"><i data-lucide="home"></i></a>
+    <a href="health.html"   class="tabbar-link active" aria-current="page" aria-label="Health"><i data-lucide="heart"></i></a>
+    <a href="gym.html"      class="tabbar-link" aria-label="Gym"><i data-lucide="dumbbell"></i></a>
+    <a href="finance.html"  class="tabbar-link" aria-label="Finance"><i data-lucide="dollar-sign"></i></a>
+    <a href="sleep.html"    class="tabbar-link" aria-label="Sleep"><i data-lucide="moon"></i></a>
+    <a href="deepwork.html" class="tabbar-link" aria-label="Deep Work"><i data-lucide="brain"></i></a>
+  </div>
+</nav>
+<script>if(window.lucide)lucide.createIcons();</script>
 </body>
 </html>
