@@ -1310,74 +1310,11 @@ img, video, canvas, svg { max-width: 100%; }
 
 .hidden { display: none !important; }
 
-/* ── Workout analytics muscle group cards ─────────────────────── */
-.analytics-group-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-.analytics-group-card {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 10px;
-  padding: 10px 12px;
-}
-.analytics-group-title {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
-  text-transform: uppercase; color: rgba(255,255,255,0.4);
-  margin-bottom: 3px;
-}
-.analytics-group-value {
-  font-size: 15px; font-weight: 600;
-  font-variant-numeric: tabular-nums; color: #fff;
-  margin-bottom: 3px;
-}
-.analytics-group-meta {
-  font-size: 11px; color: rgba(255,255,255,0.4);
-  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+/* ── Training History ─────────────────────────────────────────── */
+.th-section-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: rgba(255,255,255,0.35);
   margin-bottom: 6px;
-}
-.analytics-badge {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
-  padding: 2px 7px; border-radius: 99px;
-  text-transform: uppercase;
-}
-.analytics-badge.on-track     { background: rgba(107,227,164,0.15); color: #6BE3A4; }
-.analytics-badge.needs-work   { background: rgba(242,192,99,0.15);  color: #F2C063; }
-.analytics-badge.undertrained { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.38); }
-
-/* ── Analytics tab bar ───────────────────────────────────────── */
-.analytics-tabs {
-  display: flex; gap: 4px;
-  margin-bottom: 14px;
-}
-.analytics-tab {
-  padding: 6px 14px; border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: transparent;
-  color: rgba(255,255,255,0.45);
-  font-family: var(--font); font-size: 12px; font-weight: 600;
-  cursor: pointer; -webkit-tap-highlight-color: transparent;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-.analytics-tab:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.7); }
-.analytics-tab.active {
-  background: rgba(255,255,255,0.1);
-  border-color: rgba(255,255,255,0.18);
-  color: #fff;
-}
-.analytics-panel { display: none; }
-.analytics-panel.show { display: block; }
-
-/* Progress bar used inside group cards */
-.score-bar {
-  height: 5px; border-radius: 99px;
-  background: rgba(255,255,255,0.08); overflow: hidden;
-}
-.score-bar-fill {
-  height: 100%; border-radius: 99px;
-  transition: width 0.4s ease;
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1702,26 +1639,14 @@ img, video, canvas, svg { max-width: 100%; }
       <div class="po-tw-past-body" id="poTwPastBody" style="display:none"></div>
     </div>
 
-    <div class="po-sub-section analytics-section">
-      <div class="po-sub-title">Workout volume analytics</div>
-      <div class="analytics-tabs" id="analyticsTabs">
-        <button type="button" class="analytics-tab active" data-panel="analyticsVolume">Volume</button>
-        <button type="button" class="analytics-tab" data-panel="analyticsRecords">Records</button>
-        <button type="button" class="analytics-tab" data-panel="analyticsInsights">Insights</button>
+    <div class="po-sub-section">
+      <div class="po-sub-title">Training History</div>
+      <div class="th-section-label">Total kg lifted · last 7 days</div>
+      <div id="thWeeklyWrap" style="position:relative;height:150px;width:100%;margin-bottom:20px">
+        <canvas id="thWeeklyChart"></canvas>
       </div>
-      <div class="analytics-panel show" id="analyticsVolume">
-        <div class="analytics-group-grid" id="analyticsGroupGrid"></div>
-        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:6px">Total weekly volume (last 4 weeks)</div>
-        <div style="height:200px;max-height:200px;overflow:hidden;position:relative;width:100%">
-          <canvas id="volumeChart" style="position:absolute;top:0;left:0;width:100%;height:100%"></canvas>
-        </div>
-      </div>
-      <div class="analytics-panel" id="analyticsRecords">
-        <div class="analytics-record-list" id="analyticsRecordList"></div>
-      </div>
-      <div class="analytics-panel" id="analyticsInsights">
-        <div class="analytics-insights-list" id="analyticsInsightsList"></div>
-      </div>
+      <div class="th-section-label" style="margin-bottom:10px">Muscle group frequency · last 4 weeks</div>
+      <div id="thMuscleBars"></div>
     </div>
   </div>
 </div>
@@ -1977,9 +1902,8 @@ img, video, canvas, svg { max-width: 100%; }
     noMsg.style.display = 'none';
     if (!f.find(e => e.id === state.currentEx)) state.currentEx = f[0].id;
     sel.innerHTML = f.map(e => {
-      const wLbl = e.bw ? ' · BW' : (e.startWeight ? ' · ' + e.startWeight + unit() : '');
       const sh = e.gym === 'both' ? ' ★' : '';
-      return '<option value="' + e.id + '"' + (e.id === state.currentEx ? ' selected' : '') + '>' + escape(e.name) + wLbl + sh + '</option>';
+      return '<option value="' + e.id + '"' + (e.id === state.currentEx ? ' selected' : '') + '>' + escape(e.name) + sh + '</option>';
     }).join('');
   }
   function renderForm() {
@@ -2197,7 +2121,7 @@ img, video, canvas, svg { max-width: 100%; }
     renderRx(); renderStats(); renderSparkline(); renderHistory();
     renderTodaysWorkout();
     renderPastWorkouts();
-    renderAnalytics();
+    renderTrainingHistory();
     // Pre-fill weight input with last logged weight (or starting weight)
     const ex = getCurrentEx();
     if (ex && !ex.bw) {
@@ -2382,171 +2306,102 @@ img, video, canvas, svg { max-width: 100%; }
     return 'Core';
   }
 
-  function renderAnalyticsTabs() {
-    document.querySelectorAll('.analytics-tab').forEach(button => {
-      button.addEventListener('click', () => {
-        document.querySelectorAll('.analytics-tab').forEach(b => b.classList.toggle('active', b === button));
-        document.querySelectorAll('.analytics-panel').forEach(panel => panel.classList.toggle('show', panel.id === button.dataset.panel));
-        renderAnalytics();
-      });
-    });
-  }
+  let thWeeklyChartInstance = null;
 
-  let volumeChartInstance = null;
-
-  function renderAnalytics() {
+  function renderWeeklyVolumeChart() {
     const logs = getAnalyticsLogs();
-    const today = new Date();
-    const currentWeekStart = getWeekStart(today);
-    const weekStarts = [];
-    for (let i = 3; i >= 0; i--) {
-      const start = new Date(currentWeekStart);
-      start.setDate(start.getDate() - i * 7);
-      weekStarts.push(start);
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      days.push(d);
     }
-    const weekVolumes = weekStarts.map((start) => {
-      const end = new Date(start);
-      end.setDate(end.getDate() + 7);
-      return logs.reduce((sum, item) => {
-        const logDate = new Date(item.log.date);
-        return logDate >= start && logDate < end ? sum + ((item.log.weight || 0) * (item.log.reps || 0)) : sum;
-      }, 0);
-    });
-    const groupDefs = [
-      { name: 'Chest', max: 20 },
-      { name: 'Back', max: 20 },
-      { name: 'Shoulders', max: 16 },
-      { name: 'Biceps', max: 14 },
-      { name: 'Triceps', max: 14 },
-      { name: 'Legs', max: 20 },
-      { name: 'Core', max: 16 }
-    ];
-    const groupSummary = groupDefs.map(group => ({ ...group, sets: 0, sessions: new Set() }));
-    const currentWeekEnd = new Date(currentWeekStart);
-    currentWeekEnd.setDate(currentWeekEnd.getDate() + 7);
-
-    logs.forEach(({ ex, log }) => {
-      const logDate = new Date(log.date);
-      if (logDate >= currentWeekStart && logDate < currentWeekEnd) {
-        const groupName = classifyMuscleGroup(ex);
-        const group = groupSummary.find(g => g.name === groupName);
-        if (group) {
-          group.sets += 1;
-          group.sessions.add(log.date.slice(0, 10));
+    const dayData = days.map(d => {
+      const dateStr = d.toISOString().slice(0, 10);
+      let totalKg = 0, totalSets = 0;
+      logs.forEach(({ log }) => {
+        if ((log.date || '').slice(0, 10) === dateStr) {
+          totalKg += (log.weight || 0) * (log.reps || 0);
+          totalSets++;
         }
-      }
+      });
+      return { date: d, dateStr, totalKg: Math.round(totalKg), totalSets };
     });
-
-    const groupHtml = groupSummary.map(group => {
-      const frequency = group.sessions.size + 'x';
-      const pct = Math.min(group.sets / group.max, 1);
-      const status = pct >= 0.8 ? 'on-track' : pct >= 0.4 ? 'needs-work' : 'undertrained';
-      const badgeText = pct >= 0.8 ? 'on track' : pct >= 0.4 ? 'needs work' : 'undertrained';
-      return '<div class="analytics-group-card">'
-        + '<div class="analytics-group-title">' + escape(group.name) + '</div>'
-        + '<div class="analytics-group-value">' + group.sets + ' / ' + group.max + '</div>'
-        + '<div class="analytics-group-meta"><span>' + frequency + '</span> · <span class="analytics-badge ' + status + '">' + badgeText + '</span></div>'
-        + '<div class="score-bar" style="margin-top:8px;"><div class="score-bar-fill" style="width:' + Math.round(pct * 100) + '%; background:' + (pct >= 0.8 ? '#6BE3A4' : pct >= 0.4 ? '#F2C063' : '#FF8A8A') + ';"></div></div>'
-        + '</div>';
-    }).join('');
-    $('analyticsGroupGrid').innerHTML = groupHtml;
-
-    const chartLabels = weekStarts.map(formatWeekLabel);
-    const chartData = weekVolumes.map(v => Math.round(v));
-    const ctx = document.getElementById('volumeChart');
-    if (ctx && window.Chart) {
-      const dataset = {
-        label: 'kg',
-        data: chartData,
-        backgroundColor: chartData.map((_, idx) => idx === 3 ? '#5B8BFF' : 'rgba(255,255,255,0.18)'),
-        borderRadius: 10,
-        borderSkipped: false,
-      };
-      if (!volumeChartInstance) {
-        const dataMax = Math.max(...chartData, 0);
-        volumeChartInstance = new Chart(ctx, {
-          type: 'bar',
-          data: { labels: chartLabels, datasets: [dataset] },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: { duration: 400 },
-            plugins: { legend: { display: false } },
-            scales: {
-              x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.7)', maxRotation: 0 } },
-              y: {
-                beginAtZero: true,
-                max: dataMax * 1.5 || 500,
-                grid: { color: 'rgba(255,255,255,0.08)' },
-                ticks: { color: 'rgba(255,255,255,0.7)', maxTicksLimit: 5 }
+    const DOW = ['S','M','T','W','T','F','S'];
+    const labels = days.map(d => DOW[d.getDay()]);
+    const data   = dayData.map(d => d.totalKg);
+    const bgColors = dayData.map((d, i) => {
+      if (d.totalKg === 0) return 'rgba(255,255,255,0.07)';
+      return i === 6 ? '#6ee7b7' : 'rgba(255,255,255,0.50)';
+    });
+    const ctx = document.getElementById('thWeeklyChart');
+    if (!ctx || !window.Chart) return;
+    if (!thWeeklyChartInstance) {
+      thWeeklyChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets: [{ data, backgroundColor: bgColors, borderRadius: 6, borderSkipped: false }] },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(10,10,11,0.92)', borderColor: 'rgba(255,255,255,0.12)', borderWidth: 1,
+              titleColor: 'rgba(255,255,255,0.9)', bodyColor: 'rgba(255,255,255,0.55)', padding: 10,
+              callbacks: {
+                title: items => dayData[items[0].dataIndex].date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+                label: item => {
+                  const d = dayData[item.dataIndex];
+                  return d.totalKg === 0 ? 'Rest day' : d.totalKg.toLocaleString() + ' ' + unit() + ' lifted · ' + d.totalSets + ' sets';
+                }
               }
             }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.45)', font: { size: 11 } } },
+            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: 'rgba(255,255,255,0.35)', maxTicksLimit: 4, font: { size: 10 } } }
           }
-        });
-      } else {
-        const dataMax = Math.max(...chartData, 0);
-        volumeChartInstance.options.scales.y.max = dataMax * 1.5 || 500;
-        volumeChartInstance.data.labels = chartLabels;
-        volumeChartInstance.data.datasets[0].data = chartData;
-        volumeChartInstance.update();
-      }
-    }
-
-    const recordRows = [];
-    Object.entries(state.logs).forEach(([exId, arr]) => {
-      const ex = state.exercises.find(e => e.id === exId);
-      if (!ex || !Array.isArray(arr) || !arr.length) return;
-      const values = arr.map(log => ex.bw ? log.reps : estimate1RM(log.weight, log.reps));
-      const weekLogs = arr.filter(log => {
-        const d = new Date(log.date);
-        return d >= currentWeekStart && d < currentWeekEnd;
+        }
       });
-      const priorLogs = arr.filter(log => {
-        const d = new Date(log.date);
-        return d < currentWeekStart;
-      });
-      const weekBest = weekLogs.length ? Math.max.apply(null, weekLogs.map(log => ex.bw ? log.reps : estimate1RM(log.weight, log.reps))) : 0;
-      const priorBest = priorLogs.length ? Math.max.apply(null, priorLogs.map(log => ex.bw ? log.reps : estimate1RM(log.weight, log.reps))) : 0;
-      const delta = weekBest - priorBest;
-      const status = weekBest > priorBest ? 'pr' : weekBest >= priorBest - 2.5 ? 'near' : 'below';
-      const valueLabel = ex.bw ? weekBest + ' reps' : Math.round(weekBest) + ' kg';
-      const changeLabel = priorBest === 0 ? 'First logs' : (delta > 0 ? '+' + Math.round(delta) + ' kg' : delta === 0 ? '±0' : Math.round(delta) + ' kg');
-      recordRows.push({ ex, status, valueLabel, changeLabel });
-    });
-    $('analyticsRecordList').innerHTML = recordRows.length ? recordRows.map(row =>
-      '<div class="analytics-record-row">'
-      + '<div><div class="analytics-record-name">' + escape(row.ex.name) + '</div>'
-      + '<div class="analytics-record-group">' + escape(classifyMuscleGroup(row.ex)) + '</div></div>'
-      + '<div class="analytics-record-meta">'
-      + '<div class="analytics-record-1rm">' + escape(row.valueLabel) + '</div>'
-      + '<div class="analytics-record-change ' + row.status + '">' + escape(row.status === 'pr' ? 'New PR this week' : row.status === 'near' ? 'Near PR' : 'Below PR') + ' · ' + escape(row.changeLabel) + '</div>'
-      + '</div></div>'
-    ).join('') : '<div class="analytics-empty">No records yet for this week. Log a few sets in the workout logger.</div>';
-
-    const notes = [];
-    const legGroup = groupSummary.find(g => g.name === 'Legs');
-    const backGroup = groupSummary.find(g => g.name === 'Back');
-    if (legGroup && legGroup.sets <= 4) notes.push('Legs only trained once this week — add a session before Sunday.');
-    if (backGroup && backGroup.sets > 0) notes.push('Back volume is your highest at ' + backGroup.sets + ' sets — on track.');
-    const prNames = recordRows.filter(row => row.status === 'pr').slice(0, 3).map(row => row.ex.name);
-    if (prNames.length) notes.push('New PRs on ' + prNames.join(' and ') + ' — consider a deload next week.');
-    const prevWeekVol = weekVolumes[2] || 0;
-    const currentWeekVol = weekVolumes[3] || 0;
-    if (prevWeekVol > 0) {
-      const percent = Math.round(((currentWeekVol - prevWeekVol) / prevWeekVol) * 100);
-      const trend = percent >= 0 ? 'up ' + percent + '% vs last week' : percent + '% vs last week';
-      notes.push('Weekly volume ' + trend + '.');
-    }
-    if (!notes.length) notes.push('Add more sets and the analytics will start generating coaching notes.');
-    $('analyticsInsightsList').innerHTML = notes.map(note => '<div class="analytics-insight-note">' + escape(note) + '</div>').join('');
-
-    if (!document.querySelectorAll('.analytics-tab.active').length) {
-      document.querySelector('.analytics-tab')?.classList.add('active');
-      document.querySelector('.analytics-panel')?.classList.add('show');
+    } else {
+      thWeeklyChartInstance.data.labels = labels;
+      thWeeklyChartInstance.data.datasets[0].data = data;
+      thWeeklyChartInstance.data.datasets[0].backgroundColor = bgColors;
+      thWeeklyChartInstance.update();
     }
   }
 
-  renderAnalyticsTabs();
+  function renderMuscleGroupBars() {
+    const logs = getAnalyticsLogs();
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 28);
+    cutoff.setHours(0, 0, 0, 0);
+    const groups = ['Chest','Back','Shoulders','Biceps','Triceps','Legs','Core'];
+    const counts = {};
+    groups.forEach(g => { counts[g] = new Set(); });
+    logs.forEach(({ ex, log }) => {
+      if (new Date(log.date) >= cutoff) counts[classifyMuscleGroup(ex)]?.add(log.date.slice(0, 10));
+    });
+    const max = Math.max(...groups.map(g => counts[g].size), 1);
+    const el = $('thMuscleBars');
+    if (!el) return;
+    el.innerHTML = groups.map(g => {
+      const n = counts[g].size;
+      const pct = (n / max) * 100;
+      const col = n === 0 ? 'rgba(255,255,255,0.08)' : n >= max * 0.75 ? '#6ee7b7' : n >= max * 0.4 ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.22)';
+      return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">'
+        + '<span style="width:68px;font-size:11px;color:rgba(255,255,255,0.45);text-align:right;flex-shrink:0">' + g + '</span>'
+        + '<div style="flex:1;height:7px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden">'
+        + '<div style="width:' + pct.toFixed(1) + '%;height:100%;background:' + col + ';border-radius:4px;transition:width 0.4s ease"></div></div>'
+        + '<span style="width:22px;font-size:11px;color:rgba(255,255,255,0.4);font-family:var(--font-mono);text-align:right">' + n + 'x</span>'
+        + '</div>';
+    }).join('');
+  }
+
+  function renderTrainingHistory() {
+    renderWeeklyVolumeChart();
+    renderMuscleGroupBars();
+  }
 
   $('poTwDoneBtn').addEventListener('click', () => {
     const todayKey = wtDateKey(new Date());
