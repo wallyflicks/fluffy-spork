@@ -655,17 +655,18 @@
       grid-template-columns: minmax(140px, 180px) 1fr;
       gap: 22px;
       align-items: center;
-      margin-bottom: 22px;
+      margin-bottom: 20px;
     }
     .score-ring-panel {
       position: relative;
       width: 100%;
-      min-height: 180px;
+      aspect-ratio: 1;
+      max-width: 180px;
       display: flex;
       align-items: center;
       justify-content: center;
     }
-    .score-ring-svg { width: 100%; max-width: 180px; height: auto; }
+    .score-ring-svg { width: 100%; height: auto; display: block; }
     .score-ring-overlay {
       position: absolute;
       inset: 0;
@@ -692,6 +693,7 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
+      min-width: 0;
     }
     .score-verdict {
       font-size: 16px;
@@ -700,25 +702,28 @@
       color: #FFFFFF;
     }
     .score-bars {
-      display: grid;
+      display: flex;
+      flex-direction: column;
       gap: 12px;
     }
+    /* label | value on top row, bar full-width below */
     .score-bar-row {
       display: grid;
-      grid-template-columns: auto minmax(0, auto);
-      gap: 10px;
+      grid-template-columns: 1fr auto;
+      gap: 4px 10px;
       align-items: center;
       font-size: 13px;
     }
     .score-bar-row span { color: var(--text-tertiary); }
     .score-bar-row .score-bar-label { color: var(--text-primary); }
     .score-bar {
+      grid-column: 1 / -1;
       position: relative;
       background: rgba(255,255,255,0.06);
       border-radius: 999px;
       overflow: hidden;
-      height: 10px;
-      margin-top: 6px;
+      height: 8px;
+      margin-top: 0;
     }
     .score-bar-fill {
       height: 100%;
@@ -726,11 +731,40 @@
       background: linear-gradient(90deg, #6BE3A4, #4BB788);
       transition: width 0.4s ease;
     }
+    /* Quote section */
+    .score-quote {
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding-top: 16px;
+      margin-top: 4px;
+    }
+    .score-quote-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .score-quote-text {
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: rgba(255,255,255,0.88);
+      text-align: center;
+      margin: 0 0 8px;
+      font-style: italic;
+    }
+    .score-quote-author {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      text-align: right;
+      margin: 0;
+    }
     .score-metric-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px;
-      margin: 18px 0 16px;
+      margin: 0 0 16px;
     }
     .score-metric-card {
       background: rgba(255,255,255,0.04);
@@ -862,10 +896,21 @@
       .ticker-item { font-size: 11.5px; padding-right: 36px; }
       .goal-ticker-meta { font-size: 10px; padding: 2px 7px; }
 
-      .gm-card { padding: 14px 14px; }
-      .score-card-top { grid-template-columns: 1fr; gap: 14px; }
-      .score-ring-panel { min-height: 0; }
-      .score-metric-grid { grid-template-columns: repeat(2, 1fr); }
+      .gm-card { padding: 14px; }
+      .score-card { padding: 16px; }
+      /* Mobile score card: ring centred, then verdict + bars centred below */
+      .score-card-top {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        justify-items: center;
+      }
+      .score-ring-panel { max-width: 150px; }
+      .score-summary { width: 100%; text-align: center; }
+      .score-verdict { text-align: center; }
+      /* 2+1 centred layout for stat cards */
+      .score-metric-grid { grid-template-columns: repeat(4, 1fr); }
+      .score-metric-card { grid-column: span 2; }
+      .score-metric-card:last-child { grid-column: 2 / 4; }
       button, input, select { min-height: 44px; }
     }
 
@@ -951,6 +996,11 @@
             <div class="score-bar-row"><span class="score-bar-label">Workout</span><span id="workoutProgressLabel">0/10</span><div class="score-bar"><div id="workoutFill" class="score-bar-fill" style="width:0%"></div></div></div>
           </div>
         </div>
+      </div>
+      <div class="score-quote" id="scoreQuote" style="display:none">
+        <div class="score-quote-label">Today's Quote</div>
+        <p class="score-quote-text" id="scoreQuoteText"></p>
+        <p class="score-quote-author" id="scoreQuoteAuthor"></p>
       </div>
       <div class="score-metric-grid">
         <div class="score-metric-card"><div class="score-metric-head"><span class="score-metric-dot" id="goalDot"></span><span>Goals</span></div><div class="score-metric-value" id="goalMetric">0</div><div class="score-metric-label" id="goalMetricLabel">done</div></div>
@@ -1868,6 +1918,46 @@
     }
 
     // ─── INIT ─────────────────────────────────────────────────────────────────
+    // ─── DAILY QUOTE ──────────────────────────────────────────────────────────
+    const QUOTE_CACHE_KEY = 'dailyQuote';
+    const FALLBACK_QUOTE = { quote: 'The secret of getting ahead is getting started.', author: 'Mark Twain' };
+
+    function renderQuote(text, author) {
+      const el = document.getElementById('scoreQuote');
+      const textEl = document.getElementById('scoreQuoteText');
+      const authorEl = document.getElementById('scoreQuoteAuthor');
+      if (!el || !textEl || !authorEl) return;
+      textEl.textContent = '“' + text + '”';
+      authorEl.textContent = '— ' + author;
+      el.style.display = '';
+    }
+
+    async function loadDailyQuote() {
+      const today = getTodayDateString();
+      // Try cache first
+      try {
+        const cached = JSON.parse(localStorage.getItem(QUOTE_CACHE_KEY) || 'null');
+        if (cached && cached.date === today && cached.quote) {
+          renderQuote(cached.quote, cached.author);
+          return;
+        }
+      } catch {}
+      // Fetch from serverless proxy
+      try {
+        const res = await fetch('/api/quote');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.quote) {
+            localStorage.setItem(QUOTE_CACHE_KEY, JSON.stringify({ date: today, quote: data.quote, author: data.author }));
+            renderQuote(data.quote, data.author);
+            return;
+          }
+        }
+      } catch {}
+      // Silent fallback
+      renderQuote(FALLBACK_QUOTE.quote, FALLBACK_QUOTE.author);
+    }
+
     async function init() {
       setSyncState('syncing', 'connecting…');
       await loadFromSupabase();
@@ -1883,6 +1973,7 @@
       window.addEventListener('storage', updateDailyScoreCard);
       window.addEventListener('focus', updateDailyScoreCard);
       setInterval(updateDailyScoreCard, 30000);
+      loadDailyQuote(); // non-blocking
     }
 
     init();
