@@ -1946,10 +1946,14 @@
       try {
         const res = await fetch('/api/quote');
         if (res.ok) {
-          const data = await res.json();
-          if (data.quote) {
-            localStorage.setItem(QUOTE_CACHE_KEY, JSON.stringify({ date: today, quote: data.quote, author: data.author }));
-            renderQuote(data.quote, data.author);
+          const raw = await res.json();
+          // ZenQuotes returns [{q:"...",a:"..."}]; handle both formats
+          const item = Array.isArray(raw) ? raw[0] : raw;
+          const quote = item.q || item.quote;
+          const author = item.a || item.author;
+          if (quote) {
+            localStorage.setItem(QUOTE_CACHE_KEY, JSON.stringify({ date: today, quote, author }));
+            renderQuote(quote, author);
             return;
           }
         }

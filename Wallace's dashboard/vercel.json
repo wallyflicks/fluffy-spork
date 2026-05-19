@@ -1,16 +1,14 @@
 {
   "version": 2,
   "framework": null,
-  "functions": {
-    "api/*.js": {
-      "memory": 128,
-      "maxDuration": 5
-    }
-  },
   "rewrites": [
     {
       "source": "/yahoo-proxy/:ticker",
       "destination": "https://query1.finance.yahoo.com/v8/finance/chart/:ticker?interval=1d&range=1d"
+    },
+    {
+      "source": "/api/quote",
+      "destination": "https://zenquotes.io/api/today"
     }
   ]
 }
