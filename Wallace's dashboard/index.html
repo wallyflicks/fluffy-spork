@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Wallace's Dashboard</title>
+  <link rel="manifest" href="/manifest.json">
+  <script src="/notifications.js" defer></script>
   <style>
     :root {
       color-scheme: dark;
@@ -890,11 +892,35 @@
       font-size: 9px; font-weight: 700; letter-spacing: 0.16em;
       color: rgba(255,255,255,0.3); margin-bottom: 12px; text-transform: uppercase;
     }
+    .dash-header-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .notif-bell-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px; height: 38px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 10px;
+      color: var(--text-tertiary);
+      text-decoration: none;
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+    .notif-bell-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.08); }
+    .notif-bell-btn svg { width: 18px; height: 18px; }
   </style>
 </head>
 <body>
   <main class="page-shell">
-    <h1 class="dash-title">Wallace's Dashboard</h1>
+    <div class="dash-header-row">
+      <h1 class="dash-title">Wallace's Dashboard</h1>
+      <a href="notifications.html" class="notif-bell-btn" aria-label="Notification settings"><i data-lucide="bell"></i></a>
+    </div>
 
     <div class="sync-bar">
       <div class="sync-dot" id="syncDot"></div>
@@ -988,6 +1014,26 @@
         <div class="goal-input-wrap gm-input-wrap">
           <input id="tomorrowInput" type="text" placeholder="Add a goal for tomorrow…" autocomplete="off" />
           <button type="button" class="goal-add-btn" id="tomorrowAddBtn">+ Add</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- ── Weekly Tasks ── -->
+    <div class="section">
+      <div class="section-title">This Week</div>
+      <section class="gm-card" id="weeklyCard">
+        <div class="gm-header">
+          <div class="gm-left">
+            <p class="gm-eyebrow">Weekly tasks</p>
+            <p style="font-size:11px;color:var(--text-tertiary);margin-top:2px">Uncompleted tasks carry over each Monday</p>
+          </div>
+          <div class="tomorrow-badge" id="weeklyBadge">0 left</div>
+        </div>
+        <ul id="weeklyList" class="goal-list"></ul>
+        <div id="weeklyEmpty" class="empty-state">No weekly tasks yet — add one below.</div>
+        <div class="goal-input-wrap gm-input-wrap">
+          <input id="weeklyInput" type="text" placeholder="Add a weekly task…" autocomplete="off" />
+          <button type="button" class="goal-add-btn" id="weeklyAdd">+ Add</button>
         </div>
       </section>
     </div>
@@ -1900,6 +1946,99 @@
     }
 
     init();
+
+    // ── WEEKLY TO-DO ──────────────────────────────────────────────────────
+    const WEEKLY_KEY = 'weeklyTodos';
+    const WEEKLY_RESET_KEY = 'weeklyTodoLastReset';
+
+    function getWeeklyTodos() {
+      try { return JSON.parse(localStorage.getItem(WEEKLY_KEY)) || []; } catch { return []; }
+    }
+    function saveWeeklyTodos(arr) {
+      localStorage.setItem(WEEKLY_KEY, JSON.stringify(arr));
+    }
+    function weeklyUid() {
+      return 'w_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    }
+
+    function resetWeeklyIfMonday() {
+      const now = new Date();
+      if (now.getDay() !== 1) return; // not Monday
+      const today = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+      if (localStorage.getItem(WEEKLY_RESET_KEY) === today) return;
+      const todos = getWeeklyTodos();
+      saveWeeklyTodos(todos.filter(t => !t.done));
+      localStorage.setItem(WEEKLY_RESET_KEY, today);
+    }
+
+    function renderWeeklyTodos() {
+      const todos = getWeeklyTodos();
+      const list = document.getElementById('weeklyList');
+      const empty = document.getElementById('weeklyEmpty');
+      const badge = document.getElementById('weeklyBadge');
+      if (!list) return;
+
+      const uncompleted = todos.filter(t => !t.done);
+      const completed   = todos.filter(t => t.done);
+      badge.textContent = uncompleted.length + ' left';
+
+      if (!todos.length) { list.innerHTML = ''; empty.classList.remove('hidden'); return; }
+      empty.classList.add('hidden');
+      list.innerHTML = '';
+
+      [...uncompleted, ...completed].forEach((todo, i) => {
+        const row = document.createElement('li');
+        row.className = 'goal-row' + (todo.done ? ' done' : '');
+        row.style.cssText = 'grid-template-columns: auto 1fr auto;';
+
+        const cb = document.createElement('button');
+        cb.type = 'button';
+        cb.className = 'goal-check' + (todo.done ? ' checked' : '');
+        cb.setAttribute('aria-label', todo.done ? 'Mark undone' : 'Mark done');
+        cb.addEventListener('click', () => {
+          const arr = getWeeklyTodos();
+          const item = arr.find(x => x.id === todo.id);
+          if (item) { item.done = !item.done; item.doneAt = item.done ? Date.now() : null; }
+          saveWeeklyTodos(arr);
+          renderWeeklyTodos();
+        });
+
+        const text = document.createElement('div');
+        text.className = 'goal-text' + (todo.done ? ' done' : '');
+        text.textContent = todo.text;
+
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'goal-delete';
+        del.textContent = '×';
+        del.addEventListener('click', () => {
+          saveWeeklyTodos(getWeeklyTodos().filter(x => x.id !== todo.id));
+          renderWeeklyTodos();
+        });
+
+        row.appendChild(cb);
+        row.appendChild(text);
+        row.appendChild(del);
+        list.appendChild(row);
+      });
+    }
+
+    function addWeeklyTodo(text) {
+      if (!text.trim()) return;
+      const arr = getWeeklyTodos();
+      arr.push({ id: weeklyUid(), text: text.trim(), done: false, doneAt: null, createdAt: new Date().toISOString() });
+      saveWeeklyTodos(arr);
+      renderWeeklyTodos();
+    }
+
+    (function initWeekly() {
+      resetWeeklyIfMonday();
+      renderWeeklyTodos();
+      const input = document.getElementById('weeklyInput');
+      const btn   = document.getElementById('weeklyAdd');
+      if (btn) btn.addEventListener('click', () => { addWeeklyTodo(input.value); input.value = ''; });
+      if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addWeeklyTodo(input.value); input.value = ''; } });
+    })();
   </script>
 
   <nav class="tabbar" aria-label="Bottom navigation">

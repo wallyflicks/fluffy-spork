@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0b">
+<title>Notifications — Dashboard</title>
+<link rel="manifest" href="/manifest.json">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+:root {
+  --bg: #0a0a0b;
+  --card: rgba(255,255,255,0.04);
+  --card-border: rgba(255,255,255,0.06);
+  --text-primary: #FAFAFA;
+  --text-secondary: #B8B6B0;
+  --text-tertiary: #76746E;
+  --success: #6BE3A4;
+  --warning: #F2C063;
+  --danger: #FF6B6B;
+  --sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--sans);
+  min-height: 100%;
+  overflow-x: hidden;
+}
+body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env(safe-area-inset-bottom, 0px)); }
+
+/* Header */
+.notif-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px; height: 38px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.back-btn:hover { background: rgba(255,255,255,0.08); }
+.back-btn svg { width: 18px; height: 18px; }
+.notif-page-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+/* Permission banner */
+.perm-banner {
+  background: rgba(242,192,99,0.10);
+  border: 1px solid rgba(242,192,99,0.25);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.perm-banner.granted {
+  background: rgba(107,227,164,0.08);
+  border-color: rgba(107,227,164,0.2);
+}
+.perm-banner.denied {
+  background: rgba(255,107,107,0.08);
+  border-color: rgba(255,107,107,0.2);
+}
+.perm-icon { font-size: 20px; flex-shrink: 0; }
+.perm-text { flex: 1; font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
+.perm-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--warning);
+  color: #000;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.perm-banner.granted .perm-btn { display: none; }
+.perm-banner.denied .perm-btn { display: none; }
+
+/* Section label */
+.notif-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 10px;
+  margin-top: 20px;
+}
+.notif-section-label:first-of-type { margin-top: 0; }
+
+/* Setting card */
+.notif-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 8px;
+}
+.notif-card-emoji { font-size: 20px; flex-shrink: 0; }
+.notif-card-body { flex: 1; min-width: 0; }
+.notif-card-title { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+.notif-card-desc { font-size: 12px; color: var(--text-tertiary); margin-bottom: 10px; }
+.notif-card-control { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.notif-time-input, .notif-interval-select {
+  padding: 7px 10px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: var(--sans);
+  font-size: 13px;
+  outline: none;
+  color-scheme: dark;
+}
+.notif-time-input:focus, .notif-interval-select:focus {
+  border-color: rgba(255,255,255,0.22);
+}
+
+/* Toggle switch */
+.notif-toggle { display: flex; align-items: center; cursor: pointer; flex-shrink: 0; }
+.notif-toggle input { display: none; }
+.toggle-track {
+  position: relative;
+  width: 46px; height: 26px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 999px;
+  transition: background 0.2s;
+}
+.notif-toggle input:checked ~ .toggle-track { background: var(--success); }
+.toggle-thumb {
+  position: absolute;
+  width: 20px; height: 20px;
+  background: #fff;
+  border-radius: 50%;
+  top: 3px; left: 3px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.notif-toggle input:checked ~ .toggle-track .toggle-thumb { transform: translateX(20px); }
+
+/* Disabled state */
+.notif-card.disabled .notif-card-title { opacity: 0.5; }
+.notif-card.disabled .notif-card-control { opacity: 0.4; pointer-events: none; }
+
+/* Tabbar */
+.tabbar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
+  background: rgba(10,10,11,0.95);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.tabbar-inner {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  align-items: center;
+  padding: 6px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px;
+  gap: 4px;
+}
+.tabbar-link {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  min-width: 0;
+  color: rgba(255,255,255,0.38);
+  text-decoration: none;
+  border-radius: 999px;
+  transition: color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.tabbar-link svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tabbar-link.active { background: #ffffff; color: #0a0a0a; }
+.tabbar-link:hover:not(.active) { color: rgba(255,255,255,0.65); }
+</style>
+</head>
+<body>
+
+<header class="notif-header">
+  <a href="index.html" class="back-btn" aria-label="Back"><i data-lucide="arrow-left"></i></a>
+  <h1 class="notif-page-title">Notifications</h1>
+</header>
+
+<div class="perm-banner" id="permBanner">
+  <span class="perm-icon">🔔</span>
+  <div class="perm-text" id="permText">Enable notifications to get reminders for water, tasks, bedtime, gym, and deep work.</div>
+  <button class="perm-btn" id="permBtn" onclick="enableNotifs()">Enable</button>
+</div>
+
+<div class="notif-section-label">Reminders</div>
+
+<!-- Water -->
+<div class="notif-card" id="card-water">
+  <span class="notif-card-emoji">💧</span>
+  <div class="notif-card-body">
+    <div class="notif-card-title">Water reminder</div>
+    <div class="notif-card-desc">Remind me to drink water if under target</div>
+    <div class="notif-card-control">
+      <select class="notif-interval-select" id="waterInterval">
+        <option value="1">Every 1 hour</option>
+        <option value="2" selected>Every 2 hours</option>
+        <option value="3">Every 3 hours</option>
+      </select>
+    </div>
+  </div>
+  <label class="notif-toggle"><input type="checkbox" id="waterEnabled"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+</div>
+
+<!-- To-do -->
+<div class="notif-card" id="card-todo">
+  <span class="notif-card-emoji">✅</span>
+  <div class="notif-card-body">
+    <div class="notif-card-title">To-do reminder</div>
+    <div class="notif-card-desc">Daily reminder with tasks remaining</div>
+    <div class="notif-card-control">
+      <input type="time" class="notif-time-input" id="todoTime" value="09:00">
+    </div>
+  </div>
+  <label class="notif-toggle"><input type="checkbox" id="todoEnabled"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+</div>
+
+<!-- Bedtime -->
+<div class="notif-card" id="card-bedtime">
+  <span class="notif-card-emoji">🌙</span>
+  <div class="notif-card-body">
+    <div class="notif-card-title">Bedtime reminder</div>
+    <div class="notif-card-desc">Time to wind down — log your sleep tonight</div>
+    <div class="notif-card-control">
+      <input type="time" class="notif-time-input" id="bedtimeTime" value="22:30">
+    </div>
+  </div>
+  <label class="notif-toggle"><input type="checkbox" id="bedtimeEnabled"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+</div>
+
+<!-- Gym -->
+<div class="notif-card" id="card-gym">
+  <span class="notif-card-emoji">🏋️</span>
+  <div class="notif-card-body">
+    <div class="notif-card-title">Gym reminder</div>
+    <div class="notif-card-desc">Training days: get it done. Rest days: recover well.</div>
+    <div class="notif-card-control">
+      <input type="time" class="notif-time-input" id="gymTime" value="08:00">
+    </div>
+  </div>
+  <label class="notif-toggle"><input type="checkbox" id="gymEnabled"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+</div>
+
+<!-- Deep Work -->
+<div class="notif-card" id="card-deepwork">
+  <span class="notif-card-emoji">🧠</span>
+  <div class="notif-card-body">
+    <div class="notif-card-title">Deep work reminder</div>
+    <div class="notif-card-desc">Fires if no deep work session logged yet today</div>
+    <div class="notif-card-control">
+      <input type="time" class="notif-time-input" id="deepworkTime" value="09:00">
+    </div>
+  </div>
+  <label class="notif-toggle"><input type="checkbox" id="deepworkEnabled"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+</div>
+
+<nav class="tabbar" aria-label="Bottom navigation">
+  <div class="tabbar-inner">
+    <a href="index.html"    class="tabbar-link" aria-label="Main"><i data-lucide="home"></i></a>
+    <a href="health.html"   class="tabbar-link" aria-label="Health"><i data-lucide="heart"></i></a>
+    <a href="gym.html"      class="tabbar-link" aria-label="Gym"><i data-lucide="dumbbell"></i></a>
+    <a href="finance.html"  class="tabbar-link" aria-label="Finance"><i data-lucide="dollar-sign"></i></a>
+    <a href="sleep.html"    class="tabbar-link" aria-label="Sleep"><i data-lucide="moon"></i></a>
+    <a href="deepwork.html" class="tabbar-link" aria-label="Deep Work"><i data-lucide="brain"></i></a>
+  </div>
+</nav>
+<script>if(window.lucide)lucide.createIcons();</script>
+
+<script src="/notifications.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  const NOTIF_KEY = 'notifSettings';
+
+  function getSettings() {
+    try { return JSON.parse(localStorage.getItem(NOTIF_KEY)) || {}; } catch { return {}; }
+  }
+  function saveSettings(s) {
+    localStorage.setItem(NOTIF_KEY, JSON.stringify(s));
+  }
+
+  function loadUI() {
+    const s = getSettings();
+    const w = s.waterReminder || {};
+    const t = s.todoReminder || {};
+    const b = s.bedtimeReminder || {};
+    const g = s.gymReminder || {};
+    const d = s.deepWorkReminder || {};
+
+    document.getElementById('waterEnabled').checked = !!w.enabled;
+    document.getElementById('waterInterval').value  = w.interval || '2';
+    document.getElementById('todoEnabled').checked  = !!t.enabled;
+    document.getElementById('todoTime').value        = t.time || '09:00';
+    document.getElementById('bedtimeEnabled').checked = !!b.enabled;
+    document.getElementById('bedtimeTime').value     = b.time || '22:30';
+    document.getElementById('gymEnabled').checked    = !!g.enabled;
+    document.getElementById('gymTime').value          = g.time || '08:00';
+    document.getElementById('deepworkEnabled').checked = !!d.enabled;
+    document.getElementById('deepworkTime').value    = d.time || '09:00';
+    updateDisabledState();
+  }
+
+  function saveFromUI() {
+    saveSettings({
+      waterReminder:    { enabled: document.getElementById('waterEnabled').checked,    interval: document.getElementById('waterInterval').value },
+      todoReminder:     { enabled: document.getElementById('todoEnabled').checked,     time: document.getElementById('todoTime').value },
+      bedtimeReminder:  { enabled: document.getElementById('bedtimeEnabled').checked,  time: document.getElementById('bedtimeTime').value },
+      gymReminder:      { enabled: document.getElementById('gymEnabled').checked,      time: document.getElementById('gymTime').value },
+      deepWorkReminder: { enabled: document.getElementById('deepworkEnabled').checked, time: document.getElementById('deepworkTime').value }
+    });
+  }
+
+  function updatePermBanner() {
+    const banner = document.getElementById('permBanner');
+    const text   = document.getElementById('permText');
+    if (!('Notification' in window)) {
+      text.textContent = 'Notifications are not supported in this browser.';
+      banner.classList.add('denied');
+      return;
+    }
+    const p = Notification.permission;
+    if (p === 'granted') {
+      banner.classList.add('granted');
+      text.textContent = '✓ Notifications are enabled.';
+    } else if (p === 'denied') {
+      banner.classList.add('denied');
+      text.textContent = 'Notifications are blocked. Allow them in your device settings, then reload.';
+    } else {
+      text.textContent = 'Enable notifications to get reminders for water, tasks, bedtime, gym, and deep work.';
+    }
+  }
+
+  function updateDisabledState() {
+    const denied = !('Notification' in window) || Notification.permission === 'denied';
+    ['water','todo','bedtime','gym','deepwork'].forEach(id => {
+      const card = document.getElementById('card-' + id);
+      if (card) card.classList.toggle('disabled', denied);
+    });
+  }
+
+  window.enableNotifs = async function () {
+    const result = await (window.requestNotifPermission ? window.requestNotifPermission() : Notification.requestPermission());
+    updatePermBanner();
+    updateDisabledState();
+  };
+
+  // Auto-save on any input change
+  document.querySelectorAll('input, select').forEach(el => {
+    el.addEventListener('change', saveFromUI);
+  });
+
+  loadUI();
+  updatePermBanner();
+})();
+</script>
+</body>
+</html>
