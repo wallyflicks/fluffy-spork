@@ -820,11 +820,20 @@ main {
         var merged = Object.values(byId).sort(function(a, b) {
           return (a.startTime || '') < (b.startTime || '') ? -1 : 1;
         });
-        saveSessions(merged);
+        // Write merged back without triggering another push (saveSessions just hits localStorage)
+        localStorage.setItem(LS_KEY, JSON.stringify(merged));
+      } else {
+        // Nothing in Supabase yet — push local sessions if any exist
+        var localSessions = getSessions();
+        if (localSessions.length > 0) sbSaveAllSessions().catch(function() {});
       }
     } catch (e) { /* silent fail — use localStorage */ }
     renderAll();
   }
+  // Re-pull on visibility change so phone sees Mac's sessions instantly
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) initData();
+  });
 
   /* ── Event listeners ── */
   elBtnStart.addEventListener('click', function () {

@@ -1197,21 +1197,30 @@ main {
   if (start) showSleeping(start);
   else showAwake();
 
-  /* ── Pull from Supabase on load ── */
-  fetch(SUPA_URL_SL + '/rest/v1/app_state?key=eq.sleep&select=data', { headers: SB_H_SL })
-    .then(function(r) { return r.ok ? r.json() : []; })
-    .then(function(rows) {
-      if (!rows.length || !rows[0] || !rows[0].data) return;
-      var d = rows[0].data;
-      var remoteSessions = d[SESSIONS_KEY];
-      var localJson = localStorage.getItem(SESSIONS_KEY);
-      var remoteJson = remoteSessions ? JSON.stringify(remoteSessions) : null;
-      if (remoteJson && remoteJson !== localJson) {
-        localStorage.setItem(SESSIONS_KEY, remoteJson);
-        renderAll();
-      }
-    })
-    .catch(function(e) { console.warn('[sleep sync] read failed:', e.message); });
+  /* ── Pull/push from Supabase on load ── */
+  function sleepSyncFromRemote() {
+    fetch(SUPA_URL_SL + '/rest/v1/app_state?key=eq.sleep&select=data', { headers: SB_H_SL })
+      .then(function(r) { return r.ok ? r.json() : []; })
+      .then(function(rows) {
+        if (!rows.length || !rows[0] || !rows[0].data || !rows[0].data[SESSIONS_KEY]) {
+          // Nothing in Supabase — push local if any
+          var localSessions = getSessions();
+          if (localSessions.length > 0) scheduleSleepSync();
+          return;
+        }
+        var d = rows[0].data;
+        var remoteSessions = d[SESSIONS_KEY];
+        var remoteJson = JSON.stringify(remoteSessions);
+        var localJson  = localStorage.getItem(SESSIONS_KEY);
+        if (remoteJson !== localJson) {
+          localStorage.setItem(SESSIONS_KEY, remoteJson);
+          renderAll();
+        }
+      })
+      .catch(function(e) { console.warn('[sleep sync] read failed:', e.message); });
+  }
+  sleepSyncFromRemote();
+  document.addEventListener('visibilitychange', function() { if (!document.hidden) sleepSyncFromRemote(); });
 })();
 </script>
 

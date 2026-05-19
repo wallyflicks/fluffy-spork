@@ -1444,13 +1444,18 @@ html, body {
   // BOOT
   renderAll();
 
-  /* ── Pull from Supabase on load ── */
-  (async () => {
+  /* ── Pull/push from Supabase on load ── */
+  async function healthSyncFromRemote() {
     try {
       const res = await fetch(SUPA_URL_H + '/rest/v1/app_state?key=eq.health&select=data', { headers: SB_H_H });
       if (!res.ok) return;
       const rows = await res.json();
-      if (!rows.length || !rows[0].data || !rows[0].data[LS_KEY]) return;
+      if (!rows.length || !rows[0].data || !rows[0].data[LS_KEY]) {
+        // Nothing in Supabase — push local if any exists
+        const localVal = localStorage.getItem(LS_KEY);
+        if (localVal) scheduleHealthSync();
+        return;
+      }
       const remoteJson = JSON.stringify(rows[0].data[LS_KEY]);
       if (remoteJson !== localStorage.getItem(LS_KEY)) {
         localStorage.setItem(LS_KEY, remoteJson);
@@ -1458,7 +1463,9 @@ html, body {
         renderAll();
       }
     } catch (e) { console.warn('[health sync] read failed:', e.message); }
-  })();
+  }
+  healthSyncFromRemote();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) healthSyncFromRemote(); });
 })();
 </script>
 
@@ -1675,26 +1682,32 @@ html, body {
   }
 
   async function startScanner() {
-    if (typeof ZXing === 'undefined') { showScanStatus('Scanner unavailable — use manual entry.', 'error'); return; }
+    if (typeof ZXing === 'undefined') {
+      showScanStatus('Scanner library not loaded — use manual entry.', 'error');
+      return;
+    }
     document.getElementById('mealScannerWrap').classList.add('active');
     document.getElementById('mealFoundCard').classList.remove('show');
-    showScanStatus('Initialising camera…', '');
+    showScanStatus('Starting camera…', '');
     try {
       barcodeReader = new ZXing.BrowserMultiFormatReader();
-      const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
-      const back = devices.find(d => /back|rear|environment/i.test(d.label));
-      const deviceId = back ? back.deviceId : (devices[0] ? devices[0].deviceId : undefined);
-      await barcodeReader.decodeFromVideoDevice(deviceId, document.getElementById('meal-scanner-video'), async (result, err) => {
-        if (result) {
-          stopScanner();
-          showScanStatus('Found! Looking up product…', '');
-          await lookupBarcode(result.getText());
+      // undefined = let the browser/ZXing pick the best camera (prefers rear on mobile)
+      await barcodeReader.decodeFromVideoDevice(
+        undefined,
+        document.getElementById('meal-scanner-video'),
+        async (result, err) => {
+          if (result) {
+            stopScanner();
+            await lookupBarcode(result.getText());
+          }
+          // err fires continuously while scanning — ignore "not found yet" errors
         }
-      });
+      );
       showScanStatus('Point camera at barcode', '');
     } catch (e) {
       stopScanner();
-      showScanStatus('Camera error — use manual entry.', 'error');
+      showScanStatus('Camera unavailable — use manual entry.', 'error');
+      document.getElementById('mealManualPanel').classList.add('open');
     }
   }
 
