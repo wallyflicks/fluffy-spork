@@ -473,6 +473,10 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
           </select>
         </div>
         <div class="fin-field">
+          <label>Next billing date</label>
+          <input class="fin-input" type="date" id="subBillingDate">
+        </div>
+        <div class="fin-field">
           <label>Notes (optional)</label>
           <input class="fin-input" type="text" id="subNotes" placeholder="Shared with family…">
         </div>
@@ -989,8 +993,32 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
   // ═════════════════════════════════════════════════════════════════════════
   let subDonutChart = null;
 
+  // Auto-bill subscriptions whose billing date is today (runs once per day).
+  function processSubscriptionBilling() {
+    const todayStr = today();
+    const subs = load(K.SUB);
+    let changed = false;
+    subs.forEach(s => {
+      if (!s.billingDate || s.billingDate !== todayStr) return;
+      if (s.lastBilledDate === todayStr) return; // already billed today
+      const billAmount = s.billingCycle === 'yearly' ? +(s.costMonthly * 12).toFixed(2) : +(s.costMonthly).toFixed(2);
+      const exps = load(K.EXP);
+      exps.push({ id: uid(), desc: s.name, amount: billAmount, date: todayStr, tag: 'subscription' });
+      save(K.EXP, exps);
+      // Advance billing date by 1 month or 1 year.
+      const next = new Date(s.billingDate + 'T12:00:00');
+      s.billingCycle === 'yearly' ? next.setFullYear(next.getFullYear() + 1) : next.setMonth(next.getMonth() + 1);
+      s.billingDate = next.toISOString().slice(0, 10);
+      s.lastBilledDate = todayStr;
+      changed = true;
+    });
+    if (changed) save(K.SUB, subs);
+    return changed;
+  }
+
   function renderSubs() {
     const subs = load(K.SUB);
+    const todayStr = today();
     const monthTotal = subs.reduce((s,x) => s + (x.costMonthly||0), 0);
     document.getElementById('subMonthlyTotal').textContent = fmt$(monthTotal, 2);
     document.getElementById('subYearlyTotal').textContent  = fmt$(monthTotal * 12, 2);
@@ -1004,16 +1032,17 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     else {
       list.innerHTML = '';
       subs.forEach(s => {
+        const billedToday = s.lastBilledDate === todayStr;
         const item = document.createElement('div');
         item.className = 'fin-item';
         item.innerHTML = `
           <div class="fin-item-body">
-            <div class="fin-item-title">${s.name}</div>
+            <div class="fin-item-title">${s.name}${billedToday ? ' <span class="fin-tag" style="color:var(--good);background:rgba(110,231,183,0.1)">billed today</span>' : ''}</div>
             ${s.notes ? `<div class="fin-item-sub">${s.notes}</div>` : ''}
           </div>
           <div class="fin-item-right">
             <div class="fin-item-value">${fmt$(s.costMonthly,2)}/mo</div>
-            <div class="fin-item-sub-right">${s.billingCycle}</div>
+            <div class="fin-item-sub-right">${s.billingCycle}${s.billingDate ? ' · next ' + s.billingDate : ''}</div>
           </div>
         `;
         item.appendChild(makeDeleteBtn(() => { save(K.SUB, load(K.SUB).filter(x => x.id !== s.id)); renderSubs(); renderCashFlow(); }));
@@ -1244,14 +1273,18 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
 
     // ── Subscription ──
     document.getElementById('subSave').addEventListener('click', () => {
-      const name  = document.getElementById('subName').value.trim();
-      const cost  = parseFloat(document.getElementById('subCost').value);
-      const cycle = document.getElementById('subCycle').value;
-      const notes = document.getElementById('subNotes').value.trim();
+      const name        = document.getElementById('subName').value.trim();
+      const cost        = parseFloat(document.getElementById('subCost').value);
+      const cycle       = document.getElementById('subCycle').value;
+      const notes       = document.getElementById('subNotes').value.trim();
+      const billingDate = document.getElementById('subBillingDate').value || '';
       if (!name || isNaN(cost) || cost < 0) return;
       const costMonthly = cycle === 'yearly' ? +(cost/12).toFixed(2) : +cost.toFixed(2);
-      const arr = load(K.SUB); arr.push({ id: uid(), name, costMonthly, billingCycle: cycle, notes }); save(K.SUB, arr);
+      const arr = load(K.SUB);
+      arr.push({ id: uid(), name, costMonthly, rawCost: +cost.toFixed(2), billingCycle: cycle, notes, billingDate, lastBilledDate: '' });
+      save(K.SUB, arr);
       ['subName','subCost','subNotes'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('subBillingDate').value = '';
       document.getElementById('subAddPanel').classList.remove('open');
       document.getElementById('subAddToggle').textContent = '+ Add';
       renderSubs(); renderCashFlow();
@@ -1303,6 +1336,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
   // ═════════════════════════════════════════════════════════════════════════
   function init() {
     wireAll();
+    processSubscriptionBilling(); // auto-log any subscriptions due today
     renderCash();
     renderInvAccounts();
     renderStocks();

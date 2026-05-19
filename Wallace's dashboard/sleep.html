@@ -368,6 +368,27 @@ main {
   gap: 10px;
 }
 
+.st-hist-delete {
+  margin-left: auto;
+  background: none;
+  border: 1px solid transparent;
+  color: rgba(255,255,255,0.25);
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--sans);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.st-hist-delete:hover { color: var(--danger); border-color: rgba(255,107,107,0.3); }
+.st-hist-delete.confirming {
+  color: var(--danger);
+  background: rgba(255,107,107,0.12);
+  border-color: rgba(255,107,107,0.4);
+}
+
 .st-hist-date {
   font-size: 12px;
   color: var(--text-secondary);
@@ -944,38 +965,95 @@ main {
     });
   }
 
+  /* ── Delete session ── */
+  var pendingDeleteStart = null;
+
+  function deleteSession(startTs) {
+    var sessions = getSessions();
+    var idx = -1;
+    for (var i = 0; i < sessions.length; i++) {
+      if (sessions[i].start === startTs) { idx = i; break; }
+    }
+    if (idx === -1) return;
+    sessions.splice(idx, 1);
+    saveSessions(sessions);
+    pendingDeleteStart = null;
+    renderAll();
+  }
+
+  // Cancel pending delete on any outside click.
+  document.addEventListener('click', function () {
+    if (pendingDeleteStart !== null) {
+      pendingDeleteStart = null;
+      renderHistory();
+    }
+  });
+
   /* ── Render: history ── */
   function renderHistory() {
     var sessions = getSessions().slice(-7).reverse();
+    elHistory.innerHTML = '';
     if (!sessions.length) {
       elHistory.innerHTML = '<p class="st-empty">No sessions recorded yet.</p>';
       return;
     }
-    elHistory.innerHTML = sessions.map(function (s) {
-      var col     = colorHex(s.duration);
-      var pct     = Math.min(100, (s.duration / TARGET_H) * 100).toFixed(1);
-      var rating  = s.rating != null ? s.rating + '/5' : '—';
-      var bed     = s.bedtime  || fmtTime(s.start);
-      var wake    = s.wakeTime || fmtTime(s.end);
+    sessions.forEach(function (s) {
+      var col    = colorHex(s.duration);
+      var pct    = Math.min(100, (s.duration / TARGET_H) * 100).toFixed(1);
+      var rating = s.rating != null ? s.rating + '/5' : '—';
+      var bed    = s.bedtime  || fmtTime(s.start);
+      var wake   = s.wakeTime || fmtTime(s.end);
 
-      var html =
-        '<div class="st-hist-item">' +
-          '<div class="st-hist-top">' +
-            '<span class="st-hist-date">' + fmtDate(s.start) + '</span>' +
-            '<span class="st-hist-dur" style="color:' + col + '">' + fmtH(s.duration) + '</span>' +
-            '<span class="st-hist-rating">' + rating + '</span>' +
-          '</div>' +
-          '<div class="st-hist-time">' + bed + ' → ' + wake + '</div>' +
-          '<div class="st-hist-bar-wrap">' +
-            '<div class="st-hist-bar" style="width:' + pct + '%;background:' + col + '"></div>' +
-          '</div>';
+      var item = document.createElement('div');
+      item.className = 'st-hist-item';
+
+      var top = document.createElement('div');
+      top.className = 'st-hist-top';
+      top.innerHTML =
+        '<span class="st-hist-date">' + fmtDate(s.start) + '</span>' +
+        '<span class="st-hist-dur" style="color:' + col + '">' + fmtH(s.duration) + '</span>' +
+        '<span class="st-hist-rating">' + rating + '</span>';
+
+      var delBtn = document.createElement('button');
+      delBtn.className = 'st-hist-delete';
+      delBtn.textContent = '×';
+      (function (startTs) {
+        delBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (pendingDeleteStart === startTs) {
+            deleteSession(startTs);
+          } else {
+            pendingDeleteStart = startTs;
+            delBtn.textContent = 'Delete?';
+            delBtn.classList.add('confirming');
+          }
+        });
+      }(s.start));
+      top.appendChild(delBtn);
+      item.appendChild(top);
+
+      var timeEl = document.createElement('div');
+      timeEl.className = 'st-hist-time';
+      timeEl.textContent = bed + ' → ' + wake;
+      item.appendChild(timeEl);
+
+      var barWrap = document.createElement('div');
+      barWrap.className = 'st-hist-bar-wrap';
+      var bar = document.createElement('div');
+      bar.className = 'st-hist-bar';
+      bar.style.cssText = 'width:' + pct + '%;background:' + col;
+      barWrap.appendChild(bar);
+      item.appendChild(barWrap);
 
       if (s.notes) {
-        html += '<div class="st-hist-note">' + s.notes + '</div>';
+        var noteEl = document.createElement('div');
+        noteEl.className = 'st-hist-note';
+        noteEl.textContent = s.notes;
+        item.appendChild(noteEl);
       }
 
-      return html + '</div>';
-    }).join('');
+      elHistory.appendChild(item);
+    });
   }
 
   /* ── Render all data panels ── */

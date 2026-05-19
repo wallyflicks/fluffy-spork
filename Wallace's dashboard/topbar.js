@@ -431,22 +431,26 @@ body.topbar-modal-open {
   }
 
   // -------- Boot --------
+  function isMainPage() {
+    var page = window.location.pathname.split('/').pop();
+    return page === '' || page === 'index.html';
+  }
+
   function boot() {
-    injectStyleAndHTML();
-    const btn = document.getElementById('topbarWaterAdd');
-    if (btn) btn.addEventListener('click', (e) => { e.preventDefault(); addWater(); });
-    render();
+    // Topbar HTML/CSS only renders on the main page.
+    // Gesture locks and modal locks still apply everywhere.
+    if (isMainPage()) {
+      injectStyleAndHTML();
+      const btn = document.getElementById('topbarWaterAdd');
+      if (btn) btn.addEventListener('click', (e) => { e.preventDefault(); addWater(); });
+      render();
+      window.addEventListener('storage', render);
+      window.addEventListener('focus', render);
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
+      setInterval(render, 30 * 1000);
+    }
     lockGestures();
     startModalLock();
-
-    // Re-render when localStorage changes from another tab/window OR when
-    // the page becomes visible (sync may have pulled in the background).
-    window.addEventListener('storage', render);
-    window.addEventListener('focus', render);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
-
-    // Periodic refresh so counts stay current after midnight rollover etc.
-    setInterval(render, 30 * 1000);
   }
 
   if (document.readyState === 'loading') {
