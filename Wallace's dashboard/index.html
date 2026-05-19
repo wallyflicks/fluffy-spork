@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a0a0b">
   <title>Wallace's Dashboard</title>
   <link rel="manifest" href="/manifest.json">
   <script src="/notifications.js" defer></script>
@@ -77,12 +80,9 @@
       50% { opacity: 0.45; transform: scale(0.85); }
     }
 
-    @keyframes tickerLeave {
-      to { opacity: 0; transform: translateY(-100%); }
-    }
-
-    @keyframes tickerEnter {
-      from { opacity: 0; transform: translateY(100%); }
+    @keyframes ticker-marquee {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
     }
 
     @keyframes queueFlash {
@@ -195,46 +195,40 @@
 
     .goal-ticker-stage {
       flex: 1;
-      position: relative;
-      height: 22px;
       overflow: hidden;
-    }
-
-    .goal-ticker-row {
-      position: absolute;
-      inset: 0;
+      height: 22px;
       display: flex;
       align-items: center;
-      gap: 8px;
+    }
+
+    .ticker-track {
+      display: inline-flex;
+      align-items: center;
+      height: 100%;
+      white-space: nowrap;
+      will-change: transform;
+      transform: translateZ(0);
+      animation: ticker-marquee 18s linear infinite;
+    }
+
+    .ticker-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding-right: 48px;
       font-family: var(--mono);
       font-size: 12.5px;
       font-weight: 600;
-      letter-spacing: 0;
       line-height: 1;
       color: var(--text-primary);
-      white-space: nowrap;
     }
 
-    .goal-ticker-row.is-leaving { animation: tickerLeave 0.45s cubic-bezier(0.55, 0, 0.55, 1) forwards; }
-    .goal-ticker-row.is-entering { animation: tickerEnter 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-
-    .goal-ticker-status {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 18px;
-      min-width: 18px;
-      text-align: center;
+    .ticker-item-icon {
       color: var(--text-tertiary);
+      min-width: 14px;
+      text-align: center;
     }
-
-    .goal-ticker-status[data-status="done"] { color: var(--success); }
-
-    .goal-ticker-text {
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
+    .ticker-item-icon.done { color: var(--success); }
 
     .goal-ticker-meta {
       font-family: var(--mono);
@@ -865,7 +859,7 @@
       .page-shell { gap: 14px; }
       .goal-ticker { padding: 9px 12px; }
       .goal-ticker-label { font-size: 9px; letter-spacing: 0.14em; }
-      .goal-ticker-row { font-size: 12px; }
+      .ticker-item { font-size: 11.5px; padding-right: 36px; }
       .goal-ticker-meta { font-size: 10px; padding: 2px 7px; }
 
       .gm-card { padding: 14px 14px; }
@@ -873,7 +867,6 @@
       .score-ring-panel { min-height: 0; }
       .score-metric-grid { grid-template-columns: repeat(2, 1fr); }
       button, input, select { min-height: 44px; }
-      .goal-ticker-row { font-size: 13px; white-space: normal; }
     }
 
     .dash-charts-row {
@@ -932,10 +925,7 @@
         <div class="goal-ticker-led"><span class="goal-ticker-led-dot"></span></div>
         <div class="goal-ticker-label">GOALS</div>
         <div class="goal-ticker-stage" id="goalTickerStage">
-          <div class="goal-ticker-row">
-            <span class="goal-ticker-status" data-status="">·</span>
-            <span class="goal-ticker-text">Loading…</span>
-          </div>
+          <div class="ticker-track" id="tickerTrack"></div>
         </div>
         <div class="goal-ticker-meta" id="goalTickerMeta">0/0</div>
       </div>
@@ -1147,7 +1137,6 @@
     const ANTHROPIC_API_KEY = '';
     const SUPABASE_URL = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
-    const TICK_INTERVAL_MS = 5000;
     const SYNC_DEBOUNCE_MS = 800;
 
     // ─── DOM REFS ─────────────────────────────────────────────────────────────
@@ -1413,71 +1402,60 @@
       setStreak({ count, lastProcessedDate: lastDate });
     }
 
-    // ─── TICKER ───────────────────────────────────────────────────────────────
-    let tickerItems = [];
-    let tickerIndex = 0;
-    let tickerInterval = null;
+    // ─── TICKER (CSS marquee, GPU-accelerated) ────────────────────────────────
+    let _lastTickerJson = '';
 
     function buildTickerItems() {
       const todayGoals = getGoalsFor(getTodayKey());
       const total = todayGoals.length;
       const doneCount = todayGoals.filter(g => g.done).length;
-      const pendingItems = todayGoals.filter(g => !g.done).map(g => ({ status: 'pending', text: g.text }));
       if (total === 0) return [{ status: 'empty', text: 'No goals set for today — add one to get rolling.' }];
       if (doneCount === total) return [{ status: 'done', text: '✓ All goals done — solid day.' }];
-      return pendingItems.length ? pendingItems : [{ status: 'done', text: '✓ All goals done — solid day.' }];
+      const pending = todayGoals.filter(g => !g.done).map(g => ({ status: 'pending', text: g.text }));
+      return pending.length ? pending : [{ status: 'done', text: '✓ All goals done — solid day.' }];
     }
 
     function renderTicker() {
-      tickerItems = buildTickerItems();
-      tickerIndex = 0;
-      tickTicker();
-      if (tickerInterval) clearInterval(tickerInterval);
-      tickerInterval = setInterval(tickTicker, TICK_INTERVAL_MS);
-    }
-
-    function createTickerRow(item) {
-      const row = document.createElement('div');
-      row.className = 'goal-ticker-row';
-      const status = document.createElement('span');
-      status.className = 'goal-ticker-status';
-      status.dataset.status = item.status || 'empty';
-      if (item.status === 'done') status.textContent = '✓';
-      else if (item.status === 'pending') status.textContent = '○';
-      else status.textContent = '·';
-      const text = document.createElement('span');
-      text.className = 'goal-ticker-text';
-      text.textContent = item.text;
-      row.appendChild(status);
-      row.appendChild(text);
-      return row;
-    }
-
-    function tickTicker() {
+      const items = buildTickerItems();
       const todayGoals = getGoalsFor(getTodayKey());
       const total = todayGoals.length;
       const done = todayGoals.filter(g => g.done).length;
       goalTickerMeta.textContent = `${done}/${total}`;
-      tickerItems = buildTickerItems();
-      const nextItem = tickerItems[tickerIndex % tickerItems.length];
-      const currentRow = goalTickerStage.querySelector('.goal-ticker-row');
-      const nextRow = createTickerRow(nextItem);
-      if (currentRow) {
-        currentRow.classList.add('is-leaving');
-        currentRow.addEventListener('animationend', () => { if (currentRow.parentElement) currentRow.remove(); }, { once: true });
+
+      // Debounce: skip expensive DOM rebuild if content hasn't changed
+      const newJson = JSON.stringify(items);
+      if (newJson === _lastTickerJson) return;
+      _lastTickerJson = newJson;
+
+      const track = document.getElementById('tickerTrack');
+      if (!track) return;
+
+      function makeItemEl(item) {
+        const span = document.createElement('span');
+        span.className = 'ticker-item';
+        const icon = document.createElement('span');
+        icon.className = 'ticker-item-icon' + (item.status === 'done' ? ' done' : '');
+        icon.textContent = item.status === 'done' ? '✓' : item.status === 'pending' ? '○' : '·';
+        const txt = document.createElement('span');
+        txt.textContent = item.text;
+        span.appendChild(icon);
+        span.appendChild(txt);
+        return span;
       }
-      nextRow.classList.add('is-entering');
-      goalTickerStage.appendChild(nextRow);
-      tickerIndex += 1;
-      if (currentRow) {
-        setTimeout(() => nextRow.classList.remove('is-entering'), 500);
-      } else {
-        nextRow.classList.remove('is-entering');
-      }
+
+      // Build track with content duplicated for seamless loop
+      const frag = document.createDocumentFragment();
+      [...items, ...items].forEach(item => frag.appendChild(makeItemEl(item)));
+      track.innerHTML = '';
+      track.appendChild(frag);
+
+      // Scale animation duration to content length (~0.22s per character)
+      const totalChars = items.reduce((s, i) => s + i.text.length, 0);
+      const dur = Math.max(8, Math.round(totalChars * 0.25));
+      track.style.animationDuration = dur + 's';
     }
 
     window.addEventListener('goals-changed', () => {
-      tickerIndex = 0;
       renderTicker();
       renderTodayHeader();
       renderTomorrowCount();

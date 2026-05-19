@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0a0a0b">
 <title>Sleep — Dashboard</title>
 <link rel="manifest" href="/manifest.json">
@@ -33,7 +35,7 @@ html, body {
 }
 
 body {
-  padding: 24px 16px calc(110px + env(safe-area-inset-bottom, 18px));
+  padding: calc(env(safe-area-inset-top, 0px) + 24px) 16px calc(110px + env(safe-area-inset-bottom, 18px));
   display: flex;
   justify-content: center;
 }
