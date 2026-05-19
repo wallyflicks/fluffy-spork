@@ -715,12 +715,6 @@
 
     .goal-add-btn:hover { transform: translateY(-1px); }
 
-    .goal-polish-btn {
-      background: rgba(255,255,255,0.04);
-      color: var(--text-primary);
-      border: 1px solid rgba(255,255,255,0.10);
-    }
-
     .goal-status-line {
       font-size: 11px;
       color: var(--text-tertiary);
@@ -1098,16 +1092,14 @@
         <div class="goal-input-wrap gm-input-wrap">
           <input id="goalInput" type="text" placeholder="Add a goal for today…" autocomplete="off" />
           <button type="button" class="goal-add-btn" id="goalAddBtn">+ Add</button>
-          <button type="button" class="goal-polish-btn" id="goalPolishBtn">✨ Polish</button>
         </div>
-        <p class="goal-status-line" id="polishStatus"></p>
       </section>
 
       <section class="gm-card gm-card-tomorrow" id="tomorrowCard">
         <div class="gm-header">
           <div class="gm-left">
             <p class="gm-eyebrow" id="tomorrowLabel">Plan tomorrow — …</p>
-            <p class="tomorrow-subtext">Write tonight, locked until 6 AM.</p>
+            <p class="tomorrow-subtext">Add tonight. Moves to Today at 6 AM.</p>
           </div>
           <div class="tomorrow-badge" id="gmTomorrowCount">0 planned</div>
         </div>
@@ -1116,9 +1108,7 @@
         <div class="goal-input-wrap gm-input-wrap">
           <input id="tomorrowInput" type="text" placeholder="Add a goal for tomorrow…" autocomplete="off" />
           <button type="button" class="goal-add-btn" id="tomorrowAddBtn">+ Add</button>
-          <button type="button" class="goal-polish-btn" id="tomorrowPolishBtn">✨ Polish</button>
         </div>
-        <p class="goal-status-line" id="tomorrowStatus"></p>
       </section>
     </div>
 
@@ -1259,12 +1249,8 @@
     const gmPushBtn = document.getElementById('gmPushBtn');
     const goalInput = document.getElementById('goalInput');
     const goalAddBtn = document.getElementById('goalAddBtn');
-    const goalPolishBtn = document.getElementById('goalPolishBtn');
-    const polishStatus = document.getElementById('polishStatus');
     const tomorrowInput = document.getElementById('tomorrowInput');
     const tomorrowAddBtn = document.getElementById('tomorrowAddBtn');
-    const tomorrowPolishBtn = document.getElementById('tomorrowPolishBtn');
-    const tomorrowStatus = document.getElementById('tomorrowStatus');
     const gmTomorrowCount = document.getElementById('gmTomorrowCount');
     const goalTickerStage = document.getElementById('goalTickerStage');
     const goalTickerMeta = document.getElementById('goalTickerMeta');
@@ -1702,8 +1688,7 @@
       checkbox.className = 'goal-check';
       checkbox.setAttribute('aria-label', goal.done ? 'Mark undone' : 'Mark done');
       if (goal.done) checkbox.classList.add('checked');
-      if (readOnly) { checkbox.disabled = true; checkbox.title = 'Activates at 6 AM tomorrow'; }
-      row.appendChild(checkbox);
+      if (!readOnly) row.appendChild(checkbox);
 
       const text = document.createElement('div');
       text.className = 'goal-text';
@@ -1714,14 +1699,24 @@
 
       const actionWrap = document.createElement('div');
       actionWrap.className = 'goal-actions';
-      const queueBtn = document.createElement('button');
-      queueBtn.type = 'button';
-      queueBtn.className = 'gm-queue-btn';
-      queueBtn.textContent = '⚡';
-      if (goal.queued) queueBtn.classList.add('active');
-      if (readOnly) { queueBtn.disabled = true; queueBtn.title = 'Activates at 6 AM tomorrow'; }
-      actionWrap.appendChild(queueBtn);
-      row.appendChild(actionWrap);
+      if (!readOnly) {
+        const queueBtn = document.createElement('button');
+        queueBtn.type = 'button';
+        queueBtn.className = 'gm-queue-btn';
+        queueBtn.textContent = '⚡';
+        if (goal.queued) queueBtn.classList.add('active');
+        actionWrap.appendChild(queueBtn);
+        row.appendChild(actionWrap);
+        queueBtn.addEventListener('click', () => {
+          const goals = getGoalsFor(key);
+          const item = goals[index];
+          if (!item) return;
+          item.queued = !item.queued;
+          saveGoalsFor(key, goals);
+          queueBtn.classList.add('flash');
+          setTimeout(() => queueBtn.classList.remove('flash'), 500);
+        });
+      }
 
       const deleteBtn = document.createElement('button');
       deleteBtn.type = 'button';
@@ -1730,7 +1725,6 @@
       row.appendChild(deleteBtn);
 
       checkbox.addEventListener('click', () => {
-        if (readOnly) return;
         const goals = getGoalsFor(key);
         const item = goals[index];
         if (!item) return;
@@ -1738,17 +1732,6 @@
         if (item.done) item.doneAt = Date.now(); else delete item.doneAt;
         saveGoalsFor(key, goals);
         loadLists();
-      });
-
-      queueBtn.addEventListener('click', () => {
-        if (readOnly) return;
-        const goals = getGoalsFor(key);
-        const item = goals[index];
-        if (!item) return;
-        item.queued = !item.queued;
-        saveGoalsFor(key, goals);
-        queueBtn.classList.add('flash');
-        setTimeout(() => queueBtn.classList.remove('flash'), 500);
       });
 
       deleteBtn.addEventListener('click', () => {
@@ -1766,7 +1749,6 @@
       }
 
       text.addEventListener('dblclick', () => {
-        if (readOnly) return;
         text.contentEditable = 'true';
         text.focus();
         document.execCommand('selectAll', false, null);
@@ -2056,48 +2038,18 @@
       setTimeout(() => { el.textContent = ''; el.style.color = ''; }, 3500);
     }
 
-    async function polishText(rawText) {
-      if (!ANTHROPIC_API_KEY) return rawText.trim();
-      const body = {
-        model: 'claude-sonnet-4-5',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: `Polish this goal text for clarity and brevity. Return a single JSON array containing exactly one string only: ["..."] with no extra commentary: ${rawText}` }]
-      };
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-        body: JSON.stringify(body)
-      });
-      if (!response.ok) throw new Error('Polish request failed');
-      const data = await response.json();
-      const candidate = data?.completion || data?.output || '';
-      const match = candidate.match(/\[\s*"([\s\S]*?)"\s*\]/);
-      if (match) return match[1].trim();
-      throw new Error('Invalid polish response');
-    }
-
-    function makeAddHandlers(inputEl, addBtn, polishBtn, statusEl, key, reload) {
-      const doAdd = async (polish = false) => {
-        const raw = inputEl.value.trim();
-        if (!raw) return;
-        let text = raw;
-        if (polish) {
-          if (!ANTHROPIC_API_KEY) {
-            showTransientMessage(statusEl, 'Polish needs an Anthropic API key — added as-typed.');
-          } else {
-            try { text = await polishText(raw); }
-            catch (err) { showTransientMessage(statusEl, 'Polish failed — added as-typed.', true); text = raw; }
-          }
-        }
+    function makeAddHandlers(inputEl, addBtn, key, reload) {
+      const doAdd = () => {
+        const text = inputEl.value.trim();
+        if (!text) return;
         const goals = getGoalsFor(key);
         goals.push({ text, done: false, queued: false });
         saveGoalsFor(key, goals);
         inputEl.value = '';
         reload();
       };
-      addBtn.addEventListener('click', () => doAdd(false));
-      polishBtn.addEventListener('click', () => doAdd(true));
-      inputEl.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); doAdd(false); } });
+      addBtn.addEventListener('click', doAdd);
+      inputEl.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); doAdd(); } });
     }
 
     gmPushBtn.addEventListener('click', () => {
@@ -2115,16 +2067,28 @@
       loadLists();
     });
 
+    // ─── MIGRATION ────────────────────────────────────────────────────────────
+    function migrateTomorrowIfNeeded() {
+      const now = new Date();
+      if (now.getHours() < 6) return;
+      const todayStr = getTodayDateString();
+      if (localStorage.getItem('lastMigrationDate') === todayStr) return;
+      // Plan Tomorrow goals from last night are keyed by today's date, so they
+      // already appear in Today via the date-based key system. Just mark done.
+      localStorage.setItem('lastMigrationDate', todayStr);
+    }
+
     // ─── INIT ─────────────────────────────────────────────────────────────────
     async function init() {
       setSyncState('syncing', 'connecting…');
       await loadFromSupabase();
+      migrateTomorrowIfNeeded();
       rolloverOldGoals();
       updateStreak();
       renderTodayHeader();
       renderTomorrowCount();
-      makeAddHandlers(goalInput, goalAddBtn, goalPolishBtn, polishStatus, getTodayKey(), loadLists);
-      makeAddHandlers(tomorrowInput, tomorrowAddBtn, tomorrowPolishBtn, tomorrowStatus, getTomorrowKey(), loadLists);
+      makeAddHandlers(goalInput, goalAddBtn, getTodayKey(), loadLists);
+      makeAddHandlers(tomorrowInput, tomorrowAddBtn, getTomorrowKey(), loadLists);
       loadLists();
       updateDailyScoreCard();
       window.addEventListener('storage', updateDailyScoreCard);
