@@ -1434,6 +1434,7 @@ img, video, canvas, svg { max-width: 100%; }
           <button class="wt-save-btn" id="wtSaveBtn">Save</button>
         </div>
       </div>
+      <div id="wtSyncTime" style="font-size:10px;color:rgba(255,255,255,0.25);margin-top:8px;font-family:var(--font-mono)"></div>
     </div>
 
     <button class="wt-progress-link" id="wtProgressLink" type="button" aria-label="Open progress photos">
@@ -2888,34 +2889,44 @@ img, video, canvas, svg { max-width: 100%; }
       return Array.isArray(arr) ? arr.sort((a,b) => a.dateKey.localeCompare(b.dateKey)) : [];
     } catch (e) { return []; }
   }
-  function wtSave(arr) {
-    try { localStorage.setItem(WT_KEY, JSON.stringify(arr)); } catch (e) {}
-    // Flush to Supabase immediately (don't wait for debounce) so a quick
-    // page reload can't lose the just-saved weight entry.
-    gymFlushNow();
+  // ── Weight Supabase sync (separate key — no size limit issues) ─────────────
+  // Weight data is tiny (<2KB). We give it its own app_state entry so it never
+  // gets bundled with the huge gym state (exercises + logs + photos) that was
+  // silently failing the 64KB keepalive size limit.
+  const WT_SUPA_URL  = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
+  const WT_SUPA_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
+  const WT_SUPA_H    = { 'Content-Type': 'application/json', 'apikey': WT_SUPA_KEY, 'Authorization': 'Bearer ' + WT_SUPA_KEY, 'Prefer': 'resolution=merge-duplicates' };
+  const WT_SUPA_KEY_NAME  = 'gym_weights';
+  const PHO_SUPA_KEY_NAME = 'gym_photos';
+
+  async function wtPushToSupabase(arr) {
+    try {
+      await fetch(WT_SUPA_URL + '/rest/v1/app_state?on_conflict=key', {
+        method: 'POST', headers: WT_SUPA_H,
+        body: JSON.stringify({ key: WT_SUPA_KEY_NAME, data: { entries: arr }, updated_at: new Date().toISOString() })
+      });
+      console.log('[gym weight] Pushed to Supabase:', arr.length, 'entries');
+    } catch (e) { console.warn('[gym weight] Supabase push failed:', e.message); }
   }
 
-  // Direct REST push — works before pcSupa is initialized, uses keepalive
-  // so it fires even during a page reload.
-  function gymFlushNow() {
+  async function wtPullFromSupabase() {
     try {
-      const bundle = {};
-      PC_SYNCED_KEYS.forEach(k => {
-        const v = localStorage.getItem(k);
-        if (v != null) try { bundle[k] = JSON.parse(v); } catch {}
-      });
-      fetch(SUPABASE_URL + '/rest/v1/app_state?on_conflict=key', {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_KEY,
-          'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates',
-        },
-        body: JSON.stringify({ key: APP_KEY, data: bundle, updated_at: new Date().toISOString() }),
-        keepalive: true,
-      }).catch(() => {});
-    } catch (_) {}
+      const res = await fetch(WT_SUPA_URL + '/rest/v1/app_state?key=eq.' + WT_SUPA_KEY_NAME + '&select=data', { headers: WT_SUPA_H });
+      if (!res.ok) { console.warn('[gym weight] Supabase pull failed:', res.status); return null; }
+      const rows = await res.json();
+      if (!rows.length || !rows[0].data || !Array.isArray(rows[0].data.entries)) { console.log('[gym weight] No remote data'); return null; }
+      console.log('[gym weight] Pulled from Supabase:', rows[0].data.entries.length, 'entries');
+      return rows[0].data.entries;
+    } catch (e) { console.warn('[gym weight] Supabase pull failed:', e.message); return null; }
+  }
+
+  function wtSave(arr) {
+    try { localStorage.setItem(WT_KEY, JSON.stringify(arr)); } catch (e) {}
+    console.log('[gym weight] Saved to localStorage:', arr.length, 'entries');
+    wtPushToSupabase(arr).then(() => {
+      const ts = document.getElementById('wtSyncTime');
+      if (ts) ts.textContent = 'Synced ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    });
   }
   function wtDateKey(d) {
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -2938,6 +2949,27 @@ img, video, canvas, svg { max-width: 100%; }
   }
 
   let wtEntries = wtLoad();
+  console.log('[gym weight] Loaded from localStorage on boot:', wtEntries.length, 'entries', wtEntries);
+
+  // Pull weight from Supabase on page load — merge with local, local wins same day
+  (async function wtInitSync() {
+    const remote = await wtPullFromSupabase();
+    if (!remote) return;
+    // Merge: remote entries fill in days local doesn't have; local wins same day
+    const map = {};
+    remote.forEach(e => { if (e.dateKey) map[e.dateKey] = e; });
+    wtEntries.forEach(e => { if (e.dateKey) map[e.dateKey] = e; }); // local wins
+    const merged = Object.values(map).sort((a,b) => a.dateKey.localeCompare(b.dateKey));
+    if (JSON.stringify(merged) !== JSON.stringify(wtEntries)) {
+      console.log('[gym weight] Applying merged remote data:', merged.length, 'entries');
+      try { localStorage.setItem(WT_KEY, JSON.stringify(merged)); } catch {}
+      wtEntries = merged;
+      wtRender();
+      // Show sync timestamp
+      const ts = document.getElementById('wtSyncTime');
+      if (ts) ts.textContent = 'Synced ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    }
+  })();
 
   function wtSaveEntry(weight) {
     const key = wtDateKey(new Date());
@@ -3245,10 +3277,45 @@ img, video, canvas, svg { max-width: 100%; }
   } catch (e) { photos = []; }
 
   // Base64 photo migration removed — photos stored locally (base64 or URL) are kept as-is.
+  console.log('[gym photos] Loaded from localStorage on boot:', photos.length, 'photos');
+
+  async function phosPushToSupabase(arr) {
+    try {
+      await fetch(WT_SUPA_URL + '/rest/v1/app_state?on_conflict=key', {
+        method: 'POST', headers: WT_SUPA_H,
+        body: JSON.stringify({ key: PHO_SUPA_KEY_NAME, data: { photos: arr }, updated_at: new Date().toISOString() })
+      });
+      console.log('[gym photos] Pushed to Supabase:', arr.length, 'photos');
+    } catch (e) { console.warn('[gym photos] Supabase push failed:', e.message); }
+  }
+
+  async function phosPullFromSupabase() {
+    try {
+      const res = await fetch(WT_SUPA_URL + '/rest/v1/app_state?key=eq.' + PHO_SUPA_KEY_NAME + '&select=data', { headers: WT_SUPA_H });
+      if (!res.ok) return null;
+      const rows = await res.json();
+      if (!rows.length || !rows[0].data || !Array.isArray(rows[0].data.photos)) return null;
+      console.log('[gym photos] Pulled from Supabase:', rows[0].data.photos.length, 'photos');
+      return rows[0].data.photos;
+    } catch (e) { console.warn('[gym photos] pull failed:', e.message); return null; }
+  }
+
+  // Pull photos on load — keep whichever device has more
+  (async function phosInitSync() {
+    const remote = await phosPullFromSupabase();
+    if (!remote) return;
+    if (remote.length > photos.length) {
+      console.log('[gym photos] Applying remote photos:', remote.length);
+      photos = remote;
+      try { localStorage.setItem(PHOTO_KEY, JSON.stringify(photos)); } catch {}
+      photosRender();
+    }
+  })();
 
   function photosSave() {
     try { localStorage.setItem(PHOTO_KEY, JSON.stringify(photos)); } catch (e) {}
-    gymFlushNow(); // immediate push so photos survive page reloads
+    console.log('[gym photos] Saved to localStorage:', photos.length, 'photos');
+    phosPushToSupabase(photos); // fire-and-forget
   }
 
   function photoStorageSupa() {
@@ -3617,7 +3684,10 @@ img, video, canvas, svg { max-width: 100%; }
   const SUPABASE_URL = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
   const APP_KEY = 'gym';
-  const PC_SYNCED_KEYS = ['po_coach_v1', 'po_coach_workout_done', 'po_coach_weights', 'po_coach_photos'];
+  // po_coach_weights and po_coach_photos are intentionally excluded —
+  // they have their own dedicated Supabase entries (gym_weights, gym_photos)
+  // to avoid the 64KB keepalive body size limit that was silently killing syncs.
+  const PC_SYNCED_KEYS = ['po_coach_v1', 'po_coach_workout_done'];
 
   let pcSupa = null;
   let pcPushTimer = null;
