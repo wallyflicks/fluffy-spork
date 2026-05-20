@@ -977,26 +977,6 @@
     </div>
 
     <section class="gm-card score-card" id="dailyScoreCard">
-      <div class="score-card-top">
-        <div class="score-ring-panel">
-          <svg class="score-ring-svg" viewBox="0 0 120 120" aria-hidden="true">
-            <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="10"></circle>
-            <circle id="dailyScoreFill" cx="60" cy="60" r="52" fill="none" stroke="#6BE3A4" stroke-width="10" stroke-linecap="round" stroke-dasharray="326.72" stroke-dashoffset="326.72" style="transition: stroke-dashoffset 0.6s ease, stroke 0.6s ease;"></circle>
-          </svg>
-          <div class="score-ring-overlay">
-            <p class="score-ring-label">Daily score</p>
-            <p class="score-ring-value" id="dailyScoreValue">0</p>
-          </div>
-        </div>
-        <div class="score-summary">
-          <p class="score-verdict" id="dailyScoreVerdict">Loading your day…</p>
-          <div class="score-bars">
-            <div class="score-bar-row"><span class="score-bar-label">Goals</span><span id="goalProgressLabel">0/0</span><div class="score-bar"><div id="goalFill" class="score-bar-fill" style="width:0%"></div></div></div>
-            <div class="score-bar-row"><span class="score-bar-label">Water</span><span id="waterProgressLabel">0/8</span><div class="score-bar"><div id="waterFill" class="score-bar-fill" style="width:0%"></div></div></div>
-            <div class="score-bar-row"><span class="score-bar-label">Workout</span><span id="workoutProgressLabel">0/10</span><div class="score-bar"><div id="workoutFill" class="score-bar-fill" style="width:0%"></div></div></div>
-          </div>
-        </div>
-      </div>
       <div class="score-quote" id="scoreQuote" style="display:none">
         <div class="score-quote-label">Today's Quote</div>
         <p class="score-quote-text" id="scoreQuoteText"></p>
@@ -1036,6 +1016,11 @@
         <div class="goal-input-wrap gm-input-wrap">
           <input id="goalInput" type="text" placeholder="Add a goal for today…" autocomplete="off" />
           <button type="button" class="goal-add-btn" id="goalAddBtn">+ Add</button>
+        </div>
+        <div id="clearCompletedWrap" style="display:none;padding-top:8px">
+          <button type="button" id="clearCompletedBtn" style="background:none;border:none;color:var(--text-tertiary);font-size:11px;cursor:pointer;padding:4px 0;letter-spacing:0.04em;-webkit-tap-highlight-color:transparent">
+            Clear completed
+          </button>
         </div>
       </section>
 
@@ -1370,7 +1355,13 @@
 
     function pad(num) { return num.toString().padStart(2, '0'); }
 
-    function getDateSegment(date) { return date.toISOString().slice(0, 10); }
+    // Use LOCAL date components (not toISOString which is UTC) to avoid
+    // timezone mismatch: at 10 PM EST toISOString gives tomorrow's UTC date.
+    function getDateSegment(date) {
+      return date.getFullYear() + '-' +
+        String(date.getMonth() + 1).padStart(2, '0') + '-' +
+        String(date.getDate()).padStart(2, '0');
+    }
 
     function getActiveDateString() {
       const now = new Date();
@@ -1595,6 +1586,8 @@
       deleteBtn.type = 'button';
       deleteBtn.className = 'goal-delete';
       deleteBtn.textContent = '×';
+      // On today's list, hide × on completed items (use "clear completed" instead)
+      if (!readOnly && key === getTodayKey() && goal.done) deleteBtn.style.display = 'none';
       row.appendChild(deleteBtn);
 
       checkbox.addEventListener('click', () => {
@@ -1662,13 +1655,20 @@
       listEl.innerHTML = '';
       if (!goals.length) { emptyEl.classList.remove('hidden'); return; }
       emptyEl.classList.add('hidden');
+      // Sort: uncompleted first, completed below
+      const isToday = !readOnly && key === getTodayKey();
+      const sorted = isToday
+        ? [...goals.filter(g => !g.done), ...goals.filter(g => g.done)]
+        : goals;
       const showCount = 5;
-      const overflow = goals.length - showCount;
+      const overflow = sorted.length - showCount;
       const listKey = key + (readOnly ? ':ro' : ':rw');
       const showAll = !!listShowMore[listKey];
-      goals.forEach((goal, idx) => {
+      sorted.forEach((goal, idx) => {
+        // Use original index for saves
+        const origIdx = goals.indexOf(goal);
         if (!showAll && idx >= showCount && overflow > 0) return;
-        listEl.appendChild(buildGoalRow(goal, idx, key, readOnly));
+        listEl.appendChild(buildGoalRow(goal, origIdx, key, readOnly));
       });
       if (overflow > 0) {
         const toggleRow = document.createElement('li');
@@ -1693,6 +1693,9 @@
       const tomorrowGoals = getGoalsFor(getTomorrowKey());
       renderListInto(todayGoals, goalList, emptyState, getTodayKey(), false);
       renderListInto(tomorrowGoals, tomorrowList, tomorrowEmpty, getTomorrowKey(), true);
+      // Show "clear completed" only when there are completed tasks
+      const clearWrap = document.getElementById('clearCompletedWrap');
+      if (clearWrap) clearWrap.style.display = todayGoals.some(g => g.done) ? '' : 'none';
       renderTicker();
     }
 
@@ -1702,8 +1705,12 @@
 
     function getWaterProgress() {
       // Read from po_water_v1 — same key as Water Coach on health.html
+      // Water Coach saves logs under LOCAL date (getDate/getMonth/getFullYear),
+      // so we must use local date here too, not the UTC-based getTodayDateString().
       const water = parseJsonLocalStorage('po_water_v1') || {};
-      const done = Math.max(0, Number((water.logs || {})[getTodayDateString()] || 0));
+      const ld = new Date();
+      const localDateStr = ld.getFullYear() + '-' + String(ld.getMonth()+1).padStart(2,'0') + '-' + String(ld.getDate()).padStart(2,'0');
+      const done = Math.max(0, Number((water.logs || {})[localDateStr] || 0));
       // Unified target key written by health.html when it calculates the target
       const savedTarget = parseJsonLocalStorage('waterDailyTarget');
       const target = (typeof savedTarget === 'number' && savedTarget > 0) ? savedTarget : 8;
@@ -1791,26 +1798,12 @@
 
     function renderDailyScoreCard() {
       const data = getDailyScoreData();
-      const fill = document.getElementById('dailyScoreFill');
-      const circumference = 2 * Math.PI * 52;
-      const offset = circumference * (1 - data.score / 100);
-      if (fill) {
-        fill.style.strokeDashoffset = String(offset);
-        fill.style.stroke = data.score >= 70 ? '#6BE3A4' : data.score >= 45 ? '#F2C063' : '#FF6B6B';
-      }
-      document.getElementById('dailyScoreValue').textContent = data.score.toString();
-      document.getElementById('dailyScoreVerdict').textContent = data.verdict;
-      document.getElementById('goalProgressLabel').textContent = `${data.goals.done}/${data.goals.total}`;
-      document.getElementById('waterProgressLabel').textContent = `${data.water.done}/${data.water.target}`;
-      document.getElementById('workoutProgressLabel').textContent = data.workout.isRestDay ? 'Rest ✓' : `${data.workout.done}/${data.workout.target}`;
+      // Score ring + progress bars removed — only update stat cards, insight, streak
       document.getElementById('goalMetric').textContent = data.goals.done;
       document.getElementById('waterMetric').textContent = data.water.done;
       document.getElementById('workoutMetric').textContent = data.workout.isRestDay ? '✓' : data.workout.done;
       document.getElementById('workoutMetricLabel').textContent = data.workout.isRestDay ? 'rest day' : 'sets';
       document.getElementById('dailyInsight').textContent = getDailyInsight(data);
-      document.getElementById('goalFill').style.width = `${Math.round(data.progress.goalPct * 100)}%`;
-      document.getElementById('waterFill').style.width = `${Math.round(data.progress.waterPct * 100)}%`;
-      document.getElementById('workoutFill').style.width = `${Math.round(data.progress.workoutPct * 100)}%`;
       updateDailyStreak(data);
       setMetricDot('goalDot', data.progress.goalPct);
       setMetricDot('waterDot', data.progress.waterPct);
@@ -1974,6 +1967,16 @@
       makeAddHandlers(tomorrowInput, tomorrowAddBtn, getTomorrowKey(), loadLists);
       loadLists();
       updateDailyScoreCard();
+
+      // Clear completed button — removes all done tasks from today's list
+      const clearBtn = document.getElementById('clearCompletedBtn');
+      if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+          const goals = getGoalsFor(getTodayKey());
+          saveGoalsFor(getTodayKey(), goals.filter(g => !g.done));
+          loadLists();
+        });
+      }
       window.addEventListener('storage', updateDailyScoreCard);
       window.addEventListener('focus', updateDailyScoreCard);
       setInterval(updateDailyScoreCard, 30000);

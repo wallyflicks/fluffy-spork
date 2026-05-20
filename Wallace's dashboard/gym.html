@@ -2299,7 +2299,7 @@ img, video, canvas, svg { max-width: 100%; }
 
     // Build 7 days: yesterday back to 6 days ago (today is shown in Today's Workout)
     const days = [];
-    for (let i = 1; i <= 7; i++) {
+    for (let i = 0; i <= 6; i++) {
       const d = new Date(); d.setDate(d.getDate() - i); d.setHours(0,0,0,0);
       const dk = wtDateKey(d);
       days.push({ dk, d });
@@ -2321,11 +2321,18 @@ img, video, canvas, svg { max-width: 100%; }
       const mons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       const label = dows[d.getDay()] + ', ' + mons[d.getMonth()] + ' ' + d.getDate();
 
-      // Skip days with no logged sets entirely
-      if (!sets.length) return null;
-
       const div = document.createElement('div');
       div.className = 'wh-card';
+
+      if (!sets.length) {
+        // Rest day — muted card, not expandable
+        const isToday = i === 0;
+        div.innerHTML = '<div class="wh-card-header" style="cursor:default">'
+          + '<span class="wh-card-date">' + label + (isToday ? ' <span style="font-size:9px;background:rgba(255,255,255,0.07);color:var(--text-3);padding:2px 6px;border-radius:99px;font-weight:700">TODAY</span>' : '') + '</span>'
+          + '<span class="wh-card-summary wh-rest">Rest day</span>'
+          + '</div>';
+        return div;
+      }
 
       const sum = summarizeDay(sets);
       const summary = sum.totalSets + ' sets · ' + Math.round(sum.totalVol).toLocaleString() + u;
@@ -2354,12 +2361,7 @@ img, video, canvas, svg { max-width: 100%; }
     });
 
     container.innerHTML = '';
-    const workoutCards = cards.filter(Boolean);
-    if (!workoutCards.length) {
-      container.innerHTML = '<div style="font-size:12px;color:rgba(255,255,255,0.3);font-style:italic;padding:10px 0">No workouts logged in the last 7 days.</div>';
-    } else {
-      workoutCards.forEach(c => container.appendChild(c));
-    }
+    cards.forEach(c => container.appendChild(c));
   }
 
   function getAnalyticsLogs() {
