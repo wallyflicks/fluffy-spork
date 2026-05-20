@@ -3218,14 +3218,7 @@ img, video, canvas, svg { max-width: 100%; }
     if (raw) photos = JSON.parse(raw);
   } catch (e) { photos = []; }
 
-  // Migration: purge any legacy base64 entries and warn the user once.
-  (function migrateBase64Photos() {
-    const legacy = photos.filter(p => p.dataUrl && String(p.dataUrl).startsWith('data:'));
-    if (!legacy.length) return;
-    photos = photos.filter(p => !p.dataUrl || !String(p.dataUrl).startsWith('data:'));
-    try { localStorage.setItem(PHOTO_KEY, JSON.stringify(photos)); } catch {}
-    $('wtMigrationNotice').classList.add('is-visible');
-  })();
+  // Base64 photo migration removed — photos stored locally (base64 or URL) are kept as-is.
 
   function photosSave() {
     try { localStorage.setItem(PHOTO_KEY, JSON.stringify(photos)); } catch (e) {}
@@ -3669,9 +3662,9 @@ img, video, canvas, svg { max-width: 100%; }
           const incoming = JSON.stringify(remote[k]);
           const local = localStorage.getItem(k);
           if (local !== incoming) { try { _pcOrigSet(k, incoming); changed = true; } catch {} }
-        } else if (localStorage.getItem(k) != null) {
-          try { _pcOrigRemove(k); changed = true; } catch {}
         }
+        // Never delete local data just because Supabase doesn't have it yet —
+        // weights/photos saved right before a reload would be wiped otherwise.
       }
     } finally {
       pcSuppressSync = false;
