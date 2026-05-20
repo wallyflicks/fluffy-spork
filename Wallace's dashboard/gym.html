@@ -1660,15 +1660,6 @@ img, video, canvas, svg { max-width: 100%; }
       <div id="workoutHistoryList" style="margin-top:10px;display:flex;flex-direction:column;gap:6px"></div>
     </div>
 
-    <div class="po-sub-section">
-      <div class="po-sub-title">Training History</div>
-      <div class="th-section-label">Total kg lifted · last 7 days</div>
-      <div id="thWeeklyWrap" style="position:relative;height:150px;width:100%;margin-bottom:20px">
-        <canvas id="thWeeklyChart"></canvas>
-      </div>
-      <div class="th-section-label" style="margin-bottom:10px">Muscle group frequency · last 4 weeks</div>
-      <div id="thMuscleBars"></div>
-    </div>
   </div>
 </div>
 
@@ -2162,7 +2153,6 @@ img, video, canvas, svg { max-width: 100%; }
     renderRx(); renderStats(); renderSparkline(); renderHistory();
     renderTodaysWorkout();
     renderWorkoutHistory();
-    renderTrainingHistory();
     // Pre-fill weight input with last logged weight (or starting weight)
     const ex = getCurrentEx();
     if (ex && !ex.bw) {
@@ -2199,7 +2189,10 @@ img, video, canvas, svg { max-width: 100%; }
     const byDay = {};
     state.exercises.forEach(ex => {
       (state.logs[ex.id] || []).forEach(l => {
-        const dk = l.date.slice(0, 10);
+        // Use local date (wtDateKey) to avoid UTC vs local timezone mismatch.
+        // Logs are stored as ISO strings (UTC); slicing gives the UTC date,
+        // which at e.g. 10 PM EST = May 20 UTC while local is still May 19.
+        const dk = l.date ? wtDateKey(new Date(l.date)) : l.date.slice(0, 10);
         if (!byDay[dk]) byDay[dk] = [];
         byDay[dk].push({ ex, log: l });
       });
@@ -2316,7 +2309,7 @@ img, video, canvas, svg { max-width: 100%; }
     const cutoff = days[days.length - 1].dk;
     let pruned = false;
     Object.entries(state.logs).forEach(([exId, arr]) => {
-      const filtered = arr.filter(l => l.date.slice(0,10) >= cutoff);
+      const filtered = arr.filter(l => (l.date ? wtDateKey(new Date(l.date)) : l.date.slice(0,10)) >= cutoff);
       if (filtered.length !== arr.length) { state.logs[exId] = filtered; pruned = true; }
     });
     if (pruned) saveState();
@@ -2328,16 +2321,11 @@ img, video, canvas, svg { max-width: 100%; }
       const mons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       const label = dows[d.getDay()] + ', ' + mons[d.getMonth()] + ' ' + d.getDate();
 
+      // Skip days with no logged sets entirely
+      if (!sets.length) return null;
+
       const div = document.createElement('div');
       div.className = 'wh-card';
-
-      if (!sets.length) {
-        div.innerHTML = '<div class="wh-card-header" style="cursor:default">'
-          + '<span class="wh-card-date">' + label + '</span>'
-          + '<span class="wh-card-summary wh-rest">Rest day</span>'
-          + '</div>';
-        return div;
-      }
 
       const sum = summarizeDay(sets);
       const summary = sum.totalSets + ' sets · ' + Math.round(sum.totalVol).toLocaleString() + u;
@@ -2366,7 +2354,12 @@ img, video, canvas, svg { max-width: 100%; }
     });
 
     container.innerHTML = '';
-    cards.forEach(c => container.appendChild(c));
+    const workoutCards = cards.filter(Boolean);
+    if (!workoutCards.length) {
+      container.innerHTML = '<div style="font-size:12px;color:rgba(255,255,255,0.3);font-style:italic;padding:10px 0">No workouts logged in the last 7 days.</div>';
+    } else {
+      workoutCards.forEach(c => container.appendChild(c));
+    }
   }
 
   function getAnalyticsLogs() {
