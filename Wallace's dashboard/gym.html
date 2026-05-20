@@ -2315,7 +2315,7 @@ img, video, canvas, svg { max-width: 100%; }
     });
     if (pruned) saveState();
 
-    const cards = days.map(({ dk, d }) => {
+    const cards = days.map(({ dk, d }, i) => {
       const sets = all[dk] || [];
       const isDone = !!doneDays[dk];
       const dows = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -2565,6 +2565,8 @@ img, video, canvas, svg { max-width: 100%; }
     saveState(); renderAll();
     // Strength changed → composition estimate may shift
     if (typeof wtRender === 'function') wtRender();
+    // Save unified workout history entry for today (Vancouver date)
+    saveWorkoutHistoryEntry(wtDateKey(new Date()));
     // Tiny pulse on the button so the user feels the save
     const btn = $('logBtn');
     btn.style.transition = 'transform 0.15s';
@@ -2937,12 +2939,18 @@ img, video, canvas, svg { max-width: 100%; }
   }
 
   function wtSave(arr) {
-    localStorage.setItem(WT_KEY, JSON.stringify(arr));
+    const data = JSON.stringify(arr);
+    // Bypass any potential wrapper: use the raw Storage prototype to guarantee the write
+    try { Object.getPrototypeOf(localStorage).setItem.call(localStorage, WT_KEY, data); } catch(e) {
+      try { localStorage.setItem(WT_KEY, data); } catch(e2) { console.error('[WEIGHT] localStorage write FAILED:', e2); }
+    }
+    console.log('SAVED:', localStorage.getItem(WT_KEY));
     const check = JSON.parse(localStorage.getItem(WT_KEY) || '[]');
-    console.log('[WEIGHT] localStorage write verified:', check.length, 'entries');
+    console.log('[WEIGHT] Verified', check.length, 'entries in localStorage after write');
   }
   function wtDateKey(d) {
-    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    // Always use Vancouver timezone so dates don't flip at midnight UTC (5 PM Vancouver)
+    return d.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
   }
   function wtParseKey(key) {
     const [y, m, d] = key.split('-').map(Number);
@@ -3659,6 +3667,39 @@ img, video, canvas, svg { max-width: 100%; }
     $('wtCam').classList.remove('is-open');
     photosAdd(dataUrl);
   });
+
+  // ── Workout history: unified log + Supabase sync ─────────────────────────
+  const WH_KEY = 'wallace_workout_history'; // { [date]: { date, exercises: [{name, sets}] } }
+
+  async function saveWorkoutHistoryToSupabase(dateStr, exercises) {
+    try {
+      const res = await fetch(SUPA_URL_W + '/rest/v1/workout_history?on_conflict=date', {
+        method: 'POST',
+        headers: { ...SUPA_H_W, 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify({ date: dateStr, exercises_json: exercises })
+      });
+      if (!res.ok) console.error('[WH] Supabase save failed:', res.status, await res.text());
+    } catch(e) { console.error('[WH] Supabase error:', e.message); }
+  }
+
+  function saveWorkoutHistoryEntry(dateStr) {
+    const all = logsByDay();
+    const daySets = all[dateStr] || [];
+    const sum = summarizeDay(daySets);
+    const exercises = sum.perEx.map(e => ({
+      name: e.ex.name,
+      sets: e.sets.map(s => ({ weight: s.weight, reps: s.reps }))
+    }));
+    const hist = JSON.parse(localStorage.getItem(WH_KEY) || '{}');
+    // Prune entries older than 7 days
+    const cutoffDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
+    cutoffDate.setDate(cutoffDate.getDate() - 7);
+    const cutoff = cutoffDate.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
+    Object.keys(hist).filter(k => k < cutoff).forEach(k => delete hist[k]);
+    hist[dateStr] = { date: dateStr, exercises };
+    localStorage.setItem(WH_KEY, JSON.stringify(hist));
+    saveWorkoutHistoryToSupabase(dateStr, exercises);
+  }
 
   // ── Bug 2: Migrate old localStorage keys → new keys ─────────────────────
   (function migrateOldKeys() {

@@ -1084,7 +1084,7 @@
   <script>
   (function() {
     function dateStr(d) {
-      return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      return d.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
     }
     function shortDay(d) {
       return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
@@ -1357,28 +1357,36 @@
 
     // Use LOCAL date components (not toISOString which is UTC) to avoid
     // timezone mismatch: at 10 PM EST toISOString gives tomorrow's UTC date.
+    // Vancouver timezone helper — all date logic uses this so "today" never
+    // flips at midnight UTC (5 PM Vancouver). Returns a Date whose local
+    // methods reflect Vancouver time (classic toLocaleString trick).
+    function vanNow() {
+      return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
+    }
+    function vanDateStr(d) {
+      return d.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
+    }
+
     function getDateSegment(date) {
-      return date.getFullYear() + '-' +
-        String(date.getMonth() + 1).padStart(2, '0') + '-' +
-        String(date.getDate()).padStart(2, '0');
+      return date.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
     }
 
     function getActiveDateString() {
-      const now = new Date();
-      if (now.getHours() < 6) {
-        const previous = new Date(now);
-        previous.setDate(previous.getDate() - 1);
-        return getDateSegment(previous);
+      const van = vanNow();
+      if (van.getHours() < 6) {
+        van.setDate(van.getDate() - 1);
       }
-      return getDateSegment(now);
+      return van.getFullYear() + '-' + String(van.getMonth()+1).padStart(2,'0') + '-' + String(van.getDate()).padStart(2,'0');
     }
 
     function getTomorrowDateString() {
-      const now = new Date();
-      if (now.getHours() < 6) return getDateSegment(now);
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      return getDateSegment(tomorrow);
+      const van = vanNow();
+      if (van.getHours() < 6) {
+        // Before 6 AM Van — "tomorrow" is today's Vancouver date
+        return van.getFullYear() + '-' + String(van.getMonth()+1).padStart(2,'0') + '-' + String(van.getDate()).padStart(2,'0');
+      }
+      van.setDate(van.getDate() + 1);
+      return van.getFullYear() + '-' + String(van.getMonth()+1).padStart(2,'0') + '-' + String(van.getDate()).padStart(2,'0');
     }
 
     function getTodayKey() { return `goals:${getActiveDateString()}`; }
@@ -1521,7 +1529,9 @@
     function renderBarSegments(goals) {
       gmBar.innerHTML = '';
       if (!goals.length) return;
-      goals.forEach(goal => {
+      // Done segments first → green fills from the LEFT as tasks complete
+      const sorted = [...goals.filter(g => g.done), ...goals.filter(g => !g.done)];
+      sorted.forEach(goal => {
         const seg = document.createElement('div');
         seg.className = 'gm-bar-seg';
         if (goal.done) seg.classList.add('gm-bar-seg-done');
@@ -1738,19 +1748,20 @@
       let done = 0;
       const raw = gymState || parseJsonLocalStorage('gym_logs');
       if (raw && raw.logs && typeof raw.logs === 'object') {
-        const today = getTodayDateString();
+        const today = getActiveDateString(); // Vancouver date
         Object.values(raw.logs).forEach(arr => {
-          if (Array.isArray(arr)) done += arr.filter(item => item && String((item.date || '')).slice(0, 10) === today).length;
+          if (Array.isArray(arr)) done += arr.filter(item => {
+            if (!item || !item.date) return false;
+            return new Date(item.date).toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' }) === today;
+          }).length;
         });
       }
       return { done: Math.max(0, done), target, isRestDay: false };
     }
 
     function getTodayDateString() {
-      const now = new Date();
-      const d = new Date(now);
-      if (now.getHours() < 6) d.setDate(d.getDate() - 1);
-      return d.toISOString().slice(0, 10);
+      // Vancouver timezone — matches getActiveDateString for consistency
+      return getActiveDateString();
     }
 
     function getDailyScoreData() {
@@ -1817,23 +1828,26 @@
     }
 
     function updateDailyStreak(data) {
-      const today = new Date();
-      const weekday = (today.getDay() + 6) % 7;
-      const monday = new Date(today);
-      monday.setDate(today.getDate() - weekday);
+      // Use Vancouver timezone so the week aligns with Vancouver "today"
+      const van = vanNow();
+      const weekday = (van.getDay() + 6) % 7;
+      const monday = new Date(van);
+      monday.setDate(van.getDate() - weekday);
       const row = document.getElementById('scoreStreakRow');
       row.innerHTML = '';
+      const todayVan = getActiveDateString();
       for (let i = 0; i < 7; i++) {
         const day = new Date(monday);
         day.setDate(monday.getDate() + i);
-        const dk = day.toISOString().slice(0, 10);
+        // Get the Vancouver date string for this day
+        const dk = day.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
         const dayGoals = getGoalsFor('goals:' + dk);
         const dayWorkout = parseJsonLocalStorage('po_coach_v1') || parseJsonLocalStorage('gym_logs');
         const allGoalsDone = dayGoals.length > 0 && dayGoals.filter(g => g && g.done).length === dayGoals.length;
         const hadWorkout = countSetsForDate(dayWorkout, dk) > 0;
         const complete = allGoalsDone && hadWorkout;
         const dot = document.createElement('div');
-        dot.className = 'score-streak-day' + (complete ? ' complete' : '') + (dk === getTodayDateString() ? ' today' : '');
+        dot.className = 'score-streak-day' + (complete ? ' complete' : '') + (dk === todayVan ? ' today' : '');
         dot.title = ['SUN','MON','TUE','WED','THU','FRI','SAT'][day.getDay()];
         dot.textContent = ['M','T','W','T','F','S','S'][i];
         row.appendChild(dot);
@@ -1841,16 +1855,22 @@
     }
 
     function countSetsForDate(raw, dateKey) {
+      // dateKey is now a Vancouver date string — gym logs store UTC ISO dates, so convert
       let count = 0;
       if (raw && typeof raw === 'object') {
         if (raw.logs && typeof raw.logs === 'object') {
           Object.values(raw.logs).forEach(arr => {
             if (!Array.isArray(arr)) return;
-            count += arr.filter(item => item && String((item.date || '')).slice(0, 10) === dateKey).length;
+            count += arr.filter(item => {
+              if (!item || !item.date) return false;
+              return new Date(item.date).toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' }) === dateKey;
+            }).length;
           });
         } else {
           Object.values(raw).forEach(item => {
-            if (item && String((item.date || item.day || '')).slice(0, 10) === dateKey) count += 1;
+            if (!item) return;
+            const d = item.date || item.day || '';
+            if (d && new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' }) === dateKey) count += 1;
           });
         }
       }
