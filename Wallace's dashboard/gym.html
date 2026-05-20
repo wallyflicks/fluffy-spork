@@ -2877,97 +2877,17 @@ img, video, canvas, svg { max-width: 100%; }
   }
 
   // ============================================================
-  // WEIGHT TRACKER + COMPOSITION ESTIMATE + PROGRESS PHOTOS
-  // All persisted to localStorage:
-  //   po_coach_weights : [{ dateKey:'YYYY-MM-DD', weight:Number }]
+  // WEIGHT TRACKER v3
+  // Only storage key: wt_v3 → [{date:"YYYY-MM-DD", weight:Number, unit:"lb"}]
+  // Newest first. One entry per date max. Supabase always wins on load.
   // ============================================================
-  // ── WEIGHT SYSTEM ────────────────────────────────────────────────────────
-  // Single source of truth rules:
-  //   localStorage `wallace_weights` = [{date, weight, unit, savedAt}]
-  //   Supabase `weight_logs`         = {date TEXT UNIQUE, weight FLOAT, unit TEXT, updated_at}
-  //
-  // ON SAVE:  write localStorage → upsert Supabase (onConflict:date) → log confirm
-  // ON LOAD:  render localStorage immediately → fetch Supabase → merge by savedAt → re-render
-  //           NEVER push local data to Supabase on load (that kills cross-device sync)
-  // ─────────────────────────────────────────────────────────────────────────
-  const WT_KEY    = 'wallace_weights';
+  const WT_KEY    = 'wt_v3';
   const PHOTO_KEY = 'wallace_photos';
   const SUPA_URL_W = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
   const SUPA_KEY_W = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
   const SUPA_H_W   = { 'Content-Type': 'application/json', 'apikey': SUPA_KEY_W, 'Authorization': 'Bearer ' + SUPA_KEY_W };
 
-  // Migrate old po_coach_weights → wallace_weights (one-time, preserves data)
-  (function wtMigrateOld() {
-    try {
-      const old = JSON.parse(localStorage.getItem('po_coach_weights') || 'null');
-      if (!old || !Array.isArray(old) || !old.length) return;
-      const current = JSON.parse(localStorage.getItem(WT_KEY) || '[]');
-      if (current.length >= old.length) return;
-      const migrated = old.map(e => ({ date: e.dateKey || e.date, weight: e.weight, unit: e.unit || state.units || 'kg', savedAt: e.savedAt || '0' })).filter(e => e.date);
-      Object.getPrototypeOf(localStorage).setItem.call(localStorage, WT_KEY, JSON.stringify(migrated));
-      console.log('[WEIGHT] Migrated', migrated.length, 'entries from po_coach_weights');
-    } catch(e) { console.warn('[WEIGHT] Migration error:', e); }
-  })();
-
-  // ── Read (ONE place that reads weight) ────────────────────────────────────
-  function wtLoad() {
-    try {
-      const raw = localStorage.getItem(WT_KEY);
-      const arr = raw ? JSON.parse(raw) : [];
-      return Array.isArray(arr) ? arr.sort((a,b) => (a.date||'').localeCompare(b.date||'')) : [];
-    } catch(e) { return []; }
-  }
-
-  // ── Write to localStorage (ONE place that writes) ─────────────────────────
-  function wtSaveLocal(arr) {
-    try { Object.getPrototypeOf(localStorage).setItem.call(localStorage, WT_KEY, JSON.stringify(arr)); }
-    catch(e) { try { localStorage.setItem(WT_KEY, JSON.stringify(arr)); } catch(e2) { console.error('[WEIGHT] localStorage write FAILED:', e2); } }
-  }
-
-  // ── Push to Supabase (ONLY called on explicit user Save) ──────────────────
-  // Note: weight_logs table has columns: id, date, weight, unit, created_at
-  // NO updated_at column — omit it from the payload to avoid 400 errors
-  async function wtPushToSupabase(entry) {
-    try {
-      const res = await fetch(SUPA_URL_W + '/rest/v1/weight_logs?on_conflict=date', {
-        method: 'POST',
-        headers: { ...SUPA_H_W, 'Prefer': 'resolution=merge-duplicates' },
-        body: JSON.stringify({ date: entry.date, weight: entry.weight, unit: entry.unit })
-      });
-      if (!res.ok) {
-        const errBody = await res.text();
-        console.error('SUPABASE WEIGHT SAVE FAILED:', res.status, errBody);
-        return false;
-      }
-      console.log('WEIGHT SAVED TO SUPABASE:', entry.weight, entry.unit, 'for', entry.date);
-      return true;
-    } catch(e) { console.error('SUPABASE WEIGHT SAVE FAILED (network):', e.message); return false; }
-  }
-
-  // ── Pull from Supabase: today first, then full history for chart ──────────
-  async function wtPullFromSupabase() {
-    try {
-      // Fetch all entries ordered by date desc — most recent first
-      const res = await fetch(
-        SUPA_URL_W + '/rest/v1/weight_logs?select=date,weight,unit&order=date.desc',
-        { headers: SUPA_H_W }
-      );
-      if (!res.ok) { console.error('[WEIGHT] Supabase pull failed:', res.status, await res.text()); return null; }
-      const rows = await res.json();
-      if (!Array.isArray(rows) || rows.length === 0) return null;
-      // Return sorted ascending so chart renders oldest→newest
-      const entries = rows.map(r => ({ date: r.date, weight: r.weight, unit: r.unit || 'kg' }))
-                          .sort((a,b) => a.date.localeCompare(b.date));
-      const today = wtDateKey(new Date());
-      const todayRow = entries.find(e => e.date === today);
-      const latest   = entries[entries.length - 1];
-      console.log('WEIGHT ON LOAD - today from Supabase:', todayRow ? todayRow.weight : 'none',
-                  '| most recent:', latest ? latest.weight : 'none');
-      return entries;
-    } catch(e) { console.error('[WEIGHT] Supabase pull error:', e.message); return null; }
-  }
   function wtDateKey(d) {
-    // Always use Vancouver timezone so dates don't flip at midnight UTC (5 PM Vancouver)
     return d.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
   }
   function wtParseKey(key) {
@@ -2987,131 +2907,93 @@ img, video, canvas, svg { max-width: 100%; }
     return d;
   }
 
-  // ── Boot: render from localStorage immediately (instant display) ────────────
-  let wtEntries = wtLoad();
-  // Render instantly from localStorage so the page never flashes empty
-  // (wtRender() called after BOOT section; this just seeds the data)
-
-  // ── On load: Supabase is the source of truth ──────────────────────────────
-  // Priority: 1) Supabase → 2) localStorage fallback. Never blend/merge.
-  async function wtLoadAndSync() {
-    const localLatest = wtEntries.length ? wtEntries[wtEntries.length-1] : null;
-    const localStr = localLatest ? localLatest.weight + (localLatest.unit||'') : 'none';
-
-    const remote = await wtPullFromSupabase();
-    const remoteLatest = remote && remote.length ? remote[remote.length-1] : null;
-    const remoteStr = remoteLatest ? remoteLatest.weight + (remoteLatest.unit||'') : 'none';
-
-    console.log('WEIGHT ON LOAD - localStorage:', localStr, '| Supabase:', remoteStr);
-    const dbg = document.getElementById('wtDebug');
-    if (dbg) dbg.textContent = 'localStorage: ' + localStr + ' | Supabase: ' + remoteStr;
-
-    if (remote && remote.length > 0) {
-      // Supabase always wins per date — overwrite any local entry with the same date
-      let local = wtLoad();
-      remote.forEach(row => {
-        local = local.filter(e => e.date !== row.date);
-        local.push({ date: row.date, weight: row.weight, unit: row.unit || 'lb' });
-      });
-      local.sort((a, b) => a.date.localeCompare(b.date));
-      localStorage.setItem('wallace_weights', JSON.stringify(local));
-      wtEntries = local;
-      wtRender();
-      const ts = document.getElementById('wtSyncTime');
-      if (ts) ts.textContent = 'Synced ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-      console.log('[WEIGHT] Using Supabase data:', remote.length, 'entries, latest:', remoteStr);
-    } else {
-      // Supabase failed or empty → keep localStorage, don't touch anything
-      console.log('[WEIGHT] Supabase unavailable — keeping localStorage');
-    }
-  }
-  wtLoadAndSync();
-
-  // ── Save entry ────────────────────────────────────────────────────────────
-  // Write localStorage FIRST so pcRerender() (triggered by gym realtime events)
-  // always reads the correct value during the async Supabase round-trip.
-  async function wtSaveEntry(weight) {
-    const dateStr = wtDateKey(new Date());
-    const u = state.units;
-    const prevEntries = wtEntries.map(e => ({...e})); // snapshot for rollback
-
-    // Step 1: Update in-memory + localStorage immediately
-    const existing = wtEntries.find(e => e.date === dateStr);
-    if (existing) { existing.weight = weight; existing.unit = u; }
-    else { wtEntries.push({ date: dateStr, weight, unit: u }); wtEntries.sort((a,b) => a.date.localeCompare(b.date)); }
-    wtSaveLocal(wtEntries);  // localStorage written BEFORE Supabase call
+  // Save: write localStorage immediately → render → fire-and-forget Supabase
+  async function wtSave(value) {
+    const today = wtDateKey(new Date());
+    let entries = JSON.parse(localStorage.getItem(WT_KEY) || '[]');
+    entries = entries.filter(e => e.date !== today);
+    entries.unshift({ date: today, weight: value, unit: 'lb' });
+    localStorage.setItem(WT_KEY, JSON.stringify(entries));
     wtRender();
+    fetch(SUPA_URL_W + '/rest/v1/weight_logs?on_conflict=date', {
+      method: 'POST',
+      headers: { ...SUPA_H_W, 'Prefer': 'resolution=merge-duplicates' },
+      body: JSON.stringify({ date: today, weight: value, unit: 'lb' })
+    }).then(r => { if (!r.ok) r.text().then(t => console.error('[WT] Supabase save failed:', r.status, t)); })
+      .catch(e => console.error('[WT] Supabase save error:', e.message));
+  }
 
-    // Step 2: Push to Supabase (cross-device sync)
-    const ok = await wtPushToSupabase({ date: dateStr, weight, unit: u });
-    if (ok) {
-      console.log('WEIGHT SAVED TO SUPABASE:', weight, u, 'for', dateStr);
-      const ts = document.getElementById('wtSyncTime');
-      if (ts) ts.textContent = 'Synced ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-      const dbg = document.getElementById('wtDebug');
-      if (dbg) dbg.textContent = 'localStorage: ' + weight + u + ' | Supabase: ' + weight + u + ' ✓';
-    } else {
-      // Revert both localStorage and in-memory on failure
-      wtEntries = prevEntries;
-      wtSaveLocal(prevEntries);
+  // Pull last 30 entries from Supabase; Supabase always wins → overwrite localStorage
+  async function wtSyncSupabase() {
+    try {
+      const res = await fetch(
+        SUPA_URL_W + '/rest/v1/weight_logs?select=date,weight,unit&order=date.desc&limit=30',
+        { headers: SUPA_H_W }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) return;
+      const merged = data.map(r => ({ date: r.date, weight: r.weight, unit: r.unit || 'lb' }));
+      localStorage.setItem(WT_KEY, JSON.stringify(merged));
       wtRender();
-      const dbg = document.getElementById('wtDebug');
-      if (dbg) dbg.textContent = 'Save FAILED — check connection';
-      console.error('[WEIGHT] Save failed — reverted');
-    }
+    } catch(e) { console.error('[WT] Supabase sync error:', e.message); }
+  }
+
+  // Init: render from localStorage immediately, then sync from Supabase in background
+  async function wtInit() {
+    wtRender();
+    await wtSyncSupabase();
   }
 
   function wtRender() {
-    const last = wtEntries[wtEntries.length - 1] || null;
-    const todayKey = wtDateKey(new Date());
-    const todayEntry = wtEntries.find(e => e.date === todayKey);
-    const u = state.units;
+    const entries = JSON.parse(localStorage.getItem(WT_KEY) || '[]');
+    const today = wtDateKey(new Date());
+    const todayEntry = entries.find(e => e.date === today);
+    const last = entries[0] || null;
+    const u = last ? (last.unit || 'lb') : 'lb';
 
-    // Sync unit labels everywhere
     $('wtUnit').textContent = u;
     $('wtUnitStatic').textContent = u;
     $('wtNum').textContent = last ? last.weight.toFixed(1) : '—';
 
-    // Locked vs input
     if (todayEntry) {
       $('wtEmpty').classList.add('hidden');
       $('wtLockedValue').textContent = todayEntry.weight.toFixed(1) + ' ' + u;
       $('wtLocked').classList.remove('hidden');
       $('wtInputRow').classList.add('hidden');
     } else {
-      if (wtEntries.length === 0) $('wtEmpty').classList.remove('hidden');
+      if (entries.length === 0) $('wtEmpty').classList.remove('hidden');
       else $('wtEmpty').classList.add('hidden');
       $('wtLocked').classList.add('hidden');
       $('wtInputRow').classList.remove('hidden');
-      if (last && !$('wtInput').value) $('wtInput').value = last.weight.toFixed(1);
     }
 
-    // Chart, delta, composition need 2+ entries
-    if (wtEntries.length >= 2) {
+    if (entries.length >= 2) {
       $('wtChartWrap').classList.remove('hidden');
       $('wtLegend').classList.remove('hidden');
-      wtRenderChart();
-      wtRenderDelta();
-      wtRenderComposition();
+      wtRenderChart(entries);
+      wtRenderDelta(entries);
+      wtRenderComposition(entries);
     } else {
       $('wtChartWrap').classList.add('hidden');
       $('wtLegend').classList.add('hidden');
       $('wtDelta').classList.add('hidden');
       $('wtComp').classList.add('hidden');
     }
-    wtRenderStreak();
+    wtRenderStreak(entries);
+
+    const dbg = $('wtDebug');
+    if (dbg) dbg.textContent = last ? 'localStorage: ' + last.weight + (last.unit || 'lb') : 'localStorage: empty';
   }
 
-  // Streak — consecutive days ending at today (or yesterday if today
-  // hasn't been logged yet) with at least one weight entry.
-  function wtRenderStreak() {
+  function wtRenderStreak(entries) {
     const el = $('wtStreak');
     let streak = 0;
-    let cursor = new Date(new Date());
-    if (!wtEntries.find(e => e.date === wtDateKey(cursor))) {
+    let cursor = new Date();
+    if (!entries.find(e => e.date === wtDateKey(cursor))) {
       cursor.setDate(cursor.getDate() - 1);
     }
-    while (wtEntries.find(e => e.date === wtDateKey(cursor))) {
+    while (entries.find(e => e.date === wtDateKey(cursor))) {
       streak++;
       cursor.setDate(cursor.getDate() - 1);
     }
@@ -3123,8 +3005,9 @@ img, video, canvas, svg { max-width: 100%; }
     }
   }
 
-  function wtRenderChart() {
-    const recent = wtEntries.slice(-30);
+  function wtRenderChart(entries) {
+    // entries are newest-first; chart renders oldest→newest
+    const recent = entries.slice(0, 30).reverse();
     const weights = recent.map(e => e.weight);
     const min = Math.min.apply(null, weights);
     const max = Math.max.apply(null, weights);
@@ -3137,10 +3020,8 @@ img, video, canvas, svg { max-width: 100%; }
     const points = recent.map((e, i) => ({ x: xFor(i), y: yFor(e.weight) }));
     const linePath = wtSmoothPath(points);
     const areaPath = linePath + ' L ' + points[points.length - 1].x.toFixed(2) + ' ' + yBot + ' L ' + points[0].x.toFixed(2) + ' ' + yBot + ' Z';
-    // 7d moving avg
     const avgPoints = recent.map((_, i) => {
-      const start = Math.max(0, i - 6);
-      const win = recent.slice(start, i + 1);
+      const win = recent.slice(Math.max(0, i - 6), i + 1);
       const avg = win.reduce((s, p) => s + p.weight, 0) / win.length;
       return { x: xFor(i), y: yFor(avg) };
     });
@@ -3156,70 +3037,54 @@ img, video, canvas, svg { max-width: 100%; }
     $('wtChartContent').innerHTML = html;
     $('wtYAxisMax').textContent = yMax.toFixed(1);
     $('wtYAxisMin').textContent = yMin.toFixed(1);
-    $('wtMeta').textContent = wtEntries.length + ' ' + (wtEntries.length === 1 ? 'entry' : 'entries') + ' · last ' + recent.length + ' days';
+    $('wtMeta').textContent = entries.length + ' ' + (entries.length === 1 ? 'entry' : 'entries') + ' · last ' + recent.length + ' days';
   }
 
-  function wtRenderDelta() {
-    const last = wtEntries[wtEntries.length - 1];
+  function wtRenderDelta(entries) {
+    const last = entries[0]; // newest
     const lastDate = wtParseKey(last.date);
     const cutoff = new Date(lastDate); cutoff.setDate(cutoff.getDate() - 7);
-    const baseline = wtEntries.find(e => wtParseKey(e.date) >= cutoff) || wtEntries[0];
+    // Find oldest entry within 7-day window (entries are newest-first)
+    const inWindow = entries.filter(e => wtParseKey(e.date) >= cutoff);
+    const baseline = inWindow.length ? inWindow[inWindow.length - 1] : entries[entries.length - 1];
     const diff = last.weight - baseline.weight;
     const el = $('wtDelta');
     if (Math.abs(diff) < 0.05) { el.classList.add('hidden'); return; }
+    const u = last.unit || 'lb';
     const arrow = diff > 0 ? '↑' : '↓';
     const sign = diff > 0 ? '+' : '−';
-    el.textContent = arrow + ' ' + sign + Math.abs(diff).toFixed(1) + ' ' + state.units + ' · last 7d';
+    el.textContent = arrow + ' ' + sign + Math.abs(diff).toFixed(1) + ' ' + u + ' · last 7d';
     el.classList.toggle('up',   diff > 0);
     el.classList.toggle('down', diff < 0);
     el.classList.remove('hidden');
   }
 
-  // ============================================================
-  // COMPOSITION ESTIMATE — muscle vs fat from weight + strength trend
-  //
-  // Math:
-  //   weightDelta   = current weight − weight ~30 days ago
-  //   strengthDelta = avg of (current 1RM / 1RM 30 days ago across all
-  //                   exercises with logs in BOTH windows)
-  //   yearsTraining → max muscle gain rate per week:
-  //     1y → 0.45 kg, 2y → 0.23 kg, 3y+ → 0.11 kg (Lyle McDonald's
-  //     model — cited intermediate intermediate values are real ceilings)
-  //   estimated muscle gain = max muscle rate × weeks × (1 + strengthDelta)
-  //                           clipped to [0, weightDelta]
-  //   estimated fat gain    = weightDelta − estimated muscle gain
-  //
-  // If you LOSE weight: any positive strength delta means you're keeping
-  // (or building) muscle, so the loss is mostly fat.
-  // ============================================================
-  function wtRenderComposition() {
+  function wtRenderComposition(entries) {
     const compEl = $('wtComp');
     if (!CONFIG.composition || !CONFIG.composition.enabled) {
       compEl.classList.add('hidden'); return;
     }
-    const window = CONFIG.composition.windowDays || 30;
-    if (wtEntries.length < 2) { compEl.classList.add('hidden'); return; }
+    const windowDays = CONFIG.composition.windowDays || 30;
+    if (entries.length < 2) { compEl.classList.add('hidden'); return; }
 
-    const now = wtParseKey(wtEntries[wtEntries.length - 1].date);
-    const start = new Date(now); start.setDate(start.getDate() - window);
+    // entries are newest-first; work in chronological order for composition math
+    const chrono = [...entries].reverse();
+    const now = wtParseKey(chrono[chrono.length - 1].date);
+    const start = new Date(now); start.setDate(start.getDate() - windowDays);
 
-    // Find weight at start of window (closest entry on or after start)
-    const startEntry = wtEntries.find(e => wtParseKey(e.date) >= start);
-    const endEntry = wtEntries[wtEntries.length - 1]; // uses e.date
+    const startEntry = chrono.find(e => wtParseKey(e.date) >= start);
+    const endEntry = chrono[chrono.length - 1];
     if (!startEntry || startEntry === endEntry) { compEl.classList.add('hidden'); return; }
     const weightDelta = endEntry.weight - startEntry.weight;
-    const actualDays = Math.max(1, Math.round((wtParseKey(endEntry.dateKey) - wtParseKey(startEntry.dateKey)) / 86400000));
+    const actualDays = Math.max(1, Math.round((wtParseKey(endEntry.date) - wtParseKey(startEntry.date)) / 86400000));
     const weeks = actualDays / 7;
 
-    // Strength delta — for each exercise, take the AVG 1RM of logs inside
-    // the window vs AVG of logs of equal count just before the window.
     let strengthRatios = [];
     let workoutDays = new Set();
     let totalVolumeInWindow = 0;
     state.exercises.forEach(ex => {
       const logs = (state.logs[ex.id] || []).slice();
       if (logs.length < 2 || ex.bw) {
-        // Still count volume / sessions even for bodyweight + sparse exercises
         logs.forEach(l => {
           if (new Date(l.date) >= start) {
             workoutDays.add(l.date.slice(0, 10));
@@ -3243,22 +3108,18 @@ img, video, canvas, svg { max-width: 100%; }
     const strengthDelta = strengthRatios.length
       ? (strengthRatios.reduce((s, r) => s + r, 0) / strengthRatios.length) - 1
       : 0;
-    // Frequency factor: 4+ training days/week = full credit, fewer = penalty.
-    // Volume factor: moderate cap so a single huge day doesn't game the score.
     const sessionsPerWeek = (workoutDays.size / actualDays) * 7;
     const frequencyFactor = Math.max(0.4, Math.min(1.2, sessionsPerWeek / 4));
 
-    // Max muscle gain rate per week (kg). Convert to lb if user's units are lb.
     const yt = CONFIG.composition.yearsTraining || 1;
     let maxMuscleKgPerWeek;
     if (yt <= 1) maxMuscleKgPerWeek = 0.45;
     else if (yt === 2) maxMuscleKgPerWeek = 0.23;
     else maxMuscleKgPerWeek = 0.11;
-    const unitConv = (state.units === 'lb') ? 2.20462 : 1;
+    const u = endEntry.unit || 'lb';
+    const unitConv = (u === 'lb') ? 2.20462 : 1;
     const maxMusclePerWeek = maxMuscleKgPerWeek * unitConv;
 
-    // Estimated muscle: scale by strength gain (capped between 0.5x and 1.5x)
-    // AND by training frequency (you can't build muscle you didn't stimulate).
     const strengthBoost = Math.max(0.5, Math.min(1.5, 1 + strengthDelta * 4));
     let estMuscle = maxMusclePerWeek * weeks * strengthBoost * frequencyFactor;
 
@@ -3266,47 +3127,41 @@ img, video, canvas, svg { max-width: 100%; }
     let headlineCls = '';
     let headline = '';
     if (weightDelta > 0) {
-      // Surplus: split between muscle and fat. Cap muscle at the weight gained.
       estMuscle = Math.min(estMuscle, weightDelta);
       estFat = Math.max(0, weightDelta - estMuscle);
       const musclePct = estMuscle / weightDelta;
       if (musclePct >= 0.6 && strengthDelta > 0) {
         headlineCls = 'good';
-        headline = '+' + weightDelta.toFixed(1) + ' ' + state.units + ' — mostly muscle, strength up.';
+        headline = '+' + weightDelta.toFixed(1) + ' ' + u + ' — mostly muscle, strength up.';
       } else if (musclePct >= 0.35) {
         headlineCls = 'warn';
-        headline = '+' + weightDelta.toFixed(1) + ' ' + state.units + ' — mixed. Tighten kcal or push lifts harder.';
+        headline = '+' + weightDelta.toFixed(1) + ' ' + u + ' — mixed. Tighten kcal or push lifts harder.';
       } else {
         headlineCls = 'bad';
-        headline = '+' + weightDelta.toFixed(1) + ' ' + state.units + ' — mostly fat. Strength flat. Cut kcal.';
+        headline = '+' + weightDelta.toFixed(1) + ' ' + u + ' — mostly fat. Strength flat. Cut kcal.';
       }
     } else {
-      // Deficit: assume fat first, only credit muscle loss if strength dropped.
       const wDown = Math.abs(weightDelta);
       if (strengthDelta >= 0) {
-        // Strength preserved or up → all fat lost, slight muscle gain
         estMuscle = Math.min(maxMusclePerWeek * weeks * 0.3, 0.5);
         estFat = wDown + estMuscle;
         headlineCls = 'good';
-        headline = '−' + wDown.toFixed(1) + ' ' + state.units + ' — strength holding, fat dropping.';
+        headline = '−' + wDown.toFixed(1) + ' ' + u + ' — strength holding, fat dropping.';
       } else {
-        // Strength dropped → some muscle loss
         const lossPct = Math.min(0.4, Math.abs(strengthDelta) * 2);
         estMuscle = -wDown * lossPct;
         estFat = -(wDown + estMuscle);
         headlineCls = 'warn';
-        headline = '−' + wDown.toFixed(1) + ' ' + state.units + ' — strength slipping. You may be losing muscle.';
+        headline = '−' + wDown.toFixed(1) + ' ' + u + ' — strength slipping. You may be losing muscle.';
       }
     }
 
-    // Render
     compEl.classList.remove('hidden');
     $('wtCompWindow').textContent = 'last ' + actualDays + 'd';
     const headlineEl = $('wtCompHeadline');
     headlineEl.textContent = headline;
     headlineEl.className = 'wt-comp-headline ' + headlineCls;
 
-    // Bars
     const totalAbs = Math.abs(estMuscle) + Math.abs(estFat) || 1;
     const musclePct = (Math.abs(estMuscle) / totalAbs) * 100;
     const fatPct = (Math.abs(estFat) / totalAbs) * 100;
@@ -3314,31 +3169,23 @@ img, video, canvas, svg { max-width: 100%; }
       '<div class="wt-comp-bar muscle" style="width:' + musclePct.toFixed(1) + '%"></div>' +
       '<div class="wt-comp-bar fat" style="width:' + fatPct.toFixed(1) + '%"></div>';
 
-    // Foot line — strength + training frequency (so you can see why the
-    // muscle estimate is what it is).
     const sd = strengthDelta * 100;
     const sdStr = (sd >= 0 ? '+' : '') + sd.toFixed(1) + '%';
     const muscleSign = estMuscle >= 0 ? '+' : '';
     const fatSign = estFat >= 0 ? '+' : '';
     const freqStr = sessionsPerWeek.toFixed(1) + ' sessions/wk';
     $('wtCompFoot').textContent =
-      '~' + muscleSign + estMuscle.toFixed(1) + ' ' + state.units + ' muscle · '
-      + '~' + fatSign + estFat.toFixed(1) + ' ' + state.units + ' fat · '
+      '~' + muscleSign + estMuscle.toFixed(1) + ' ' + u + ' muscle · '
+      + '~' + fatSign + estFat.toFixed(1) + ' ' + u + ' fat · '
       + 'strength ' + sdStr
       + ' · ' + freqStr
       + (strengthRatios.length ? '' : ' (no lift data)');
   }
 
-  // Wire weight UI
   $('wtSaveBtn').addEventListener('click', () => {
     const v = parseFloat($('wtInput').value);
     if (isNaN(v) || v <= 0) return;
-    $('wtSaveBtn').disabled = true;
-    $('wtSaveBtn').textContent = 'Saving…';
-    wtSaveEntry(v).finally(() => {
-      $('wtSaveBtn').disabled = false;
-      $('wtSaveBtn').textContent = 'Save';
-    });
+    wtSave(v);
   });
   $('wtInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') $('wtSaveBtn').click();
@@ -3346,10 +3193,13 @@ img, video, canvas, svg { max-width: 100%; }
   $('wtEditBtn').addEventListener('click', () => {
     $('wtLocked').classList.add('hidden');
     $('wtInputRow').classList.remove('hidden');
-    const todayEntry = wtEntries.find(e => e.date === wtDateKey(new Date()));
+    const entries = JSON.parse(localStorage.getItem(WT_KEY) || '[]');
+    const todayEntry = entries.find(e => e.date === wtDateKey(new Date()));
     if (todayEntry) $('wtInput').value = todayEntry.weight.toFixed(1);
     $('wtInput').focus(); $('wtInput').select();
   });
+
+  wtInit();
 
   // ============================================================
   // PROGRESS PHOTOS — Clean rewrite
@@ -3478,8 +3328,9 @@ img, video, canvas, svg { max-width: 100%; }
     return mons[d.getMonth()] + ' ' + d.getDate();
   }
   function photoCurrentWeight() {
-    const last = wtEntries[wtEntries.length - 1];
-    return last ? (last.weight.toFixed(1) + ' ' + state.units) : '—';
+    const entries = JSON.parse(localStorage.getItem(WT_KEY) || '[]');
+    const last = entries[0]; // newest first
+    return last ? (last.weight.toFixed(1) + ' ' + (last.unit || 'lb')) : '—';
   }
 
   function photosRender() {
@@ -3763,32 +3614,10 @@ img, video, canvas, svg { max-width: 100%; }
     saveWorkoutHistoryToSupabase(dateStr, exercises);
   }
 
-  // ── Bug 2: Migrate old localStorage keys → new keys ─────────────────────
+  // ── Migrate old po_coach_photos → wallace_photos ─────────────────────────
   (function migrateOldKeys() {
-    const oldWeightKey = 'po_coach_weights';
-    const oldPhotoKey  = 'po_coach_photos';
-    const newWeightKey = 'wallace_weights';
-    const newPhotoKey  = 'wallace_photos';
-
-    try {
-      const newW = localStorage.getItem(newWeightKey);
-      const oldW = localStorage.getItem(oldWeightKey);
-      if ((!newW || JSON.parse(newW).length === 0) && oldW) {
-        const old = JSON.parse(oldW);
-        if (Array.isArray(old) && old.length > 0) {
-          const migrated = old.map(e => ({
-            date: e.dateKey || e.date,
-            weight: e.weight,
-            unit: e.unit || state.units || 'kg'
-          })).filter(e => e.date);
-          localStorage.setItem(newWeightKey, JSON.stringify(migrated));
-          localStorage.removeItem(oldWeightKey);
-          wtEntries = wtLoad();
-          console.log('[MIGRATE] Moved', migrated.length, 'weight entries from old key');
-        }
-      }
-    } catch(e) { console.warn('[MIGRATE] Weight migration error:', e); }
-
+    const oldPhotoKey = 'po_coach_photos';
+    const newPhotoKey = 'wallace_photos';
     try {
       const newP = localStorage.getItem(newPhotoKey);
       const oldP = localStorage.getItem(oldPhotoKey);
@@ -3820,7 +3649,6 @@ img, video, canvas, svg { max-width: 100%; }
   // BOOT
   // ============================================================
   renderAll();
-  wtRender();
   photosRender();
 
   // ============================================================
@@ -3895,17 +3723,12 @@ img, video, canvas, svg { max-width: 100%; }
   }
 
   function pcRerender() {
-    // Reload every closure variable that mirrors a synced localStorage
-    // key — otherwise renderAll/wtRender/photosRender would read stale
-    // in-memory copies from before the remote pull.
     try { state = loadState(); } catch {}
-    try { wtEntries = wtLoad(); } catch {}
     try {
       const raw = localStorage.getItem(PHOTO_KEY);
       photos = raw ? JSON.parse(raw) : [];
     } catch { photos = []; }
     try { renderAll(); } catch {}
-    try { wtRender(); } catch {}
     try { photosRender(); } catch {}
   }
 
@@ -3927,15 +3750,7 @@ img, video, canvas, svg { max-width: 100%; }
           const localArr = (() => { try { const p = JSON.parse(local); return Array.isArray(p) ? p : []; } catch { return []; } })();
           const remoteArr = remote[k];
 
-          if (k === WT_KEY) {
-            // Merge weight entries by dateKey — local wins same-day conflict
-            const map = {};
-            remoteArr.forEach(e => { if (e.dateKey) map[e.dateKey] = e; });
-            localArr.forEach(e => { if (e.dateKey) map[e.dateKey] = e; }); // local overwrites same day
-            const merged = Object.values(map).sort((a,b) => a.dateKey.localeCompare(b.dateKey));
-            const mergedJson = JSON.stringify(merged);
-            if (mergedJson !== local) { try { _pcOrigSet(k, mergedJson); changed = true; } catch {} }
-          } else if (k === PHOTO_KEY) {
+          if (k === PHOTO_KEY) {
             // Keep whichever has more photos — never wipe locally-taken photos.
             // If remote has strictly more, it has photos from another device.
             if (remoteArr.length > localArr.length) {
@@ -4059,7 +3874,7 @@ img, video, canvas, svg { max-width: 100%; }
       pcFlushPushOnUnload();
     } else {
       // Re-pull weight + photos when page becomes visible (switching back from another device)
-      wtLoadAndSync();
+      wtSyncSupabase();
       (async () => {
         const remotePhotos = await phosLoadFromSupabase();
         if (remotePhotos && remotePhotos.length >= photos.length) {
