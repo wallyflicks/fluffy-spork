@@ -3591,8 +3591,146 @@ img, video, canvas, svg { max-width: 100%; }
       closePhoto();
     }
   });
-  // Tap the right-hand "other" photo to cycle through different comparison targets
   $('wtCmpSideB').addEventListener('click', cycleCompareTarget);
+
+  // ── Progress Photos overlay ──────────────────────────────────────────────
+  $('wtProgressLink').addEventListener('click', () => {
+    $('wtOverlay').classList.add('is-open');
+    $('wtOverlay').setAttribute('aria-hidden', 'false');
+    photosRender();
+  });
+  $('wtBack').addEventListener('click', () => {
+    $('wtOverlay').classList.remove('is-open');
+    $('wtOverlay').setAttribute('aria-hidden', 'true');
+  });
+
+  // Camera — Take Photo button
+  $('wtTakePhotoBtn').addEventListener('click', async () => {
+    const fileInput = $('wtFileCamera');
+    if (fileInput) { fileInput.click(); return; }
+    // Fallback: open camera directly via getUserMedia
+    const cam = $('wtCam');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      $('wtCamVideo').srcObject = stream;
+      cam.classList.add('is-open');
+    } catch(e) { console.error('[PHOTOS] Camera error:', e); }
+  });
+
+  // From Library button
+  $('wtFromLibraryBtn').addEventListener('click', () => {
+    const fileInput = $('wtFileLibrary');
+    if (fileInput) fileInput.click();
+  });
+
+  // File inputs → read as base64 and add
+  function wireFileInput(inputId) {
+    const el = $(inputId);
+    if (!el) return;
+    el.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        await photosAdd(ev.target.result);
+      };
+      reader.readAsDataURL(file);
+      el.value = '';
+    });
+  }
+  wireFileInput('wtFileCamera');
+  wireFileInput('wtFileLibrary');
+
+  // Camera shutter + cancel
+  $('wtCamCancel').addEventListener('click', () => {
+    const v = $('wtCamVideo');
+    if (v && v.srcObject) v.srcObject.getTracks().forEach(t => t.stop());
+    $('wtCam').classList.remove('is-open');
+  });
+  $('wtCamShutter').addEventListener('click', () => {
+    const video = $('wtCamVideo');
+    const canvas = $('wtCamCanvas');
+    if (!video || !canvas) return;
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+    $('wtCam').classList.remove('is-open');
+    photosAdd(dataUrl);
+  });
+
+  // ── Bug 2: Migrate old localStorage keys → new keys ─────────────────────
+  (function migrateOldKeys() {
+    const oldWeightKey = 'po_coach_weights';
+    const oldPhotoKey  = 'po_coach_photos';
+    const newWeightKey = 'wallace_weights';
+    const newPhotoKey  = 'wallace_photos';
+
+    try {
+      const newW = localStorage.getItem(newWeightKey);
+      const oldW = localStorage.getItem(oldWeightKey);
+      if ((!newW || JSON.parse(newW).length === 0) && oldW) {
+        const old = JSON.parse(oldW);
+        if (Array.isArray(old) && old.length > 0) {
+          const migrated = old.map(e => ({
+            date: e.dateKey || e.date,
+            weight: e.weight,
+            unit: e.unit || state.units || 'kg'
+          })).filter(e => e.date);
+          localStorage.setItem(newWeightKey, JSON.stringify(migrated));
+          localStorage.removeItem(oldWeightKey);
+          wtEntries = wtLoad();
+          console.log('[MIGRATE] Moved', migrated.length, 'weight entries from old key');
+        }
+      }
+    } catch(e) { console.warn('[MIGRATE] Weight migration error:', e); }
+
+    try {
+      const newP = localStorage.getItem(newPhotoKey);
+      const oldP = localStorage.getItem(oldPhotoKey);
+      if ((!newP || JSON.parse(newP).length === 0) && oldP) {
+        const old = JSON.parse(oldP);
+        if (Array.isArray(old) && old.length > 0) {
+          const migrated = old.filter(p => p.dataUrl || p.base64).map(p => ({
+            id: p.id || ('p' + Date.now() + '_' + Math.random().toString(36).slice(2,7)),
+            date: p.dateKey || p.date || wtDateKey(new Date()),
+            base64: p.dataUrl || p.base64,
+            weight: p.weight || null
+          }));
+          localStorage.setItem(newPhotoKey, JSON.stringify(migrated));
+          localStorage.removeItem(oldPhotoKey);
+          photos = JSON.parse(localStorage.getItem(newPhotoKey)) || [];
+          console.log('[MIGRATE] Moved', migrated.length, 'photos from old key');
+        }
+      }
+    } catch(e) { console.warn('[MIGRATE] Photo migration error:', e); }
+  })();
+
+  // ── Bug 3: Push existing localStorage data to Supabase on first load ─────
+  // Supabase tables were just created (empty). Push whatever is local now.
+  (async function initialSupabasePush() {
+    const weights = wtLoad();
+    const localPhotos = JSON.parse(localStorage.getItem(PHOTO_KEY) || '[]');
+
+    if (weights.length > 0) {
+      console.log('[INIT PUSH] Pushing', weights.length, 'weight entries to Supabase...');
+      for (const entry of weights) {
+        if (entry.date && entry.weight) {
+          await wtSaveToSupabase(entry).catch(e => console.warn('[INIT PUSH] Weight push failed:', e));
+        }
+      }
+    }
+
+    if (localPhotos.length > 0) {
+      console.log('[INIT PUSH] Pushing', localPhotos.length, 'photos to Supabase...');
+      for (const photo of localPhotos) {
+        if (photo.id && photo.base64) {
+          await phosSaveToSupabase(photo).catch(e => console.warn('[INIT PUSH] Photo push failed:', e));
+        }
+      }
+    }
+  })();
 
   // ============================================================
   // BOOT
