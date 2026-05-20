@@ -3007,9 +3007,15 @@ img, video, canvas, svg { max-width: 100%; }
     if (dbg) dbg.textContent = 'localStorage: ' + localStr + ' | Supabase: ' + remoteStr;
 
     if (remote && remote.length > 0) {
-      // Supabase has data → it wins completely. Overwrite localStorage to match.
-      wtEntries = remote;
-      wtSaveLocal(remote);
+      // Supabase always wins per date — overwrite any local entry with the same date
+      let local = wtLoad();
+      remote.forEach(row => {
+        local = local.filter(e => e.date !== row.date);
+        local.push({ date: row.date, weight: row.weight, unit: row.unit || 'lb' });
+      });
+      local.sort((a, b) => a.date.localeCompare(b.date));
+      localStorage.setItem('wallace_weights', JSON.stringify(local));
+      wtEntries = local;
       wtRender();
       const ts = document.getElementById('wtSyncTime');
       if (ts) ts.textContent = 'Synced ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
