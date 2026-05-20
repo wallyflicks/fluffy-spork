@@ -2877,56 +2877,69 @@ img, video, canvas, svg { max-width: 100%; }
   // WEIGHT TRACKER + COMPOSITION ESTIMATE + PROGRESS PHOTOS
   // All persisted to localStorage:
   //   po_coach_weights : [{ dateKey:'YYYY-MM-DD', weight:Number }]
-  //   po_coach_photos  : [{ id, dataUrl, dateKey, weight }]
   // ============================================================
-  const WT_KEY = 'po_coach_weights';
-  const PHOTO_KEY = 'po_coach_photos';
+  // WEIGHT TRACKER — Clean rewrite
+  // localStorage key: wallace_weights → [{date, weight, unit}]
+  // Supabase table:   weight_logs (date TEXT UNIQUE, weight FLOAT, unit TEXT)
+  // ============================================================
+  const WT_KEY    = 'wallace_weights';
+  const PHOTO_KEY = 'wallace_photos';
+  const SUPA_URL_W = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
+  const SUPA_KEY_W = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
+  const SUPA_H_W   = { 'Content-Type': 'application/json', 'apikey': SUPA_KEY_W, 'Authorization': 'Bearer ' + SUPA_KEY_W };
+
+  // Migrate old po_coach_weights → wallace_weights (one-time, preserves data)
+  (function wtMigrateOld() {
+    try {
+      const old = JSON.parse(localStorage.getItem('po_coach_weights') || 'null');
+      if (!old || !Array.isArray(old) || !old.length) return;
+      const current = JSON.parse(localStorage.getItem(WT_KEY) || '[]');
+      if (current.length >= old.length) return;
+      const migrated = old.map(e => ({ date: e.dateKey || e.date, weight: e.weight, unit: e.unit || state.units || 'kg' })).filter(e => e.date);
+      localStorage.setItem(WT_KEY, JSON.stringify(migrated));
+      console.log('[WEIGHT] Migrated', migrated.length, 'entries from po_coach_weights');
+    } catch(e) { console.warn('[WEIGHT] Migration error:', e); }
+  })();
 
   function wtLoad() {
     try {
       const raw = localStorage.getItem(WT_KEY);
       const arr = raw ? JSON.parse(raw) : [];
-      return Array.isArray(arr) ? arr.sort((a,b) => a.dateKey.localeCompare(b.dateKey)) : [];
-    } catch (e) { return []; }
+      return Array.isArray(arr) ? arr.sort((a,b) => (a.date||'').localeCompare(b.date||'')) : [];
+    } catch(e) { return []; }
   }
-  // ── Weight Supabase sync (separate key — no size limit issues) ─────────────
-  // Weight data is tiny (<2KB). We give it its own app_state entry so it never
-  // gets bundled with the huge gym state (exercises + logs + photos) that was
-  // silently failing the 64KB keepalive size limit.
-  const WT_SUPA_URL  = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
-  const WT_SUPA_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
-  const WT_SUPA_H    = { 'Content-Type': 'application/json', 'apikey': WT_SUPA_KEY, 'Authorization': 'Bearer ' + WT_SUPA_KEY, 'Prefer': 'resolution=merge-duplicates' };
-  const WT_SUPA_KEY_NAME  = 'gym_weights';
-  const PHO_SUPA_KEY_NAME = 'gym_photos';
 
-  async function wtPushToSupabase(arr) {
+  // Save single entry to Supabase weight_logs — no bundling, no keepalive
+  async function wtSaveToSupabase(entry) {
     try {
-      await fetch(WT_SUPA_URL + '/rest/v1/app_state?on_conflict=key', {
-        method: 'POST', headers: WT_SUPA_H,
-        body: JSON.stringify({ key: WT_SUPA_KEY_NAME, data: { entries: arr }, updated_at: new Date().toISOString() })
+      const res = await fetch(SUPA_URL_W + '/rest/v1/weight_logs?on_conflict=date', {
+        method: 'POST',
+        headers: { ...SUPA_H_W, 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify({ date: entry.date, weight: entry.weight, unit: entry.unit })
       });
-      console.log('[gym weight] Pushed to Supabase:', arr.length, 'entries');
-    } catch (e) { console.warn('[gym weight] Supabase push failed:', e.message); }
+      if (!res.ok) { const err = await res.text(); console.error('[WEIGHT] Supabase save failed:', res.status, err); return; }
+      console.log('[WEIGHT] Saved to Supabase:', entry.date, entry.weight);
+      const ts = document.getElementById('wtSyncTime');
+      if (ts) ts.textContent = 'Synced ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    } catch(e) { console.error('[WEIGHT] Supabase save error:', e.message); }
   }
 
-  async function wtPullFromSupabase() {
+  // Load all weight entries from Supabase on page load
+  async function wtLoadFromSupabase() {
     try {
-      const res = await fetch(WT_SUPA_URL + '/rest/v1/app_state?key=eq.' + WT_SUPA_KEY_NAME + '&select=data', { headers: WT_SUPA_H });
-      if (!res.ok) { console.warn('[gym weight] Supabase pull failed:', res.status); return null; }
+      const res = await fetch(SUPA_URL_W + '/rest/v1/weight_logs?select=date,weight,unit&order=date.asc', { headers: SUPA_H_W });
+      if (!res.ok) { console.error('[WEIGHT] Supabase load failed:', res.status); return null; }
       const rows = await res.json();
-      if (!rows.length || !rows[0].data || !Array.isArray(rows[0].data.entries)) { console.log('[gym weight] No remote data'); return null; }
-      console.log('[gym weight] Pulled from Supabase:', rows[0].data.entries.length, 'entries');
-      return rows[0].data.entries;
-    } catch (e) { console.warn('[gym weight] Supabase pull failed:', e.message); return null; }
+      console.log('WEIGHT LOADED:', rows);
+      if (!Array.isArray(rows) || rows.length === 0) return null;
+      return rows.map(r => ({ date: r.date, weight: r.weight, unit: r.unit || 'kg' }));
+    } catch(e) { console.error('[WEIGHT] Supabase load error:', e.message); return null; }
   }
 
   function wtSave(arr) {
-    try { localStorage.setItem(WT_KEY, JSON.stringify(arr)); } catch (e) {}
-    console.log('[gym weight] Saved to localStorage:', arr.length, 'entries');
-    wtPushToSupabase(arr).then(() => {
-      const ts = document.getElementById('wtSyncTime');
-      if (ts) ts.textContent = 'Synced ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-    });
+    localStorage.setItem(WT_KEY, JSON.stringify(arr));
+    const check = JSON.parse(localStorage.getItem(WT_KEY) || '[]');
+    console.log('[WEIGHT] localStorage write verified:', check.length, 'entries');
   }
   function wtDateKey(d) {
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -2949,41 +2962,44 @@ img, video, canvas, svg { max-width: 100%; }
   }
 
   let wtEntries = wtLoad();
-  console.log('[gym weight] Loaded from localStorage on boot:', wtEntries.length, 'entries', wtEntries);
+  console.log('WEIGHT LOADED:', wtEntries.length, 'entries from localStorage', wtEntries);
 
-  // Pull weight from Supabase on page load — merge with local, local wins same day
+  // On load: fetch from Supabase; only update local if remote has data
   (async function wtInitSync() {
-    const remote = await wtPullFromSupabase();
-    if (!remote) return;
-    // Merge: remote entries fill in days local doesn't have; local wins same day
+    const remote = await wtLoadFromSupabase();
+    if (!remote || remote.length === 0) { console.log('[WEIGHT] No Supabase data, keeping localStorage'); return; }
+    // Merge: remote fills in any gaps; local wins same-day conflict
     const map = {};
-    remote.forEach(e => { if (e.dateKey) map[e.dateKey] = e; });
-    wtEntries.forEach(e => { if (e.dateKey) map[e.dateKey] = e; }); // local wins
-    const merged = Object.values(map).sort((a,b) => a.dateKey.localeCompare(b.dateKey));
+    remote.forEach(e => { if (e.date) map[e.date] = e; });
+    wtEntries.forEach(e => { if (e.date) map[e.date] = e; }); // local wins
+    const merged = Object.values(map).sort((a,b) => a.date.localeCompare(b.date));
     if (JSON.stringify(merged) !== JSON.stringify(wtEntries)) {
-      console.log('[gym weight] Applying merged remote data:', merged.length, 'entries');
-      try { localStorage.setItem(WT_KEY, JSON.stringify(merged)); } catch {}
+      console.log('[WEIGHT] Applying merged data:', merged.length, 'entries');
       wtEntries = merged;
+      localStorage.setItem(WT_KEY, JSON.stringify(merged));
       wtRender();
-      // Show sync timestamp
       const ts = document.getElementById('wtSyncTime');
       if (ts) ts.textContent = 'Synced ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
     }
   })();
-
   function wtSaveEntry(weight) {
-    const key = wtDateKey(new Date());
-    const existing = wtEntries.find(e => e.dateKey === key);
-    if (existing) existing.weight = weight;
-    else { wtEntries.push({ dateKey: key, weight }); wtEntries.sort((a,b) => a.dateKey.localeCompare(b.dateKey)); }
+    const dateStr = wtDateKey(new Date());
+    const u = state.units;
+    const existing = wtEntries.find(e => e.date === dateStr);
+    if (existing) { existing.weight = weight; existing.unit = u; }
+    else { wtEntries.push({ date: dateStr, weight, unit: u }); wtEntries.sort((a,b) => a.date.localeCompare(b.date)); }
     wtSave(wtEntries);
     wtRender();
+    // After save, re-read and verify localStorage, then push to Supabase
+    wtEntries = wtLoad();
+    console.log('[WEIGHT] After save, localStorage has:', wtEntries.length, 'entries');
+    wtSaveToSupabase({ date: dateStr, weight, unit: u });
   }
 
   function wtRender() {
     const last = wtEntries[wtEntries.length - 1] || null;
     const todayKey = wtDateKey(new Date());
-    const todayEntry = wtEntries.find(e => e.dateKey === todayKey);
+    const todayEntry = wtEntries.find(e => e.date === todayKey);
     const u = state.units;
 
     // Sync unit labels everywhere
@@ -3027,10 +3043,10 @@ img, video, canvas, svg { max-width: 100%; }
     const el = $('wtStreak');
     let streak = 0;
     let cursor = new Date(new Date());
-    if (!wtEntries.find(e => e.dateKey === wtDateKey(cursor))) {
+    if (!wtEntries.find(e => e.date === wtDateKey(cursor))) {
       cursor.setDate(cursor.getDate() - 1);
     }
-    while (wtEntries.find(e => e.dateKey === wtDateKey(cursor))) {
+    while (wtEntries.find(e => e.date === wtDateKey(cursor))) {
       streak++;
       cursor.setDate(cursor.getDate() - 1);
     }
@@ -3080,9 +3096,9 @@ img, video, canvas, svg { max-width: 100%; }
 
   function wtRenderDelta() {
     const last = wtEntries[wtEntries.length - 1];
-    const lastDate = wtParseKey(last.dateKey);
+    const lastDate = wtParseKey(last.date);
     const cutoff = new Date(lastDate); cutoff.setDate(cutoff.getDate() - 7);
-    const baseline = wtEntries.find(e => wtParseKey(e.dateKey) >= cutoff) || wtEntries[0];
+    const baseline = wtEntries.find(e => wtParseKey(e.date) >= cutoff) || wtEntries[0];
     const diff = last.weight - baseline.weight;
     const el = $('wtDelta');
     if (Math.abs(diff) < 0.05) { el.classList.add('hidden'); return; }
@@ -3119,12 +3135,12 @@ img, video, canvas, svg { max-width: 100%; }
     const window = CONFIG.composition.windowDays || 30;
     if (wtEntries.length < 2) { compEl.classList.add('hidden'); return; }
 
-    const now = wtParseKey(wtEntries[wtEntries.length - 1].dateKey);
+    const now = wtParseKey(wtEntries[wtEntries.length - 1].date);
     const start = new Date(now); start.setDate(start.getDate() - window);
 
     // Find weight at start of window (closest entry on or after start)
-    const startEntry = wtEntries.find(e => wtParseKey(e.dateKey) >= start);
-    const endEntry = wtEntries[wtEntries.length - 1];
+    const startEntry = wtEntries.find(e => wtParseKey(e.date) >= start);
+    const endEntry = wtEntries[wtEntries.length - 1]; // uses e.date
     if (!startEntry || startEntry === endEntry) { compEl.classList.add('hidden'); return; }
     const weightDelta = endEntry.weight - startEntry.weight;
     const actualDays = Math.max(1, Math.round((wtParseKey(endEntry.dateKey) - wtParseKey(startEntry.dateKey)) / 86400000));
@@ -3260,68 +3276,96 @@ img, video, canvas, svg { max-width: 100%; }
   $('wtEditBtn').addEventListener('click', () => {
     $('wtLocked').classList.add('hidden');
     $('wtInputRow').classList.remove('hidden');
-    const todayEntry = wtEntries.find(e => e.dateKey === wtDateKey(new Date()));
+    const todayEntry = wtEntries.find(e => e.date === wtDateKey(new Date()));
     if (todayEntry) $('wtInput').value = todayEntry.weight.toFixed(1);
     $('wtInput').focus(); $('wtInput').select();
   });
 
   // ============================================================
-  // PROGRESS PHOTOS
-  // Photos are stored in Supabase Storage (bucket: progress-photos).
-  // localStorage holds only { id, url, storagePath, dateKey, weight }.
+  // PROGRESS PHOTOS — Clean rewrite
+  // localStorage key: wallace_photos → [{id, date, base64, weight}]
+  // Supabase table:   progress_photos (id TEXT PK, date TEXT, base64 TEXT, weight TEXT)
+  // Photos stored as base64 strings — never blob URLs
   // ============================================================
+
+  // Migrate old po_coach_photos → wallace_photos (preserves existing photo if base64 present)
+  (function phosMigrateOld() {
+    try {
+      const old = JSON.parse(localStorage.getItem('po_coach_photos') || 'null');
+      if (!old || !Array.isArray(old) || !old.length) return;
+      const current = JSON.parse(localStorage.getItem(PHOTO_KEY) || '[]');
+      if (current.length >= old.length) return;
+      const migrated = old.filter(p => p.dataUrl || p.base64).map(p => ({
+        id: p.id || ('p' + Date.now() + '_' + Math.random().toString(36).slice(2,7)),
+        date: p.dateKey || p.date || wtDateKey(new Date()),
+        base64: p.dataUrl || p.base64,
+        weight: p.weight || null
+      }));
+      if (migrated.length > 0) {
+        localStorage.setItem(PHOTO_KEY, JSON.stringify(migrated));
+        console.log('[PHOTOS] Migrated', migrated.length, 'photos from po_coach_photos');
+      }
+    } catch(e) { console.warn('[PHOTOS] Migration error:', e); }
+  })();
+
   let photos = [];
   try {
     const raw = localStorage.getItem(PHOTO_KEY);
     if (raw) photos = JSON.parse(raw);
-  } catch (e) { photos = []; }
+    if (!Array.isArray(photos)) photos = [];
+  } catch(e) { photos = []; }
+  console.log('PHOTOS LOADED:', photos.length, 'photos from localStorage');
 
-  // Base64 photo migration removed — photos stored locally (base64 or URL) are kept as-is.
-  console.log('[gym photos] Loaded from localStorage on boot:', photos.length, 'photos');
-
-  async function phosPushToSupabase(arr) {
+  // Save single photo to Supabase progress_photos — no bundling, no keepalive
+  async function phosSaveToSupabase(photo) {
     try {
-      await fetch(WT_SUPA_URL + '/rest/v1/app_state?on_conflict=key', {
-        method: 'POST', headers: WT_SUPA_H,
-        body: JSON.stringify({ key: PHO_SUPA_KEY_NAME, data: { photos: arr }, updated_at: new Date().toISOString() })
+      const res = await fetch(SUPA_URL_W + '/rest/v1/progress_photos?on_conflict=id', {
+        method: 'POST',
+        headers: { ...SUPA_H_W, 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify({ id: photo.id, date: photo.date, base64: photo.base64, weight: photo.weight || null })
       });
-      console.log('[gym photos] Pushed to Supabase:', arr.length, 'photos');
-    } catch (e) { console.warn('[gym photos] Supabase push failed:', e.message); }
+      if (!res.ok) { const err = await res.text(); console.error('[PHOTOS] Supabase save failed:', res.status, err); return; }
+      console.log('[PHOTOS] Saved to Supabase:', photo.id, photo.date);
+    } catch(e) { console.error('[PHOTOS] Supabase save error:', e.message); }
   }
 
-  async function phosPullFromSupabase() {
+  // Delete photo from Supabase
+  async function phosDeleteFromSupabase(id) {
     try {
-      const res = await fetch(WT_SUPA_URL + '/rest/v1/app_state?key=eq.' + PHO_SUPA_KEY_NAME + '&select=data', { headers: WT_SUPA_H });
-      if (!res.ok) return null;
-      const rows = await res.json();
-      if (!rows.length || !rows[0].data || !Array.isArray(rows[0].data.photos)) return null;
-      console.log('[gym photos] Pulled from Supabase:', rows[0].data.photos.length, 'photos');
-      return rows[0].data.photos;
-    } catch (e) { console.warn('[gym photos] pull failed:', e.message); return null; }
+      await fetch(SUPA_URL_W + '/rest/v1/progress_photos?id=eq.' + encodeURIComponent(id), {
+        method: 'DELETE', headers: SUPA_H_W
+      });
+    } catch(e) { console.warn('[PHOTOS] Supabase delete error:', e.message); }
   }
 
-  // Pull photos on load — keep whichever device has more
+  // Load photos from Supabase on page load
+  async function phosLoadFromSupabase() {
+    try {
+      const res = await fetch(SUPA_URL_W + '/rest/v1/progress_photos?select=id,date,base64,weight&order=date.desc', { headers: SUPA_H_W });
+      if (!res.ok) { console.error('[PHOTOS] Supabase load failed:', res.status); return null; }
+      const rows = await res.json();
+      console.log('PHOTOS LOADED:', rows.length, 'from Supabase');
+      if (!Array.isArray(rows) || rows.length === 0) return null;
+      return rows;
+    } catch(e) { console.error('[PHOTOS] Supabase load error:', e.message); return null; }
+  }
+
+  // On load: fetch from Supabase; only update local if remote has data (never overwrite with empty)
   (async function phosInitSync() {
-    const remote = await phosPullFromSupabase();
-    if (!remote) return;
-    if (remote.length > photos.length) {
-      console.log('[gym photos] Applying remote photos:', remote.length);
+    const remote = await phosLoadFromSupabase();
+    if (!remote || remote.length === 0) { console.log('[PHOTOS] No Supabase data, keeping localStorage'); return; }
+    if (remote.length >= photos.length) {
+      console.log('[PHOTOS] Applying Supabase data:', remote.length, 'photos');
       photos = remote;
-      try { localStorage.setItem(PHOTO_KEY, JSON.stringify(photos)); } catch {}
+      localStorage.setItem(PHOTO_KEY, JSON.stringify(photos));
       photosRender();
     }
   })();
 
   function photosSave() {
-    try { localStorage.setItem(PHOTO_KEY, JSON.stringify(photos)); } catch (e) {}
-    console.log('[gym photos] Saved to localStorage:', photos.length, 'photos');
-    phosPushToSupabase(photos); // fire-and-forget
-  }
-
-  function photoStorageSupa() {
-    if (typeof pcSupa !== 'undefined' && pcSupa) return pcSupa;
-    if (!window.supabase || !SUPABASE_URL || !SUPABASE_KEY) return null;
-    return window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    localStorage.setItem(PHOTO_KEY, JSON.stringify(photos));
+    const check = JSON.parse(localStorage.getItem(PHOTO_KEY) || '[]');
+    console.log('[PHOTOS] localStorage write verified:', check.length, 'photos');
   }
 
   function dataUrlToBlob(dataUrl) {
@@ -3334,28 +3378,30 @@ img, video, canvas, svg { max-width: 100%; }
   }
 
   function resizeImageToDataUrl(dataUrl, maxDim, quality) {
-    maxDim = maxDim || 1200;
-    quality = quality == null ? 0.8 : quality;
+    maxDim = maxDim || 800; quality = quality == null ? 0.75 : quality;
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
-        let w = img.naturalWidth || img.width;
-        let h = img.naturalHeight || img.height;
+        let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
         if (w > maxDim || h > maxDim) {
           if (w >= h) { h = Math.round(h * (maxDim / w)); w = maxDim; }
           else { w = Math.round(w * (maxDim / h)); h = maxDim; }
         }
-        const c = document.createElement('canvas');
-        c.width = w; c.height = h;
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
         c.getContext('2d').drawImage(img, 0, 0, w, h);
-        try { resolve(c.toDataURL('image/jpeg', quality)); }
-        catch { resolve(dataUrl); }
+        try { resolve(c.toDataURL('image/jpeg', quality)); } catch { resolve(dataUrl); }
       };
       img.onerror = () => resolve(dataUrl);
       img.src = dataUrl;
     });
   }
 
+  function showPhotoUploadError() { $('wtUploadError').classList.add('is-visible'); }
+  function clearPhotoUploadError() { $('wtUploadError').classList.remove('is-visible'); }
+  function setPhotoUploading(loading) {
+    $('wtTakePhotoBtn').classList.toggle('is-uploading', loading);
+    $('wtFromLibraryBtn').disabled = loading;
+  }
   function photoFmtDate(key) {
     const d = wtParseKey(key);
     const mons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -3366,17 +3412,6 @@ img, video, canvas, svg { max-width: 100%; }
     return last ? (last.weight.toFixed(1) + ' ' + state.units) : '—';
   }
 
-  function showPhotoUploadError() {
-    $('wtUploadError').classList.add('is-visible');
-  }
-  function clearPhotoUploadError() {
-    $('wtUploadError').classList.remove('is-visible');
-  }
-  function setPhotoUploading(loading) {
-    $('wtTakePhotoBtn').classList.toggle('is-uploading', loading);
-    $('wtFromLibraryBtn').disabled = loading;
-  }
-
   function photosRender() {
     const grid = $('wtPhotoGrid');
     if (!photos.length) {
@@ -3384,10 +3419,10 @@ img, video, canvas, svg { max-width: 100%; }
     } else {
       grid.innerHTML = photos.map(p =>
         '<button class="wt-photo-card" data-id="' + p.id + '" type="button">' +
-          '<img src="' + p.url + '" alt="" loading="lazy">' +
+          '<img src="' + (p.base64 || '') + '" alt="" loading="lazy">' +
           '<div class="wt-photo-overlay"></div>' +
           '<div class="wt-photo-meta">' +
-            '<span class="wt-photo-date">' + photoFmtDate(p.dateKey) + '</span>' +
+            '<span class="wt-photo-date">' + photoFmtDate(p.date) + '</span>' +
             '<span class="wt-photo-weight">' + (p.weight || '—') + '</span>' +
           '</div>' +
         '</button>'
@@ -3397,125 +3432,27 @@ img, video, canvas, svg { max-width: 100%; }
       });
     }
     if (!photos.length) $('wtProgressCount').textContent = '0 photos';
-    else if (photos.length === 1) $('wtProgressCount').textContent = '1 photo · latest ' + photoFmtDate(photos[0].dateKey);
-    else $('wtProgressCount').textContent = photos.length + ' photos · latest ' + photoFmtDate(photos[0].dateKey);
+    else if (photos.length === 1) $('wtProgressCount').textContent = '1 photo · latest ' + photoFmtDate(photos[0].date);
+    else $('wtProgressCount').textContent = photos.length + ' photos · latest ' + photoFmtDate(photos[0].date);
   }
 
+  // photosAdd: convert to base64, save locally, push to Supabase — NO Supabase Storage
   async function photosAdd(dataUrl) {
     clearPhotoUploadError();
-    const supa = photoStorageSupa();
-    if (!supa) {
-      showPhotoUploadError();
-      return;
-    }
-
-    let resized = dataUrl;
-    try { resized = await resizeImageToDataUrl(dataUrl, 1200, 0.8); } catch {}
-
-    const blob = dataUrlToBlob(resized);
-    const ts = Date.now();
-    const rand = Math.floor(Math.random() * 99999).toString().padStart(5, '0');
-    const path = ts + '-' + rand + '.jpg';
-
     setPhotoUploading(true);
-    let publicUrl;
-    try {
-      const { error } = await supa.storage.from('progress-photos').upload(path, blob, {
-        contentType: 'image/jpeg',
-        upsert: false,
-      });
-      if (error) throw error;
-      const { data } = supa.storage.from('progress-photos').getPublicUrl(path);
-      publicUrl = data.publicUrl;
-    } catch (_) {
-      setPhotoUploading(false);
-      showPhotoUploadError();
-      return;
-    }
+    let resized = dataUrl;
+    try { resized = await resizeImageToDataUrl(dataUrl, 800, 0.75); } catch(e) { console.warn('[PHOTOS] Resize failed:', e); }
     setPhotoUploading(false);
-
-    const id = 'p' + ts + '_' + rand;
-    photos.unshift({ id, url: publicUrl, storagePath: path, dateKey: wtDateKey(new Date()), weight: photoCurrentWeight() });
+    const id = 'p' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    const photo = { id, date: wtDateKey(new Date()), base64: resized, weight: photoCurrentWeight() };
+    photos.unshift(photo);
     photosSave();
     photosRender();
+    // Re-read and verify
+    const check = JSON.parse(localStorage.getItem(PHOTO_KEY) || '[]');
+    console.log('[PHOTOS] After save, localStorage has:', check.length, 'photos');
+    phosSaveToSupabase(photo);
   }
-
-  function fileToPhoto(file) {
-    const r = new FileReader();
-    r.onload = (e) => photosAdd(e.target.result);
-    r.readAsDataURL(file);
-  }
-
-  $('wtProgressLink').addEventListener('click', () => {
-    photosRender();
-    $('wtOverlay').classList.add('is-open');
-    document.body.style.overflow = 'hidden';
-  });
-  $('wtBack').addEventListener('click', () => {
-    $('wtOverlay').classList.remove('is-open');
-    document.body.style.overflow = '';
-  });
-
-  // Take Photo: try in-browser camera, fall back to file input
-  let camStream = null;
-  let camFacing = 'environment';
-  async function openCam() {
-    $('wtCam').classList.add('is-open');
-    try {
-      camStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: camFacing } }, audio: false
-      });
-      $('wtCamVideo').srcObject = camStream;
-    } catch (e) {
-      try {
-        camStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        $('wtCamVideo').srcObject = camStream;
-      } catch (e2) {
-        closeCam();
-        alert('Camera unavailable. Use "From Library" instead.');
-        throw e2;
-      }
-    }
-  }
-  function closeCam() {
-    if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
-    $('wtCamVideo').srcObject = null;
-    $('wtCam').classList.remove('is-open');
-  }
-  $('wtTakePhotoBtn').addEventListener('click', async () => {
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      try { await openCam(); return; } catch (e) {}
-    }
-    $('wtFileCamera').click();
-  });
-  $('wtFileCamera').addEventListener('change', (e) => {
-    const f = e.target.files && e.target.files[0];
-    if (f) fileToPhoto(f);
-    e.target.value = '';
-  });
-  $('wtFromLibraryBtn').addEventListener('click', () => $('wtFileLibrary').click());
-  $('wtFileLibrary').addEventListener('change', (e) => {
-    const f = e.target.files && e.target.files[0];
-    if (f) fileToPhoto(f);
-    e.target.value = '';
-  });
-  $('wtCamCancel').addEventListener('click', closeCam);
-  $('wtCamFlip').addEventListener('click', async () => {
-    camFacing = camFacing === 'environment' ? 'user' : 'environment';
-    if (camStream) camStream.getTracks().forEach(t => t.stop());
-    try { await openCam(); } catch (e) {}
-  });
-  $('wtCamShutter').addEventListener('click', () => {
-    const video = $('wtCamVideo'), canvas = $('wtCamCanvas');
-    if (!video.videoWidth) return;
-    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-    closeCam();
-    photosAdd(dataUrl);
-  });
-
-  // Photo viewer
   let activePhotoId = null;
   let comparePhotoId = null;       // the OTHER photo being compared to
   let pvDeleteConfirm = false;
@@ -3523,8 +3460,8 @@ img, video, canvas, svg { max-width: 100%; }
     const p = photos.find(x => x.id === id);
     if (!p) return;
     activePhotoId = id;
-    $('wtViewerImg').src = p.url;
-    $('wtViewerDate').textContent = photoFmtDate(p.dateKey).toUpperCase();
+    $('wtViewerImg').src = p.base64 || p.url || '';
+    $('wtViewerDate').textContent = photoFmtDate(p.date).toUpperCase();
     $('wtViewerWeight').textContent = p.weight || '—';
     $('wtViewer').dataset.mode = 'single';
     $('wtViewer').classList.add('is-open');
@@ -3578,15 +3515,15 @@ img, video, canvas, svg { max-width: 100%; }
     if (!A || !B) return;
     activePhotoId = activeId;
     comparePhotoId = otherId;
-    $('wtCmpImgA').src = A.url;
-    $('wtCmpImgB').src = B.url;
-    $('wtCmpMetaA').textContent = photoFmtDate(A.dateKey) + ' · ' + (A.weight || '—');
-    $('wtCmpMetaB').textContent = photoFmtDate(B.dateKey) + ' · ' + (B.weight || '—');
+    $('wtCmpImgA').src = A.base64 || A.url || '';
+    $('wtCmpImgB').src = B.base64 || B.url || '';
+    $('wtCmpMetaA').textContent = photoFmtDate(A.date) + ' · ' + (A.weight || '—');
+    $('wtCmpMetaB').textContent = photoFmtDate(B.date) + ' · ' + (B.weight || '—');
     // Headline — date arrow + weight delta
     const wA = parseWeightStr(A.weight);
     const wB = parseWeightStr(B.weight);
     const headEl = $('wtCompareHeadline');
-    let cls = 'flat', headline = photoFmtDate(A.dateKey) + ' → ' + photoFmtDate(B.dateKey);
+    let cls = 'flat', headline = photoFmtDate(A.date) + ' → ' + photoFmtDate(B.date);
     if (wA != null && wB != null) {
       const diff = wA - wB; // active vs comparison
       headline += ' ' + fmtDelta(diff, state.units);
@@ -3629,6 +3566,7 @@ img, video, canvas, svg { max-width: 100%; }
     photos = photos.filter(p => p.id !== activePhotoId);
     photosSave();
     photosRender();
+    phosDeleteFromSupabase(activePhotoId);
     closePhoto();
     if (photo && photo.storagePath) {
       const supa = photoStorageSupa();
