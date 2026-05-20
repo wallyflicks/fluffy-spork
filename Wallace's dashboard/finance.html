@@ -183,6 +183,40 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
 .fin-warning { display: none; padding: 10px 14px; border-radius: 10px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.25); color: var(--warn); font-size: 12px; margin-top: 10px; }
 .fin-warning.show { display: block; }
 
+/* Refresh row */
+.fin-refresh-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.fin-refresh-time { font-size: 11px; color: var(--text-3); font-family: var(--mono); }
+
+/* Portfolio 7-day chart */
+.fin-portfolio-tooltip {
+  display: none;
+  position: absolute;
+  background: rgba(10,10,11,0.96);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-1);
+  pointer-events: none;
+  z-index: 10;
+  white-space: nowrap;
+  line-height: 1.7;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+.fin-portfolio-xlabels {
+  display: flex;
+  justify-content: space-between;
+  padding-left: 58px;
+  padding-right: 4px;
+  font-size: 10px;
+  color: rgba(255,255,255,0.28);
+  margin-top: 6px;
+  font-family: var(--mono);
+}
+
+/* Stock currency badge */
+.fin-stock-currency { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; color: var(--text-4); margin-left: 2px; vertical-align: super; }
+
 .fin-totals-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
 .fin-total-chip { flex: 1; min-width: 100px; padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px; }
 .fin-total-label { font-size: 9px; font-weight: 700; letter-spacing: 0.16em; color: var(--text-3); text-transform: uppercase; }
@@ -388,6 +422,8 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
   <div class="fin-card fin-hero">
     <div class="fin-hero-label">Portfolio value</div>
     <div class="fin-hero-value"><span class="fin-currency">$</span><span id="stockTotalVal">—</span></div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.28);margin-top:2px;letter-spacing:0.06em">CAD</div>
+    <div id="portfolioPnlRow" style="margin-top:8px;min-height:22px"></div>
     <div class="fin-hero-meta" id="stockTotalMeta"></div>
   </div>
 
@@ -395,6 +431,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     <div class="fin-refresh-row">
       <button class="fin-btn sm" id="stockRefresh">↻ Refresh prices</button>
       <span class="fin-refresh-time" id="stockRefreshTime"></span>
+      <span id="usdCadRateDisplay" style="margin-left:auto;font-size:10px;color:rgba(255,255,255,0.22);font-family:var(--mono);white-space:nowrap"></span>
     </div>
     <div id="stockList" class="fin-list"></div>
     <div class="fin-donut-wrap" id="stockChartWrap" style="display:none">
@@ -422,6 +459,18 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       PORTFOLIO HISTORY CHART
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="fin-divider"><span>Portfolio — Last 7 Days</span></div>
+  <div class="fin-card" id="portfolioHistoryCard">
+    <div style="position:relative">
+      <canvas id="portfolioLineChart" height="160" style="display:block;width:100%"></canvas>
+      <div id="portfolioTooltip" class="fin-portfolio-tooltip"></div>
+    </div>
+    <div id="portfolioXLabels" class="fin-portfolio-xlabels"></div>
   </div>
 
   <!-- ══════════════════════════════════════════════════════════════════
@@ -657,6 +706,8 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     EXP:   'finance_expenses',            // [{ id, desc, amount, date, tag }]
     GOALS: 'finance_savings_goals',       // [{ id, name, target, current, deadline }]
   };
+  const RATE_KEY     = 'usdCadRate';        // { rate: number, date: 'YYYY-MM-DD' }
+  const SNAPSHOT_KEY = 'portfolioSnapshots'; // [{ date: 'YYYY-MM-DD', valueCAD: number }]
 
   // ── Supabase sync ────────────────────────────────────────────────────────
   const SUPA_URL = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
@@ -732,6 +783,216 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     if (!iso) return '';
     const d = new Date(iso);
     return 'Updated ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()] + ' ' + d.getDate();
+  }
+
+  // ── USD→CAD exchange rate ─────────────────────────────────────────────────
+  function getCachedRate() {
+    try { const c = JSON.parse(localStorage.getItem(RATE_KEY)); return (c && c.rate) ? c.rate : 1.36; } catch { return 1.36; }
+  }
+  async function getUsdCadRate() {
+    try {
+      const c = JSON.parse(localStorage.getItem(RATE_KEY) || 'null');
+      if (c && c.rate && c.date === today()) return c.rate;
+      const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+      if (res.ok) {
+        const d = await res.json();
+        const rate = d.rates?.CAD;
+        if (rate) { localStorage.setItem(RATE_KEY, JSON.stringify({ rate, date: today() })); return rate; }
+      }
+    } catch {}
+    return getCachedRate();
+  }
+  // Returns true if ticker is already priced in CAD (TSX or explicit -CAD)
+  function isCAD(s) { return /(\.TO|\.V|-CAD)$/i.test(s.resolvedTicker || s.ticker || ''); }
+  function toCAD(nativePrice, shares, s, rate) {
+    return nativePrice * shares * (isCAD(s) ? 1 : rate);
+  }
+  function calcPortfolioCAD(rate) {
+    return load(K.STK).reduce((sum, s) => {
+      if (!s.lastPrice || !s.shares) return sum;
+      return sum + toCAD(s.lastPrice, s.shares, s, rate);
+    }, 0);
+  }
+
+  // ── Portfolio snapshots ───────────────────────────────────────────────────
+  function getSnapshots() {
+    try { return JSON.parse(localStorage.getItem(SNAPSHOT_KEY)) || []; } catch { return []; }
+  }
+  function saveSnapshot(valueCAD) {
+    const snaps = getSnapshots();
+    const dateStr = today();
+    const idx = snaps.findIndex(s => s.date === dateStr);
+    const entry = { date: dateStr, valueCAD: Math.round(valueCAD * 100) / 100 };
+    if (idx >= 0) snaps[idx] = entry; else snaps.push(entry);
+    snaps.sort((a, b) => a.date.localeCompare(b.date));
+    while (snaps.length > 30) snaps.shift();
+    localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snaps));
+  }
+
+  // ── Daily P&L vs yesterday ────────────────────────────────────────────────
+  function renderPortfolioPnL(valueCAD) {
+    const el = document.getElementById('portfolioPnlRow');
+    if (!el) return;
+    if (!valueCAD || valueCAD <= 0) { el.innerHTML = ''; return; }
+    const snaps = getSnapshots();
+    const yd = new Date(); yd.setDate(yd.getDate() - 1);
+    const ydSnap = snaps.find(s => s.date === yd.toISOString().slice(0, 10));
+    if (!ydSnap) {
+      el.innerHTML = '<span style="font-size:11px;color:rgba(255,255,255,0.22)">— tracking starts today</span>';
+      return;
+    }
+    const diff  = valueCAD - ydSnap.valueCAD;
+    const pct   = ydSnap.valueCAD > 0 ? diff / ydSnap.valueCAD * 100 : 0;
+    const color = diff >= 0 ? 'var(--good)' : 'var(--bad)';
+    const sign  = diff >= 0 ? '+' : '';
+    el.innerHTML = `<span style="font-size:14px;font-weight:700;color:${color};letter-spacing:-0.01em">${sign}$${Math.abs(diff).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} CAD today <span style="font-size:12px;font-weight:600">(${sign}${pct.toFixed(1)}%)</span></span>`;
+  }
+
+  // ── Portfolio 7-day canvas line chart ─────────────────────────────────────
+  function renderPortfolioChart() {
+    const canvas = document.getElementById('portfolioLineChart');
+    if (!canvas) return;
+    const snaps = getSnapshots();
+
+    // Build 7-day window
+    const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const days = Array.from({length:7}, (_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - (6 - i));
+      const dateStr = d.toISOString().slice(0, 10);
+      const snap = snaps.find(s => s.date === dateStr);
+      return { dateStr, label: DOW[d.getDay()], value: snap ? snap.valueCAD : null };
+    });
+
+    // X-axis labels
+    const labelsEl = document.getElementById('portfolioXLabels');
+    if (labelsEl) labelsEl.innerHTML = days.map(d => `<span>${d.label}</span>`).join('');
+
+    // Canvas setup (HiDPI)
+    const dpr = window.devicePixelRatio || 1;
+    const W   = canvas.offsetWidth || canvas.parentElement.offsetWidth;
+    const H   = 160;
+    canvas.width  = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, W, H);
+
+    const hasData = days.some(d => d.value != null);
+    if (!hasData) {
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Refresh prices to start tracking portfolio history', W / 2, H / 2);
+      return;
+    }
+
+    const vals  = days.map(d => d.value).filter(v => v != null);
+    const minV  = Math.min(...vals) * 0.997;
+    const maxV  = Math.max(...vals) * 1.003;
+    const range = maxV - minV || 1;
+    const padL = 62, padR = 12, padT = 16, padB = 8;
+    const cW   = W - padL - padR;
+    const cH   = H - padT - padB;
+    const xOf  = i => padL + (i / 6) * cW;
+    const yOf  = v => padT + cH - ((v - minV) / range) * cH;
+
+    // Grid lines + Y labels
+    [0, 0.25, 0.5, 0.75, 1].forEach(f => {
+      const v = minV + f * range;
+      const y = yOf(v);
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + cW, y); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.28)';
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('$' + v.toLocaleString('en-US', {maximumFractionDigits: 0}), padL - 4, y);
+    });
+
+    // Collect known points
+    const pts = days.map((d, i) => d.value != null ? { x: xOf(i), y: yOf(d.value), ...d } : null);
+    const known = pts.filter(Boolean);
+
+    // Gradient area fill
+    if (known.length >= 2) {
+      const grad = ctx.createLinearGradient(0, padT, 0, padT + cH);
+      grad.addColorStop(0, 'rgba(110,231,183,0.18)');
+      grad.addColorStop(1, 'rgba(110,231,183,0)');
+      ctx.beginPath();
+      known.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+      ctx.lineTo(known[known.length-1].x, padT + cH);
+      ctx.lineTo(known[0].x, padT + cH);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+      // Line
+      ctx.beginPath();
+      known.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+      ctx.strokeStyle = 'rgba(110,231,183,0.8)';
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    }
+
+    // Dots
+    days.forEach((d, i) => {
+      const x = xOf(i);
+      if (d.value != null) {
+        const y = yOf(d.value);
+        ctx.beginPath(); ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#6ee7b7'; ctx.fill();
+        ctx.strokeStyle = '#0a0a0b'; ctx.lineWidth = 1.5; ctx.stroke();
+      } else {
+        ctx.beginPath(); ctx.arc(x, padT + cH - 2, 3, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fill();
+      }
+    });
+
+    // Store hit-test data
+    canvas._chartData = days.map((d, i) => ({ ...d, x: xOf(i), y: d.value != null ? yOf(d.value) : null }));
+  }
+
+  function initPortfolioChartTooltip() {
+    const canvas = document.getElementById('portfolioLineChart');
+    const tip    = document.getElementById('portfolioTooltip');
+    if (!canvas || !tip) return;
+    function hitTest(cx, cy) {
+      if (!canvas._chartData) return null;
+      for (const d of canvas._chartData) {
+        if (d.y == null) continue;
+        if (Math.hypot(cx - d.x, cy - d.y) < 22) return d;
+      }
+      return null;
+    }
+    function showTip(cx, cy) {
+      const rect = canvas.getBoundingClientRect();
+      const hit  = hitTest(cx - rect.left, cy - rect.top);
+      if (!hit || hit.value == null) { tip.style.display = 'none'; return; }
+      const snaps = getSnapshots();
+      const pd  = new Date(hit.dateStr); pd.setDate(pd.getDate() - 1);
+      const prev = snaps.find(s => s.date === pd.toISOString().slice(0, 10));
+      let changeHtml = '';
+      if (prev) {
+        const diff = hit.value - prev.valueCAD;
+        const pct  = prev.valueCAD > 0 ? diff / prev.valueCAD * 100 : 0;
+        const col  = diff >= 0 ? '#6ee7b7' : '#ff8a8a';
+        const sgn  = diff >= 0 ? '+' : '';
+        changeHtml = `<br><span style="color:${col}">${sgn}$${Math.abs(diff).toFixed(2)} (${sgn}${pct.toFixed(1)}%)</span>`;
+      }
+      tip.innerHTML = `<b>${hit.dateStr}</b><br>$${hit.value.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} CAD${changeHtml}`;
+      const tipX = Math.min(Math.max(hit.x - 60, 4), canvas.offsetWidth - 145);
+      tip.style.left    = tipX + 'px';
+      tip.style.top     = Math.max((hit.y ?? 60) - 70, 4) + 'px';
+      tip.style.display = 'block';
+    }
+    canvas.addEventListener('mousemove',  e => showTip(e.clientX, e.clientY));
+    canvas.addEventListener('mouseleave', () => tip.style.display = 'none');
+    canvas.addEventListener('touchstart', e => { showTip(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+    canvas.addEventListener('touchend',   () => setTimeout(() => tip.style.display = 'none', 2500));
   }
 
   Chart.defaults.color = 'rgba(255,255,255,0.4)';
@@ -874,8 +1135,19 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
       return { ...s, stale: true };
     }));
     save(K.STK, updated);
+
+    // Fetch exchange rate (cached daily), save snapshot, update displays
+    const rate = await getUsdCadRate();
+    const rateEl = document.getElementById('usdCadRateDisplay');
+    if (rateEl) rateEl.textContent = `1 USD = ${rate.toFixed(4)} CAD`;
+    const totalCAD = calcPortfolioCAD(rate);
+    if (totalCAD > 0) saveSnapshot(totalCAD);
+
     renderStocks();
     renderNetWorth();
+    renderPortfolioPnL(totalCAD);
+    renderPortfolioChart();
+
     if (!silent) {
       document.getElementById('stockRefreshTime').textContent =
         'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -886,6 +1158,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     const stocks = load(K.STK);
     const list   = document.getElementById('stockList');
     const wrap   = document.getElementById('stockChartWrap');
+    const rate   = getCachedRate();
     if (!list) return;
 
     if (!stocks.length) {
@@ -897,20 +1170,21 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     }
 
     list.innerHTML = '';
-    let total = 0;
+    let totalCAD = 0;
 
     stocks.forEach(s => {
       const price     = s.lastPrice ?? null;
       const prevClose = s.prevClose ?? price;
-      const value     = price != null ? price * s.shares : null;
       const dayPct    = price != null && prevClose && prevClose !== 0 ? (price - prevClose) / prevClose * 100 : null;
-      if (value != null) total += value;
+      const valueCAD  = price != null ? toCAD(price, s.shares, s, rate) : null;
+      if (valueCAD != null) totalCAD += valueCAD;
+      const nativeCurr = isCAD(s) ? 'CAD' : 'USD';
 
       const item = document.createElement('div');
       item.className = 'fin-stock-item';
 
-      const dayClass = dayPct == null ? 'flat' : dayPct > 0 ? 'up' : dayPct < 0 ? 'down' : 'flat';
-      const dayLabel = dayPct != null ? fmtPct(dayPct) : '—';
+      const dayClass   = dayPct == null ? 'flat' : dayPct > 0 ? 'up' : dayPct < 0 ? 'down' : 'flat';
+      const dayLabel   = dayPct != null ? fmtPct(dayPct) : '—';
       const priceColor = dayPct != null ? (dayPct >= 0 ? 'var(--good)' : 'var(--bad)') : 'var(--text-1)';
 
       item.innerHTML = `
@@ -921,13 +1195,13 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
           </div>
           <div class="fin-stock-right">
             <div class="fin-stock-price" style="color:${priceColor}">
-              ${price != null ? '$' + price.toFixed(2) : '—'}
+              ${price != null ? '$' + price.toFixed(2) : '—'}<span class="fin-stock-currency">${nativeCurr}</span>
             </div>
             <div class="fin-stock-day ${dayClass}">${dayLabel}</div>
           </div>
         </div>
         <div class="fin-stock-footer">
-          <span class="fin-stock-stat">Value: <span>${value != null ? fmt$(value,2) : '—'}</span></span>
+          <span class="fin-stock-stat">Value: <span>${valueCAD != null ? fmt$(valueCAD,2) + ' CAD' : '—'}</span></span>
           ${s.stale ? `<span class="fin-stale">⚠ ${s.lastPrice ? 'last known · ' + (s.lastAt ? new Date(s.lastAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '') : 'price unavailable'}</span>` : ''}
         </div>
       `;
@@ -958,7 +1232,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     });
 
     document.getElementById('stockTotalVal').textContent =
-      total > 0 ? total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+      totalCAD > 0 ? totalCAD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
     document.getElementById('stockTotalMeta').innerHTML = '';
 
     buildStockDonut();
@@ -1440,7 +1714,20 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     renderGoals();
     renderCashFlow();
     renderNetWorth();
-    refreshStockPrices(true);
+
+    // Render chart & P&L from existing snapshots immediately (no network)
+    const cachedRate = getCachedRate();
+    const rateEl = document.getElementById('usdCadRateDisplay');
+    if (rateEl) {
+      const c = (() => { try { return JSON.parse(localStorage.getItem(RATE_KEY)); } catch { return null; } })();
+      if (c && c.rate) rateEl.textContent = `1 USD = ${c.rate.toFixed(4)} CAD`;
+    }
+    renderPortfolioPnL(calcPortfolioCAD(cachedRate));
+    renderPortfolioChart();
+    initPortfolioChartTooltip();
+    window.addEventListener('resize', renderPortfolioChart);
+
+    refreshStockPrices(true); // fetches live prices + updates rate + saves snapshot
   }
 
   if (document.readyState === 'loading') {
