@@ -2977,66 +2977,72 @@ img, video, canvas, svg { max-width: 100%; }
     return d;
   }
 
-  // ── Boot: render from localStorage immediately ────────────────────────────
+  // ── Boot: render from localStorage immediately (instant display) ────────────
   let wtEntries = wtLoad();
+  // Render instantly from localStorage so the page never flashes empty
+  // (wtRender() called after BOOT section; this just seeds the data)
 
-  // ── On load: pull Supabase, merge by savedAt, re-render ───────────────────
-  // CRITICAL: this must NEVER push local data to Supabase (that overwrites other devices)
+  // ── On load: Supabase is the source of truth ──────────────────────────────
+  // Priority: 1) Supabase → 2) localStorage fallback. Never blend/merge.
   async function wtLoadAndSync() {
-    const localStr = wtEntries.length ? wtEntries[wtEntries.length-1].weight + (wtEntries[wtEntries.length-1].unit||'') : 'none';
+    const localLatest = wtEntries.length ? wtEntries[wtEntries.length-1] : null;
+    const localStr = localLatest ? localLatest.weight + (localLatest.unit||'') : 'none';
+
     const remote = await wtPullFromSupabase();
-    const remoteStr = remote && remote.length ? remote[remote.length-1].weight + (remote[remote.length-1].unit||'') : 'none';
-    console.log('WEIGHT ON LOAD - localStorage:', localStr + ', Supabase:', remoteStr);
+    const remoteLatest = remote && remote.length ? remote[remote.length-1] : null;
+    const remoteStr = remoteLatest ? remoteLatest.weight + (remoteLatest.unit||'') : 'none';
+
+    console.log('WEIGHT ON LOAD - localStorage:', localStr, '| Supabase:', remoteStr);
     const dbg = document.getElementById('wtDebug');
     if (dbg) dbg.textContent = 'localStorage: ' + localStr + ' | Supabase: ' + remoteStr;
 
-    if (!remote || remote.length === 0) { console.log('[WEIGHT] Supabase empty — keeping localStorage as-is'); return; }
-
-    // Merge: local fills dates remote doesn't have; remote wins same-date conflicts.
-    // Without updated_at in Supabase we can't compare timestamps, so remote (last Save
-    // from any device) is the source of truth for each date.
-    const map = {};
-    wtEntries.forEach(e => { if (e.date) map[e.date] = e; }); // seed with local
-    remote.forEach(r => { if (r.date) map[r.date] = r; });    // remote overwrites same date
-
-    const merged = Object.values(map).sort((a,b) => a.date.localeCompare(b.date));
-    const mergedJson = JSON.stringify(merged);
-    const currentJson = JSON.stringify(wtEntries);
-    if (mergedJson !== currentJson) {
-      console.log('[WEIGHT] Applying merged data:', merged.length, 'entries');
-      wtEntries = merged;
-      wtSaveLocal(merged);
+    if (remote && remote.length > 0) {
+      // Supabase has data → it wins completely. Overwrite localStorage to match.
+      wtEntries = remote;
+      wtSaveLocal(remote);
       wtRender();
       const ts = document.getElementById('wtSyncTime');
       if (ts) ts.textContent = 'Synced ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-      const dbg2 = document.getElementById('wtDebug');
-      const latest = merged[merged.length-1];
-      if (dbg2 && latest) dbg2.textContent = 'localStorage: ' + latest.weight + (latest.unit||'') + ' | Supabase: ' + remoteStr + ' ✓';
+      console.log('[WEIGHT] Using Supabase data:', remote.length, 'entries, latest:', remoteStr);
+    } else {
+      // Supabase failed or empty → keep localStorage, don't touch anything
+      console.log('[WEIGHT] Supabase unavailable — keeping localStorage');
     }
   }
   wtLoadAndSync();
 
-  // ── Save entry (ONE write path) ───────────────────────────────────────────
-  function wtSaveEntry(weight) {
+  // ── Save entry: Supabase first, then localStorage ─────────────────────────
+  // Push to Supabase first; only update localStorage after confirmation.
+  // This guarantees localStorage never has a value that differs from Supabase.
+  async function wtSaveEntry(weight) {
     const dateStr = wtDateKey(new Date());
     const u = state.units;
-    const savedAt = new Date().toISOString(); // timestamp used for conflict resolution
 
+    // Show optimistic UI immediately (don't leave the user waiting)
+    const prevEntries = wtEntries.map(e => ({...e})); // snapshot for rollback
     const existing = wtEntries.find(e => e.date === dateStr);
-    if (existing) { existing.weight = weight; existing.unit = u; existing.savedAt = savedAt; }
-    else { wtEntries.push({ date: dateStr, weight, unit: u, savedAt }); wtEntries.sort((a,b) => a.date.localeCompare(b.date)); }
-
-    // Step 1: write localStorage immediately so render is instant
-    wtSaveLocal(wtEntries);
+    if (existing) { existing.weight = weight; existing.unit = u; }
+    else { wtEntries.push({ date: dateStr, weight, unit: u }); wtEntries.sort((a,b) => a.date.localeCompare(b.date)); }
     wtRender();
 
-    // Step 2: push to Supabase — onConflict:date so edit updates, not duplicates
-    wtPushToSupabase({ date: dateStr, weight, unit: u, savedAt }).then(ok => {
+    // Push to Supabase (source of truth)
+    const ok = await wtPushToSupabase({ date: dateStr, weight, unit: u });
+    if (ok) {
+      // Confirmed by Supabase → now write the same values to localStorage
+      wtSaveLocal(wtEntries);
+      console.log('WEIGHT SAVED TO SUPABASE:', weight, u, 'for', dateStr);
       const ts = document.getElementById('wtSyncTime');
-      if (ts) ts.textContent = ok ? 'Synced ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : 'Sync failed';
+      if (ts) ts.textContent = 'Synced ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
       const dbg = document.getElementById('wtDebug');
-      if (dbg) dbg.textContent = 'localStorage: ' + weight + u + ' | Supabase: ' + (ok ? weight + u + ' ✓' : 'FAILED');
-    });
+      if (dbg) dbg.textContent = 'localStorage: ' + weight + u + ' | Supabase: ' + weight + u + ' ✓';
+    } else {
+      // Supabase failed → revert optimistic update
+      wtEntries = prevEntries;
+      wtRender();
+      const dbg = document.getElementById('wtDebug');
+      if (dbg) dbg.textContent = 'Save FAILED — check connection';
+      console.error('[WEIGHT] Save failed — reverted to previous value');
+    }
   }
 
   function wtRender() {
@@ -3311,7 +3317,12 @@ img, video, canvas, svg { max-width: 100%; }
   $('wtSaveBtn').addEventListener('click', () => {
     const v = parseFloat($('wtInput').value);
     if (isNaN(v) || v <= 0) return;
-    wtSaveEntry(v);
+    $('wtSaveBtn').disabled = true;
+    $('wtSaveBtn').textContent = 'Saving…';
+    wtSaveEntry(v).finally(() => {
+      $('wtSaveBtn').disabled = false;
+      $('wtSaveBtn').textContent = 'Save';
+    });
   });
   $('wtInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') $('wtSaveBtn').click();
