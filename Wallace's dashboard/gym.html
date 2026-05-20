@@ -455,6 +455,14 @@ img, video, canvas, svg { max-width: 100%; }
   color: #0a0a0b; border-color: transparent;
   font-weight: 800;
 }
+.po-reps-plus {
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.5);
+  border-color: rgba(255,255,255,0.12);
+  font-weight: 700;
+  font-size: 16px;
+}
+.po-reps-plus:hover { background: rgba(255,255,255,0.10); color: var(--text-1); }
 
 /* ----- Primary button ----- */
 .po-btn-primary {
@@ -897,6 +905,29 @@ img, video, canvas, svg { max-width: 100%; }
   text-align: center; padding: 16px;
   color: var(--text-3); font-size: 12px; font-style: italic;
 }
+.wh-card {
+  background: rgba(255,255,255,0.025);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.wh-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.wh-card-header:hover { background: rgba(255,255,255,0.03); }
+.wh-card-date { font-size: 12px; font-weight: 700; color: var(--text-2); font-family: var(--font-mono); letter-spacing: 0.04em; }
+.wh-card-summary { font-size: 11px; color: var(--text-3); font-family: var(--font-mono); }
+.wh-card-arrow { font-size: 11px; color: var(--text-4); transition: transform 0.2s; flex-shrink: 0; }
+.wh-card.open .wh-card-arrow { transform: rotate(180deg); }
+.wh-card-body { display: none; padding: 0 14px 12px; }
+.wh-card.open .wh-card-body { display: block; }
+.wh-card-ex { font-size: 12px; color: var(--text-2); padding: 3px 0; }
+.wh-card-total { font-size: 11px; color: var(--text-3); font-family: var(--font-mono); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.wh-rest { color: var(--text-4); font-style: italic; }
 
 /* ============================================================
    WEIGHT TRACKER + PROGRESS PHOTOS — scoped under .wt-* so the
@@ -1548,17 +1579,7 @@ img, video, canvas, svg { max-width: 100%; }
         </div>
         <div class="po-field">
           <label>Reps</label>
-          <div class="po-reps-row" id="repsRow" data-value="8">
-            <button type="button" class="po-reps-pill" data-v="4">4</button>
-            <button type="button" class="po-reps-pill" data-v="5">5</button>
-            <button type="button" class="po-reps-pill" data-v="6">6</button>
-            <button type="button" class="po-reps-pill" data-v="7">7</button>
-            <button type="button" class="po-reps-pill active" data-v="8">8</button>
-            <button type="button" class="po-reps-pill" data-v="9">9</button>
-            <button type="button" class="po-reps-pill" data-v="10">10</button>
-            <button type="button" class="po-reps-pill" data-v="11">11</button>
-            <button type="button" class="po-reps-pill" data-v="12">12</button>
-          </div>
+          <div class="po-reps-row" id="repsRow" data-value="8"></div>
         </div>
       </div>
       <button class="po-btn-primary" id="logBtn">Log set</button>
@@ -1633,14 +1654,10 @@ img, video, canvas, svg { max-width: 100%; }
           <button class="po-tw-done-btn" id="poTwDoneBtn" type="button">Mark workout done</button>
         </div>
         <ul class="po-tw-list" id="poTwList"></ul>
-        <div class="po-tw-empty" id="poTwEmpty">No sets logged today — log one above and it'll appear here.</div>
+        <div class="po-tw-empty" id="poTwEmpty">No sets logged today — get after it</div>
       </div>
 
-      <button type="button" class="po-tw-past-toggle" id="poTwPastToggle" aria-expanded="false">
-        <span>Past workouts <span class="po-tw-past-count" id="poTwPastCount">0</span></span>
-        <span class="po-tw-past-arrow" id="poTwPastArrow">▾</span>
-      </button>
-      <div class="po-tw-past-body" id="poTwPastBody" style="display:none"></div>
+      <div id="workoutHistoryList" style="margin-top:10px;display:flex;flex-direction:column;gap:6px"></div>
     </div>
 
     <div class="po-sub-section">
@@ -2073,37 +2090,69 @@ img, video, canvas, svg { max-width: 100%; }
     splitEl.classList.toggle('is-rest', isRestName(split.name));
   }
 
-  // Build the rep buttons based on the current exercise's repMin/repMax.
-  // Always spans repMin → repMax + 2 (a small buffer for over-performing
-  // sets that trigger the upgrade signal), capped at 16 buttons total so
-  // wide ranges don't break the mobile layout.
+  // Shared reps selector: shows 6 7 8 9 10 + custom "+" button.
+  // Any value outside 6–10 is displayed as an extra selected pill.
   function renderRepsRow() {
     const row = document.getElementById('repsRow');
     if (!row) return;
-    const ex = getCurrentEx();
-    let repMin, repMax;
-    if (ex) {
-      repMin = Math.max(1, parseInt(ex.repMin, 10) || 1);
-      repMax = Math.max(repMin, parseInt(ex.repMax, 10) || repMin);
-    } else {
-      repMin = 4; repMax = 12;
-    }
-    const upper = Math.max(repMax + 2, repMin + 5);
-    const end = Math.min(upper, repMin + 15);
+    const prev = parseInt(row.dataset.value, 10) || 8;
+    const fixed = [6, 7, 8, 9, 10];
+    const isCustom = !fixed.includes(prev);
 
-    // Preserve the previously-selected rep if it still fits in the new
-    // range; otherwise default to the target (repMax).
-    const prev = parseInt(row.dataset.value, 10);
-    const active = (prev >= repMin && prev <= end) ? prev : repMax;
+    let html = fixed.map(n =>
+      '<button type="button" class="po-reps-pill' + (n === prev ? ' active' : '') +
+      '" data-v="' + n + '">' + n + '</button>'
+    ).join('');
 
-    let html = '';
-    for (let i = repMin; i <= end; i++) {
-      html += '<button type="button" class="po-reps-pill' +
-        (i === active ? ' active' : '') +
-        '" data-v="' + i + '">' + i + '</button>';
+    if (isCustom) {
+      html += '<button type="button" class="po-reps-pill active" data-v="' + prev + '">' + prev + '</button>';
     }
+
+    html += '<button type="button" class="po-reps-pill po-reps-plus" id="repsPlusBtn">+</button>';
     row.innerHTML = html;
-    row.dataset.value = String(active);
+
+    row.querySelectorAll('.po-reps-pill[data-v]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        row.querySelectorAll('.po-reps-pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        row.dataset.value = btn.dataset.v;
+      });
+    });
+
+    const plusBtn = document.getElementById('repsPlusBtn');
+    if (plusBtn) plusBtn.addEventListener('click', () => openCustomRepsInput(row, plusBtn));
+  }
+
+  function openCustomRepsInput(row, plusBtn) {
+    const wrap = document.createElement('span');
+    wrap.style.cssText = 'display:inline-flex;align-items:center;gap:3px;';
+
+    const inp = document.createElement('input');
+    inp.type = 'number'; inp.min = '1'; inp.max = '50'; inp.placeholder = '?';
+    inp.style.cssText = 'width:46px;padding:8px 4px;border:1px solid rgba(255,255,255,0.35);' +
+      'background:rgba(255,255,255,0.08);color:#fff;border-radius:8px;font-family:inherit;' +
+      'font-size:13px;font-weight:600;text-align:center;-moz-appearance:textfield;outline:none;';
+
+    const ok = document.createElement('button');
+    ok.type = 'button'; ok.textContent = '✓';
+    ok.style.cssText = 'padding:8px 10px;border:none;background:var(--good);color:#000;' +
+      'border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;flex-shrink:0;';
+
+    function confirm() {
+      const v = parseInt(inp.value, 10);
+      if (v >= 1 && v <= 50) { row.dataset.value = String(v); renderRepsRow(); }
+      else renderRepsRow();
+    }
+    ok.addEventListener('click', confirm);
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); confirm(); }
+      if (e.key === 'Escape') renderRepsRow();
+    });
+    inp.addEventListener('blur', () => setTimeout(() => { if (!wrap.contains(document.activeElement)) renderRepsRow(); }, 150));
+
+    wrap.appendChild(inp); wrap.appendChild(ok);
+    plusBtn.replaceWith(wrap);
+    inp.focus();
   }
 
   function renderAll() {
@@ -2112,7 +2161,7 @@ img, video, canvas, svg { max-width: 100%; }
     renderRepsRow();
     renderRx(); renderStats(); renderSparkline(); renderHistory();
     renderTodaysWorkout();
-    renderPastWorkouts();
+    renderWorkoutHistory();
     renderTrainingHistory();
     // Pre-fill weight input with last logged weight (or starting weight)
     const ex = getCurrentEx();
@@ -2180,6 +2229,27 @@ img, video, canvas, svg { max-width: 100%; }
     return { perEx, totalSets, totalVol };
   }
 
+  // Sync today's workout summary to Supabase workout_sessions table (silent fail)
+  async function syncWorkoutSession(dateKey, sum, u) {
+    try {
+      if (!window.supabase || !SUPABASE_URL || SUPABASE_URL.indexOf('PASTE-') === 0) return;
+      if (!pcSupa) return;
+      const exercises = sum.perEx.map(e => ({
+        name: e.ex.name,
+        sets: e.sets.length,
+        totalLbs: e.ex.bw ? 0 : Math.round(e.vol * (u === 'kg' ? 2.205 : 1))
+      }));
+      const totalLbs = Math.round(sum.totalVol * (u === 'kg' ? 2.205 : 1));
+      await pcSupa.from('workout_sessions').upsert({
+        date: dateKey,
+        exercises: exercises,
+        totalSets: sum.totalSets,
+        totalLbs: totalLbs,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'date' });
+    } catch (_) {}
+  }
+
   function renderTodaysWorkout() {
     const todayKey = wtDateKey(new Date());
     const all = logsByDay();
@@ -2204,12 +2274,11 @@ img, video, canvas, svg { max-width: 100%; }
     } else {
       empty.classList.add('hidden');
       list.innerHTML = sum.perEx.map(e => {
-        const top = e.ex.bw
-          ? 'top ' + Math.max.apply(null, e.sets.map(s => s.reps)) + ' reps'
-          : 'top ' + Math.max.apply(null, e.sets.map(s => s.weight)) + u;
+        const sets = e.sets.length;
+        const vol  = Math.round(e.vol);
         const meta = e.ex.bw
-          ? (e.sets.length + ' set' + (e.sets.length === 1 ? '' : 's') + ' · ' + top)
-          : (e.sets.length + ' set' + (e.sets.length === 1 ? '' : 's') + ' · ' + top + ' · ' + Math.round(e.vol) + u + ' total');
+          ? sets + ' set' + (sets !== 1 ? 's' : '')
+          : sets + ' set' + (sets !== 1 ? 's' : '') + ' · ' + vol + u;
         return '<li class="po-tw-row">'
           + '<span class="po-tw-row-name">' + escape(e.ex.name) + '</span>'
           + '<span class="po-tw-row-meta">' + meta + '</span>'
@@ -2217,46 +2286,87 @@ img, video, canvas, svg { max-width: 100%; }
       }).join('');
     }
 
-    // Done button state
     const btn = $('poTwDoneBtn');
     const isDone = !!doneDays[todayKey];
     btn.textContent = isDone ? '✓ Done' : 'Mark workout done';
     btn.classList.toggle('is-done', isDone);
     btn.disabled = sum.totalSets === 0 && !isDone;
     btn.style.opacity = btn.disabled ? '0.4' : '';
+
+    // Sync today's session to Supabase workout_sessions table
+    if (sum.totalSets > 0) syncWorkoutSession(todayKey, sum, u);
   }
 
-  function renderPastWorkouts() {
+  function renderWorkoutHistory() {
+    const container = document.getElementById('workoutHistoryList');
+    if (!container) return;
+    const all     = logsByDay();
     const todayKey = wtDateKey(new Date());
-    const all = logsByDay();
-    const past = Object.entries(all)
-      .filter(([dk]) => dk !== todayKey)
-      .sort((a, b) => b[0].localeCompare(a[0]));
-    $('poTwPastCount').textContent = past.length;
-    const body = $('poTwPastBody');
-    if (!past.length) {
-      body.innerHTML = '<div class="po-tw-past-empty">No past workouts yet.</div>';
-      return;
+    const u       = state.units;
+
+    // Build 7 days: yesterday back to 6 days ago (today is shown in Today's Workout)
+    const days = [];
+    for (let i = 1; i <= 7; i++) {
+      const d = new Date(); d.setDate(d.getDate() - i); d.setHours(0,0,0,0);
+      const dk = wtDateKey(d);
+      days.push({ dk, d });
     }
-    const u = state.units;
-    body.innerHTML = past.slice(0, 30).map(([dk, sets]) => {
-      const sum = summarizeDay(sets);
+
+    // Delete logs older than 7 days from state
+    const cutoff = days[days.length - 1].dk;
+    let pruned = false;
+    Object.entries(state.logs).forEach(([exId, arr]) => {
+      const filtered = arr.filter(l => l.date.slice(0,10) >= cutoff);
+      if (filtered.length !== arr.length) { state.logs[exId] = filtered; pruned = true; }
+    });
+    if (pruned) saveState();
+
+    const cards = days.map(({ dk, d }) => {
+      const sets = all[dk] || [];
       const isDone = !!doneDays[dk];
-      const exNames = sum.perEx.map(e => e.ex.name).slice(0, 3).join(', ')
-        + (sum.perEx.length > 3 ? '…' : '');
-      return '<div class="po-tw-past-day">'
-        + '<div class="po-tw-past-day-h">'
-        +   '<span class="po-tw-past-day-date">' + fmtPastDate(dk) + '</span>'
-        +   '<span class="po-tw-past-day-summary">'
-        +     sum.totalSets + ' sets · ' + Math.round(sum.totalVol).toLocaleString() + ' ' + u
-        +     (isDone ? ' <span class="po-tw-past-day-done">DONE</span>' : '')
-        +   '</span>'
+      const dows = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const mons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const label = dows[d.getDay()] + ', ' + mons[d.getMonth()] + ' ' + d.getDate();
+
+      const div = document.createElement('div');
+      div.className = 'wh-card';
+
+      if (!sets.length) {
+        div.innerHTML = '<div class="wh-card-header" style="cursor:default">'
+          + '<span class="wh-card-date">' + label + '</span>'
+          + '<span class="wh-card-summary wh-rest">Rest day</span>'
+          + '</div>';
+        return div;
+      }
+
+      const sum = summarizeDay(sets);
+      const summary = sum.totalSets + ' sets · ' + Math.round(sum.totalVol).toLocaleString() + u;
+
+      div.innerHTML = '<div class="wh-card-header">'
+        + '<div><div class="wh-card-date">' + label + (isDone ? ' <span style="font-size:9px;background:rgba(110,231,183,0.14);color:var(--good);padding:2px 6px;border-radius:99px;font-weight:800;letter-spacing:0.06em">DONE</span>' : '') + '</div>'
+        + '<div class="wh-card-summary">' + summary + '</div></div>'
+        + '<span class="wh-card-arrow">▾</span>'
         + '</div>'
-        + '<div class="po-tw-past-day-summary" style="margin-top:6px; font-size:11px; color:var(--text-3);">'
-        +   escape(exNames)
-        + '</div>'
+        + '<div class="wh-card-body">'
+        + sum.perEx.map(e => {
+            const vol = Math.round(e.vol);
+            const txt = e.ex.bw
+              ? e.sets.length + ' sets'
+              : e.sets.length + ' sets · ' + vol + u;
+            return '<div class="wh-card-ex">· ' + escape(e.ex.name) + ' — ' + txt + '</div>';
+          }).join('')
+        + '<div class="wh-card-total">Total: ' + sum.totalSets + ' sets · ' + Math.round(sum.totalVol).toLocaleString() + u + ' lifted</div>'
         + '</div>';
-    }).join('');
+
+      div.querySelector('.wh-card-header').addEventListener('click', () => {
+        div.classList.toggle('open');
+      });
+
+      return div;
+    });
+
+    container.innerHTML = '';
+    cards.forEach(c => container.appendChild(c));
   }
 
   function getAnalyticsLogs() {
@@ -2309,16 +2419,23 @@ img, video, canvas, svg { max-width: 100%; }
       d.setHours(0, 0, 0, 0);
       days.push(d);
     }
+    const u = unit(); // 'kg' or 'lb'
     const dayData = days.map(d => {
-      const dateStr = d.toISOString().slice(0, 10);
+      // Use local date string for matching (avoids timezone mismatch with wtDateKey)
+      const dateStr = wtDateKey(d);
       let totalKg = 0, totalSets = 0;
       logs.forEach(({ log }) => {
-        if ((log.date || '').slice(0, 10) === dateStr) {
-          totalKg += (log.weight || 0) * (log.reps || 0);
+        const logDate = log.date ? (log.date.length >= 10 ? log.date.slice(0, 10) : log.date) : '';
+        // Match both ISO UTC slice and local date
+        const logLocal = log.date ? wtDateKey(new Date(log.date)) : '';
+        if (logDate === dateStr || logLocal === dateStr) {
+          const vol = (log.weight || 0) * (log.reps || 0);
+          // Convert to kg regardless of unit
+          totalKg += u === 'lb' ? vol / 2.205 : vol;
           totalSets++;
         }
       });
-      return { date: d, dateStr, totalKg: Math.round(totalKg), totalSets };
+      return { date: d, dateStr, totalKg: Math.round(totalKg * 10) / 10, totalSets };
     });
     const DOW = ['S','M','T','W','T','F','S'];
     const labels = days.map(d => DOW[d.getDay()]);
@@ -2404,15 +2521,7 @@ img, video, canvas, svg { max-width: 100%; }
     }
     saveDoneDays(doneDays);
     renderTodaysWorkout();
-    renderPastWorkouts();
-  });
-  $('poTwPastToggle').addEventListener('click', () => {
-    const body = $('poTwPastBody');
-    const toggle = $('poTwPastToggle');
-    const open = body.style.display !== 'none';
-    body.style.display = open ? 'none' : 'flex';
-    body.style.flexDirection = 'column';
-    toggle.setAttribute('aria-expanded', open ? 'false' : 'true');
+    renderWorkoutHistory();
   });
 
   // ============================================================
@@ -2446,16 +2555,6 @@ img, video, canvas, svg { max-width: 100%; }
     const ex = getCurrentEx(); if (!ex || ex.bw) return;
     const w = parseFloat($('weightInput').value) || 0;
     $('weightInput').value = w + (ex.step || 2.5);
-  });
-  // Delegated click handler — reps row is regenerated per exercise via
-  // renderRepsRow(), so we listen on the container rather than the
-  // individual buttons.
-  $('repsRow').addEventListener('click', (e) => {
-    const p = e.target.closest('.po-reps-pill');
-    if (!p) return;
-    $('repsRow').querySelectorAll('.po-reps-pill').forEach(x => x.classList.remove('active'));
-    p.classList.add('active');
-    $('repsRow').dataset.value = p.dataset.v;
   });
   $('logBtn').addEventListener('click', () => {
     const ex = getCurrentEx();
