@@ -1,7 +1,7 @@
 // Wallace's Dashboard — Service Worker
 // Handles: offline caching, push notifications, notification clicks
 
-const CACHE_NAME = 'wallace-v7';
+const CACHE_NAME = 'wallace-v8';
 const SHELL = [
   '/', '/index.html', '/health.html', '/gym.html',
   '/finance.html', '/sleep.html', '/deepwork.html', '/notifications.html',

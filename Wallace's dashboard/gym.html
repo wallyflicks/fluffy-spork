@@ -2944,16 +2944,26 @@ img, video, canvas, svg { max-width: 100%; }
     } catch(e) { console.error('SUPABASE WEIGHT SAVE FAILED (network):', e.message); return false; }
   }
 
-  // ── Pull from Supabase (ONLY called on page load / visibility) ────────────
-  // Select only columns that actually exist: date, weight, unit (no updated_at)
+  // ── Pull from Supabase: today first, then full history for chart ──────────
   async function wtPullFromSupabase() {
     try {
-      const res = await fetch(SUPA_URL_W + '/rest/v1/weight_logs?select=date,weight,unit&order=date.asc', { headers: SUPA_H_W });
+      // Fetch all entries ordered by date desc — most recent first
+      const res = await fetch(
+        SUPA_URL_W + '/rest/v1/weight_logs?select=date,weight,unit&order=date.desc',
+        { headers: SUPA_H_W }
+      );
       if (!res.ok) { console.error('[WEIGHT] Supabase pull failed:', res.status, await res.text()); return null; }
       const rows = await res.json();
       if (!Array.isArray(rows) || rows.length === 0) return null;
-      // savedAt not available from Supabase without updated_at column; remote always wins same-date
-      return rows.map(r => ({ date: r.date, weight: r.weight, unit: r.unit || 'kg', savedAt: 'remote' }));
+      // Return sorted ascending so chart renders oldest→newest
+      const entries = rows.map(r => ({ date: r.date, weight: r.weight, unit: r.unit || 'kg' }))
+                          .sort((a,b) => a.date.localeCompare(b.date));
+      const today = wtDateKey(new Date());
+      const todayRow = entries.find(e => e.date === today);
+      const latest   = entries[entries.length - 1];
+      console.log('WEIGHT ON LOAD - today from Supabase:', todayRow ? todayRow.weight : 'none',
+                  '| most recent:', latest ? latest.weight : 'none');
+      return entries;
     } catch(e) { console.error('[WEIGHT] Supabase pull error:', e.message); return null; }
   }
   function wtDateKey(d) {
@@ -3011,37 +3021,37 @@ img, video, canvas, svg { max-width: 100%; }
   }
   wtLoadAndSync();
 
-  // ── Save entry: Supabase first, then localStorage ─────────────────────────
-  // Push to Supabase first; only update localStorage after confirmation.
-  // This guarantees localStorage never has a value that differs from Supabase.
+  // ── Save entry ────────────────────────────────────────────────────────────
+  // Write localStorage FIRST so pcRerender() (triggered by gym realtime events)
+  // always reads the correct value during the async Supabase round-trip.
   async function wtSaveEntry(weight) {
     const dateStr = wtDateKey(new Date());
     const u = state.units;
-
-    // Show optimistic UI immediately (don't leave the user waiting)
     const prevEntries = wtEntries.map(e => ({...e})); // snapshot for rollback
+
+    // Step 1: Update in-memory + localStorage immediately
     const existing = wtEntries.find(e => e.date === dateStr);
     if (existing) { existing.weight = weight; existing.unit = u; }
     else { wtEntries.push({ date: dateStr, weight, unit: u }); wtEntries.sort((a,b) => a.date.localeCompare(b.date)); }
+    wtSaveLocal(wtEntries);  // localStorage written BEFORE Supabase call
     wtRender();
 
-    // Push to Supabase (source of truth)
+    // Step 2: Push to Supabase (cross-device sync)
     const ok = await wtPushToSupabase({ date: dateStr, weight, unit: u });
     if (ok) {
-      // Confirmed by Supabase → now write the same values to localStorage
-      wtSaveLocal(wtEntries);
       console.log('WEIGHT SAVED TO SUPABASE:', weight, u, 'for', dateStr);
       const ts = document.getElementById('wtSyncTime');
       if (ts) ts.textContent = 'Synced ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
       const dbg = document.getElementById('wtDebug');
       if (dbg) dbg.textContent = 'localStorage: ' + weight + u + ' | Supabase: ' + weight + u + ' ✓';
     } else {
-      // Supabase failed → revert optimistic update
+      // Revert both localStorage and in-memory on failure
       wtEntries = prevEntries;
+      wtSaveLocal(prevEntries);
       wtRender();
       const dbg = document.getElementById('wtDebug');
       if (dbg) dbg.textContent = 'Save FAILED — check connection';
-      console.error('[WEIGHT] Save failed — reverted to previous value');
+      console.error('[WEIGHT] Save failed — reverted');
     }
   }
 
