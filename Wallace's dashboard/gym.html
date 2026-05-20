@@ -2925,27 +2925,35 @@ img, video, canvas, svg { max-width: 100%; }
   }
 
   // ── Push to Supabase (ONLY called on explicit user Save) ──────────────────
+  // Note: weight_logs table has columns: id, date, weight, unit, created_at
+  // NO updated_at column — omit it from the payload to avoid 400 errors
   async function wtPushToSupabase(entry) {
     try {
       const res = await fetch(SUPA_URL_W + '/rest/v1/weight_logs?on_conflict=date', {
         method: 'POST',
         headers: { ...SUPA_H_W, 'Prefer': 'resolution=merge-duplicates' },
-        body: JSON.stringify({ date: entry.date, weight: entry.weight, unit: entry.unit, updated_at: entry.savedAt })
+        body: JSON.stringify({ date: entry.date, weight: entry.weight, unit: entry.unit })
       });
-      if (!res.ok) { console.error('[WEIGHT] Supabase push failed:', res.status, await res.text()); return false; }
+      if (!res.ok) {
+        const errBody = await res.text();
+        console.error('SUPABASE WEIGHT SAVE FAILED:', res.status, errBody);
+        return false;
+      }
       console.log('WEIGHT SAVED TO SUPABASE:', entry.weight, entry.unit, 'for', entry.date);
       return true;
-    } catch(e) { console.error('[WEIGHT] Supabase push error:', e.message); return false; }
+    } catch(e) { console.error('SUPABASE WEIGHT SAVE FAILED (network):', e.message); return false; }
   }
 
   // ── Pull from Supabase (ONLY called on page load / visibility) ────────────
+  // Select only columns that actually exist: date, weight, unit (no updated_at)
   async function wtPullFromSupabase() {
     try {
-      const res = await fetch(SUPA_URL_W + '/rest/v1/weight_logs?select=date,weight,unit,updated_at&order=date.asc', { headers: SUPA_H_W });
-      if (!res.ok) { console.error('[WEIGHT] Supabase pull failed:', res.status); return null; }
+      const res = await fetch(SUPA_URL_W + '/rest/v1/weight_logs?select=date,weight,unit&order=date.asc', { headers: SUPA_H_W });
+      if (!res.ok) { console.error('[WEIGHT] Supabase pull failed:', res.status, await res.text()); return null; }
       const rows = await res.json();
       if (!Array.isArray(rows) || rows.length === 0) return null;
-      return rows.map(r => ({ date: r.date, weight: r.weight, unit: r.unit || 'kg', savedAt: r.updated_at || '0' }));
+      // savedAt not available from Supabase without updated_at column; remote always wins same-date
+      return rows.map(r => ({ date: r.date, weight: r.weight, unit: r.unit || 'kg', savedAt: 'remote' }));
     } catch(e) { console.error('[WEIGHT] Supabase pull error:', e.message); return null; }
   }
   function wtDateKey(d) {
@@ -2984,18 +2992,12 @@ img, video, canvas, svg { max-width: 100%; }
 
     if (!remote || remote.length === 0) { console.log('[WEIGHT] Supabase empty — keeping localStorage as-is'); return; }
 
-    // Merge: for each date, winner = whichever has newer savedAt timestamp
+    // Merge: local fills dates remote doesn't have; remote wins same-date conflicts.
+    // Without updated_at in Supabase we can't compare timestamps, so remote (last Save
+    // from any device) is the source of truth for each date.
     const map = {};
     wtEntries.forEach(e => { if (e.date) map[e.date] = e; }); // seed with local
-    remote.forEach(r => {
-      if (!r.date) return;
-      const loc = map[r.date];
-      if (!loc) { map[r.date] = r; return; } // remote has a date local doesn't
-      // Newer savedAt wins — this is the cross-device conflict resolver
-      const locTs = loc.savedAt || '0';
-      const remTs = r.savedAt  || '0';
-      if (remTs > locTs) map[r.date] = r;
-    });
+    remote.forEach(r => { if (r.date) map[r.date] = r; });    // remote overwrites same date
 
     const merged = Object.values(map).sort((a,b) => a.date.localeCompare(b.date));
     const mergedJson = JSON.stringify(merged);
