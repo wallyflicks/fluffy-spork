@@ -2973,23 +2973,25 @@ img, video, canvas, svg { max-width: 100%; }
   console.log('WEIGHT LOADED:', wtEntries.length, 'entries from localStorage', wtEntries);
 
   // On load: fetch from Supabase; only update local if remote has data
-  (async function wtInitSync() {
+  async function wtSyncFromSupabase() {
     const remote = await wtLoadFromSupabase();
     if (!remote || remote.length === 0) { console.log('[WEIGHT] No Supabase data, keeping localStorage'); return; }
-    // Merge: remote fills in any gaps; local wins same-day conflict
+    // Remote wins: Supabase is the source of truth so the most-recently saved
+    // device always wins. Local entries fill in any dates remote doesn't have.
     const map = {};
-    remote.forEach(e => { if (e.date) map[e.date] = e; });
-    wtEntries.forEach(e => { if (e.date) map[e.date] = e; }); // local wins
+    wtEntries.forEach(e => { if (e.date) map[e.date] = e; }); // local fills gaps
+    remote.forEach(e => { if (e.date) map[e.date] = e; });    // remote overwrites
     const merged = Object.values(map).sort((a,b) => a.date.localeCompare(b.date));
     if (JSON.stringify(merged) !== JSON.stringify(wtEntries)) {
-      console.log('[WEIGHT] Applying merged data:', merged.length, 'entries');
+      console.log('[WEIGHT] Applying remote data:', merged.length, 'entries');
       wtEntries = merged;
-      localStorage.setItem(WT_KEY, JSON.stringify(merged));
+      Object.getPrototypeOf(localStorage).setItem.call(localStorage, WT_KEY, JSON.stringify(merged));
       wtRender();
       const ts = document.getElementById('wtSyncTime');
       if (ts) ts.textContent = 'Synced ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
     }
-  })();
+  }
+  wtSyncFromSupabase();
   function wtSaveEntry(weight) {
     const dateStr = wtDateKey(new Date());
     const u = state.units;
@@ -4012,7 +4014,20 @@ img, video, canvas, svg { max-width: 100%; }
   window.addEventListener('pagehide', pcFlushPushOnUnload);
   window.addEventListener('beforeunload', pcFlushPushOnUnload);
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) pcFlushPushOnUnload();
+    if (document.hidden) {
+      pcFlushPushOnUnload();
+    } else {
+      // Re-pull weight + photos when page becomes visible (switching back from another device)
+      wtSyncFromSupabase();
+      (async () => {
+        const remotePhotos = await phosLoadFromSupabase();
+        if (remotePhotos && remotePhotos.length >= photos.length) {
+          photos = remotePhotos;
+          Object.getPrototypeOf(localStorage).setItem.call(localStorage, PHOTO_KEY, JSON.stringify(photos));
+          photosRender();
+        }
+      })();
+    }
   });
 })();
 </script>
