@@ -830,19 +830,25 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
   }
 
   // ── Daily P&L vs yesterday ────────────────────────────────────────────────
-  function renderPortfolioPnL(valueCAD) {
+  // P&L uses prevClose from Yahoo data — the actual previous trading day's close.
+  // This is always accurate and works from day 1 without needing a saved snapshot.
+  function renderPortfolioPnL() {
     const el = document.getElementById('portfolioPnlRow');
     if (!el) return;
-    if (!valueCAD || valueCAD <= 0) { el.innerHTML = ''; return; }
-    const snaps = getSnapshots();
-    const yd = new Date(); yd.setDate(yd.getDate() - 1);
-    const ydSnap = snaps.find(s => s.date === yd.toISOString().slice(0, 10));
-    if (!ydSnap) {
-      el.innerHTML = '<span style="font-size:11px;color:rgba(255,255,255,0.22)">— tracking starts today</span>';
-      return;
-    }
-    const diff  = valueCAD - ydSnap.valueCAD;
-    const pct   = ydSnap.valueCAD > 0 ? diff / ydSnap.valueCAD * 100 : 0;
+    const rate   = getCachedRate();
+    const stocks = load(K.STK);
+    let todayCAD = 0, prevCAD = 0, hasPrev = false;
+    stocks.forEach(s => {
+      if (!s.lastPrice || !s.shares) return;
+      todayCAD += toCAD(s.lastPrice, s.shares, s, rate);
+      if (s.prevClose) {
+        prevCAD += toCAD(s.prevClose, s.shares, s, rate);
+        hasPrev  = true;
+      }
+    });
+    if (!hasPrev || todayCAD <= 0) { el.innerHTML = ''; return; }
+    const diff  = todayCAD - prevCAD;
+    const pct   = prevCAD > 0 ? diff / prevCAD * 100 : 0;
     const color = diff >= 0 ? 'var(--good)' : 'var(--bad)';
     const sign  = diff >= 0 ? '+' : '';
     el.innerHTML = `<span style="font-size:14px;font-weight:700;color:${color};letter-spacing:-0.01em">${sign}$${Math.abs(diff).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} CAD today <span style="font-size:12px;font-weight:600">(${sign}${pct.toFixed(1)}%)</span></span>`;
@@ -1145,7 +1151,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
 
     renderStocks();
     renderNetWorth();
-    renderPortfolioPnL(totalCAD);
+    renderPortfolioPnL();
     renderPortfolioChart();
 
     if (!silent) {
@@ -1234,6 +1240,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     document.getElementById('stockTotalVal').textContent =
       totalCAD > 0 ? totalCAD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
     document.getElementById('stockTotalMeta').innerHTML = '';
+    renderPortfolioPnL();
 
     buildStockDonut();
   }
@@ -1722,7 +1729,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
       const c = (() => { try { return JSON.parse(localStorage.getItem(RATE_KEY)); } catch { return null; } })();
       if (c && c.rate) rateEl.textContent = `1 USD = ${c.rate.toFixed(4)} CAD`;
     }
-    renderPortfolioPnL(calcPortfolioCAD(cachedRate));
+    renderPortfolioPnL();
     renderPortfolioChart();
     initPortfolioChartTooltip();
     window.addEventListener('resize', renderPortfolioChart);
