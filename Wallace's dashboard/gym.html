@@ -3248,6 +3248,7 @@ img, video, canvas, svg { max-width: 100%; }
 
   function photosSave() {
     try { localStorage.setItem(PHOTO_KEY, JSON.stringify(photos)); } catch (e) {}
+    gymFlushNow(); // immediate push so photos survive page reloads
   }
 
   function photoStorageSupa() {
@@ -3705,13 +3706,12 @@ img, video, canvas, svg { max-width: 100%; }
             const mergedJson = JSON.stringify(merged);
             if (mergedJson !== local) { try { _pcOrigSet(k, mergedJson); changed = true; } catch {} }
           } else if (k === PHOTO_KEY) {
-            // Merge photos by id — local wins; never remove local photos
-            const map = {};
-            remoteArr.forEach(p => { if (p.id) map[p.id] = p; });
-            localArr.forEach(p => { if (p.id) map[p.id] = p; });
-            const merged = Object.values(map);
-            const mergedJson = JSON.stringify(merged);
-            if (mergedJson !== local) { try { _pcOrigSet(k, mergedJson); changed = true; } catch {} }
+            // Keep whichever has more photos — never wipe locally-taken photos.
+            // If remote has strictly more, it has photos from another device.
+            if (remoteArr.length > localArr.length) {
+              try { _pcOrigSet(k, incoming); changed = true; } catch {}
+            }
+            // else local has same or more — preserve local
           } else {
             // Other arrays (logs, done-days): remote wins as before
             try { _pcOrigSet(k, incoming); changed = true; } catch {}
