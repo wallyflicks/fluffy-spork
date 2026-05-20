@@ -183,6 +183,75 @@
     }, delay);
   }
 
+  function scheduleEveningCheckIn(s) {
+    if (!s.enabled) return;
+    const delay = msUntil(s.time || '20:00');
+    setTimeout(() => {
+      const tag = 'eveningCheckIn';
+      if (hasFiredToday(tag)) return;
+      try {
+        const today = todayStr();
+        const goals = JSON.parse(localStorage.getItem('goals:' + today) || '[]');
+        if (!goals.length) return; // no tasks set — don't fire
+        const left = goals.filter(g => !g.done).length;
+        const msg = left > 0
+          ? `You have ${left} task${left !== 1 ? 's' : ''} left today — finish strong.`
+          : 'All tasks done today — good work.';
+        showNotification('🌆 Evening check-in', msg, tag);
+      } catch { showNotification('🌆 Evening check-in', 'End of day check-in.', tag); }
+    }, delay);
+  }
+
+  function scheduleWorkoutMissed(s) {
+    if (!s.enabled) return;
+    const delay = msUntil(s.time || '19:00');
+    setTimeout(() => {
+      const tag = 'workoutMissed';
+      if (hasFiredToday(tag)) return;
+      try {
+        const gymState = JSON.parse(localStorage.getItem('po_coach_v1') || 'null') || {};
+        const rotation = gymState.splitRotation || [];
+        const anchor   = gymState.splitAnchor   || {};
+        // Detect rest day
+        if (anchor.date && anchor.index != null && rotation.length) {
+          const anchorDate = new Date(anchor.date);
+          const today = new Date(); today.setHours(0,0,0,0); anchorDate.setHours(0,0,0,0);
+          const daysDiff = Math.round((today - anchorDate) / 86400000);
+          const idx = ((anchor.index + daysDiff) % rotation.length + rotation.length) % rotation.length;
+          if ((rotation[idx] || '').toLowerCase() === 'rest') return; // rest day — don't fire
+        }
+        // Check if any sets logged today across all exercises
+        const logs = gymState.logs || {};
+        const today = todayStr();
+        const hasSets = Object.values(logs).some(arr =>
+          Array.isArray(arr) && arr.some(l => (l.date || '').slice(0, 10) === today)
+        );
+        if (!hasSets) showNotification('💪 Workout missed', "Haven't hit the gym yet today — still time.", tag);
+      } catch { showNotification('💪 Workout missed', "Haven't hit the gym yet today — still time.", tag); }
+    }, delay);
+  }
+
+  function schedulePlanTomorrow(s) {
+    if (!s.enabled) return;
+    const delay = msUntil(s.time || '21:30');
+    setTimeout(() => {
+      const tag = 'planTomorrow';
+      if (hasFiredToday(tag)) return;
+      try {
+        const now = new Date();
+        const tomorrow = new Date(now);
+        tomorrow.setDate(now.getDate() + 1);
+        const tomorrowKey = 'goals:' + tomorrow.getFullYear() + '-' +
+          String(tomorrow.getMonth()+1).padStart(2,'0') + '-' +
+          String(tomorrow.getDate()).padStart(2,'0');
+        const tomorrowGoals = JSON.parse(localStorage.getItem(tomorrowKey) || '[]');
+        if (!tomorrowGoals.length) {
+          showNotification('📋 Plan tomorrow', 'Have you planned tomorrow yet? Write it tonight.', tag);
+        }
+      } catch { showNotification('📋 Plan tomorrow', 'Have you planned tomorrow yet? Write it tonight.', tag); }
+    }, delay);
+  }
+
   // ── Boot: schedule all enabled reminders ─────────────────────────────────
   function boot() {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
@@ -192,6 +261,9 @@
     scheduleBedtimeReminder(s.bedtimeReminder || {});
     scheduleGymReminder(s.gymReminder || {});
     scheduleDeepWorkReminder(s.deepWorkReminder || {});
+    scheduleEveningCheckIn(s.eveningCheckIn   || {});
+    scheduleWorkoutMissed(s.workoutMissed     || {});
+    schedulePlanTomorrow(s.planTomorrow       || {});
   }
 
   // Run after DOM is ready

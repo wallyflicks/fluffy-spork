@@ -297,6 +297,45 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
   <label class="notif-toggle"><input type="checkbox" id="deepworkEnabled"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
 </div>
 
+<!-- Evening check-in -->
+<div class="notif-card" id="card-eveningCheckIn">
+  <span class="notif-card-emoji">🌆</span>
+  <div class="notif-card-body">
+    <div class="notif-card-title">Evening check-in</div>
+    <div class="notif-card-desc">End of day push if you have tasks remaining</div>
+    <div class="notif-card-control">
+      <input type="time" class="notif-time-input" id="eveningCheckInTime" value="20:00">
+    </div>
+  </div>
+  <label class="notif-toggle"><input type="checkbox" id="eveningCheckInEnabled"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+</div>
+
+<!-- Workout missed -->
+<div class="notif-card" id="card-workoutMissed">
+  <span class="notif-card-emoji">💪</span>
+  <div class="notif-card-body">
+    <div class="notif-card-title">Workout missed</div>
+    <div class="notif-card-desc">Fires if it's a training day and no sets logged yet</div>
+    <div class="notif-card-control">
+      <input type="time" class="notif-time-input" id="workoutMissedTime" value="19:00">
+    </div>
+  </div>
+  <label class="notif-toggle"><input type="checkbox" id="workoutMissedEnabled"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+</div>
+
+<!-- Plan tomorrow -->
+<div class="notif-card" id="card-planTomorrow">
+  <span class="notif-card-emoji">📋</span>
+  <div class="notif-card-body">
+    <div class="notif-card-title">Plan tomorrow</div>
+    <div class="notif-card-desc">Reminder to write tomorrow's tasks before bed</div>
+    <div class="notif-card-control">
+      <input type="time" class="notif-time-input" id="planTomorrowTime" value="21:30">
+    </div>
+  </div>
+  <label class="notif-toggle"><input type="checkbox" id="planTomorrowEnabled"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+</div>
+
 <!-- Test notification button -->
 <button id="testNotifBtn" style="width:100%;margin-top:8px;padding:12px;border-radius:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent" onclick="sendTestNotification()">
   🔔 Send test notification
@@ -334,7 +373,10 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
     const t = s.todoReminder || {};
     const b = s.bedtimeReminder || {};
     const g = s.gymReminder || {};
-    const d = s.deepWorkReminder || {};
+    const d  = s.deepWorkReminder || {};
+    const ec = s.eveningCheckIn   || {};
+    const wm = s.workoutMissed    || {};
+    const pt = s.planTomorrow     || {};
 
     document.getElementById('waterEnabled').checked = !!w.enabled;
     document.getElementById('waterInterval').value  = w.interval || '2';
@@ -347,6 +389,12 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
     document.getElementById('deepworkEnabled').checked = !!d.enabled;
     document.getElementById('deepworkTime').value    = d.time || '09:00';
     document.getElementById('deepworkTarget').value  = d.targetHours || '2';
+    document.getElementById('eveningCheckInEnabled').checked = !!ec.enabled;
+    document.getElementById('eveningCheckInTime').value      = ec.time || '20:00';
+    document.getElementById('workoutMissedEnabled').checked  = !!wm.enabled;
+    document.getElementById('workoutMissedTime').value       = wm.time || '19:00';
+    document.getElementById('planTomorrowEnabled').checked   = !!pt.enabled;
+    document.getElementById('planTomorrowTime').value        = pt.time || '21:30';
     updateDisabledState();
   }
 
@@ -356,9 +404,11 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
       todoReminder:     { enabled: document.getElementById('todoEnabled').checked,     time: document.getElementById('todoTime').value },
       bedtimeReminder:  { enabled: document.getElementById('bedtimeEnabled').checked,  time: document.getElementById('bedtimeTime').value },
       gymReminder:      { enabled: document.getElementById('gymEnabled').checked,      time: document.getElementById('gymTime').value },
-      deepWorkReminder: { enabled: document.getElementById('deepworkEnabled').checked, time: document.getElementById('deepworkTime').value, targetHours: parseFloat(document.getElementById('deepworkTarget').value) || 2 }
+      deepWorkReminder: { enabled: document.getElementById('deepworkEnabled').checked, time: document.getElementById('deepworkTime').value, targetHours: parseFloat(document.getElementById('deepworkTarget').value) || 2 },
+      eveningCheckIn:   { enabled: document.getElementById('eveningCheckInEnabled').checked, time: document.getElementById('eveningCheckInTime').value },
+      workoutMissed:    { enabled: document.getElementById('workoutMissedEnabled').checked,  time: document.getElementById('workoutMissedTime').value },
+      planTomorrow:     { enabled: document.getElementById('planTomorrowEnabled').checked,   time: document.getElementById('planTomorrowTime').value }
     });
-    // Also save target to unified key for other pages
     localStorage.setItem('deepWorkDailyTarget', String(parseFloat(document.getElementById('deepworkTarget').value) || 2));
   }
 
@@ -384,7 +434,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
 
   function updateDisabledState() {
     const denied = !('Notification' in window) || Notification.permission === 'denied';
-    ['water','todo','bedtime','gym','deepwork'].forEach(id => {
+    ['water','todo','bedtime','gym','deepwork','eveningCheckIn','workoutMissed','planTomorrow'].forEach(id => {
       const card = document.getElementById('card-' + id);
       if (card) card.classList.toggle('disabled', denied);
     });
@@ -396,35 +446,56 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
     updateDisabledState();
   };
 
-  window.sendTestNotification = async function () {
-    if (!('Notification' in window)) { alert('Notifications not supported'); return; }
-    if (Notification.permission !== 'granted') {
-      alert('Enable notifications first, then try again.');
-      return;
-    }
-    console.log('[test notif] Attempting test notification...');
+  async function fireNotification(title, body, tag) {
+    console.log('[test notif]', tag, '-', title, '|', body);
     if ('serviceWorker' in navigator) {
       try {
         const reg = await navigator.serviceWorker.ready;
-        await reg.showNotification("Wallace's Dashboard", {
-          body: '✅ Notifications are working correctly!',
-          icon: '/icons/w-192.png',
-          badge: '/icons/w-192.png',
-          tag: 'test',
-          renotify: true
-        });
-        console.log('[test notif] Sent via service worker registration');
+        await reg.showNotification(title, { body, icon: '/icons/w-192.png', badge: '/icons/w-192.png', tag, renotify: true });
         return;
-      } catch (e) {
-        console.warn('[test notif] SW registration.showNotification failed:', e);
-      }
+      } catch (e) { console.warn('[test notif] SW failed:', e); }
     }
-    try {
-      new Notification("Wallace's Dashboard", { body: '✅ Notifications are working!', icon: '/icons/w-192.png' });
-      console.log('[test notif] Sent via basic Notification API');
-    } catch (e) {
-      console.error('[test notif] All methods failed:', e);
+    try { new Notification(title, { body, icon: '/icons/w-192.png' }); } catch (e) { console.error('[test notif] Failed:', e); }
+  }
+
+  window.sendTestNotification = async function () {
+    if (!('Notification' in window)) { alert('Notifications not supported'); return; }
+    if (Notification.permission !== 'granted') { alert('Enable notifications first, then try again.'); return; }
+
+    const s = getSettings();
+    let sent = 0;
+
+    await fireNotification("Wallace's Dashboard", '✅ Notifications pipeline working!', 'test-base');
+    sent++;
+
+    // Cycle through all enabled reminders with their actual logic
+    if ((s.todoReminder || {}).enabled) {
+      try {
+        const today = new Date().getFullYear() + '-' + String(new Date().getMonth()+1).padStart(2,'0') + '-' + String(new Date().getDate()).padStart(2,'0');
+        const goals = JSON.parse(localStorage.getItem('goals:' + today) || '[]');
+        const left = goals.filter(g => !g.done).length;
+        if (left > 0) await fireNotification('✅ To-do reminder', `You have ${left} task${left !== 1 ? 's' : ''} left today.`, 'test-todo');
+      } catch {}
     }
+    if ((s.eveningCheckIn || {}).enabled) {
+      try {
+        const today = new Date().getFullYear() + '-' + String(new Date().getMonth()+1).padStart(2,'0') + '-' + String(new Date().getDate()).padStart(2,'0');
+        const goals = JSON.parse(localStorage.getItem('goals:' + today) || '[]');
+        if (goals.length > 0) {
+          const left = goals.filter(g => !g.done).length;
+          const msg = left > 0 ? `You have ${left} tasks left today — finish strong.` : 'All tasks done today — good work.';
+          await fireNotification('🌆 Evening check-in', msg, 'test-evening');
+        }
+      } catch {}
+    }
+    if ((s.workoutMissed || {}).enabled) {
+      await fireNotification('💪 Workout missed', "Haven't hit the gym yet today — still time.", 'test-workout');
+    }
+    if ((s.planTomorrow || {}).enabled) {
+      await fireNotification('📋 Plan tomorrow', 'Have you planned tomorrow yet? Write it tonight.', 'test-plan');
+    }
+
+    console.log('[test notif] Sent', sent, 'notification(s)');
   };
 
   // Auto-save on any input change
