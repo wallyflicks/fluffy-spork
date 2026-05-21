@@ -1,5 +1,5 @@
-// Stores / removes the browser push subscription in Supabase so the
-// server-side cron can send notifications when the app is closed.
+// Saves / removes a browser push subscription in the push_subscriptions table.
+// Called from notifications.js whenever the user grants permission or changes settings.
 
 const SUPA_URL  = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
 const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
@@ -7,6 +7,7 @@ const SB = {
   'Content-Type': 'application/json',
   'apikey': SUPA_ANON,
   'Authorization': 'Bearer ' + SUPA_ANON,
+  // Upsert on the unique endpoint column
   'Prefer': 'resolution=merge-duplicates',
 };
 
@@ -17,34 +18,31 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   if (req.method === 'POST') {
-    const { subscription, settings, timezone } = req.body || {};
-    if (!subscription || !subscription.endpoint) {
-      return res.status(400).json({ error: 'Missing subscription' });
+    const { endpoint, keys_p256dh, keys_auth, notification_settings } = req.body || {};
+    if (!endpoint || !keys_p256dh || !keys_auth) {
+      return res.status(400).json({ error: 'Missing endpoint or keys' });
     }
-    const r = await fetch(
-      SUPA_URL + '/rest/v1/app_state?on_conflict=key',
-      {
-        method: 'POST',
-        headers: SB,
-        body: JSON.stringify({
-          key: 'push_subscription',
-          data: { subscription, settings, timezone },
-          updated_at: new Date().toISOString(),
-        }),
-      }
-    );
+
+    const r = await fetch(SUPA_URL + '/rest/v1/push_subscriptions?on_conflict=endpoint', {
+      method: 'POST',
+      headers: SB,
+      body: JSON.stringify({ endpoint, keys_p256dh, keys_auth, notification_settings: notification_settings || {} }),
+    });
+
     if (!r.ok) {
-      const err = await r.text();
-      return res.status(500).json({ error: 'Supabase write failed', detail: err });
+      const detail = await r.text();
+      return res.status(500).json({ error: 'Supabase write failed', detail });
     }
     return res.status(200).json({ ok: true });
   }
 
   if (req.method === 'DELETE') {
-    await fetch(SUPA_URL + '/rest/v1/app_state?key=eq.push_subscription', {
-      method: 'DELETE',
-      headers: { apikey: SUPA_ANON, Authorization: 'Bearer ' + SUPA_ANON },
-    });
+    const { endpoint } = req.body || {};
+    if (!endpoint) return res.status(400).json({ error: 'Missing endpoint' });
+    await fetch(
+      SUPA_URL + '/rest/v1/push_subscriptions?endpoint=eq.' + encodeURIComponent(endpoint),
+      { method: 'DELETE', headers: { apikey: SUPA_ANON, Authorization: 'Bearer ' + SUPA_ANON } }
+    );
     return res.status(200).json({ ok: true });
   }
 

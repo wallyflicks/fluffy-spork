@@ -35,17 +35,22 @@
     }
   }
 
-  // ── Send subscription + settings to Vercel so the cron can push ─────────
+  // ── Save subscription + settings to Supabase push_subscriptions table ──
   window.syncPushSubscription = async function (settings) {
     if (Notification.permission !== 'granted') return;
     const sub = await subscribePush();
     if (!sub) return;
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const json = sub.toJSON(); // { endpoint, keys: { p256dh, auth } }
     try {
       await fetch('/api/push-subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscription: sub.toJSON(), settings, timezone }),
+        body: JSON.stringify({
+          endpoint:              json.endpoint,
+          keys_p256dh:           json.keys.p256dh,
+          keys_auth:             json.keys.auth,
+          notification_settings: settings || {},
+        }),
       });
       console.log('[push] Subscription synced to server');
     } catch (e) {
