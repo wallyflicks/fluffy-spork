@@ -1239,10 +1239,21 @@ html, body {
         if (localVal) scheduleHealthSync();
         return;
       }
-      const remoteJson = JSON.stringify(rows[0].data[LS_KEY]);
-      if (remoteJson !== localStorage.getItem(LS_KEY)) {
-        localStorage.setItem(LS_KEY, remoteJson);
+      const remoteData = rows[0].data[LS_KEY];
+      const localJson = localStorage.getItem(LS_KEY);
+      const localData = localJson ? JSON.parse(localJson) : {};
+      // Merge logs: take the higher count per day so a quick reload never
+      // clobbers a local increment that hasn't synced to Supabase yet
+      const mergedLogs = Object.assign({}, remoteData.logs || {});
+      for (const k of Object.keys(localData.logs || {})) {
+        mergedLogs[k] = Math.max(localData.logs[k] || 0, remoteData.logs[k] || 0);
+      }
+      remoteData.logs = mergedLogs;
+      const mergedJson = JSON.stringify(remoteData);
+      if (mergedJson !== localJson) {
+        localStorage.setItem(LS_KEY, mergedJson);
         state = loadState();
+        scheduleHealthSync(); // push merged result back to Supabase
         renderAll();
       }
     } catch (e) { console.warn('[health sync] read failed:', e.message); }
