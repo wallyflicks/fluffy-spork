@@ -498,13 +498,22 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
     console.log('[test notif] Sent', sent, 'notification(s)');
   };
 
-  // Auto-save on any input change
+  // Auto-save on any input change, then sync to server
   document.querySelectorAll('input, select').forEach(el => {
-    el.addEventListener('change', saveFromUI);
+    el.addEventListener('change', () => {
+      saveFromUI();
+      if (window.syncPushSubscription) window.syncPushSubscription(getSettings());
+    });
   });
 
   loadUI();
   updatePermBanner();
+
+  // If permission already granted, re-sync subscription on every page open
+  // (ensures the server always has a valid subscription and latest settings)
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    if (window.syncPushSubscription) window.syncPushSubscription(getSettings());
+  }
 })();
 </script>
 </body>

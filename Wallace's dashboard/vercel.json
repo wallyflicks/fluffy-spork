@@ -1,6 +1,12 @@
 {
   "version": 2,
   "framework": null,
+  "crons": [
+    {
+      "path": "/api/push-cron",
+      "schedule": "*/5 * * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/yahoo-proxy/:ticker",

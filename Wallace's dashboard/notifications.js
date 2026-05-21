@@ -1,11 +1,57 @@
 // notifications.js — loaded on every page
-// Registers service worker, schedules local notifications based on saved settings.
+// Registers service worker, subscribes to server-side Web Push, and schedules
+// local fallback notifications for when the page is open.
 (function () {
   'use strict';
 
   const ICON = '/icons/w-192.png';
   const NOTIF_KEY = 'notifSettings';
   const FIRED_KEY = 'notifFiredToday'; // { type_YYYY-MM-DD: true }
+  const VAPID_PUBLIC_KEY = 'BFLtDZ_5fRK7JWam1L4czjVl6IJQWqWeyUr5F2jqFeYhmhcdIIHXjQRSNNHx_fzoLqg4K5Bi14LMVpX26grTjLw';
+
+  // ── Converts a base64url VAPID public key to a Uint8Array ───────────────
+  function vapidKey(b64) {
+    const pad = '='.repeat((4 - b64.length % 4) % 4);
+    const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+    return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+  }
+
+  // ── Subscribe this device to server-side Web Push ───────────────────────
+  async function subscribePush() {
+    if (!('PushManager' in window)) return null;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: vapidKey(VAPID_PUBLIC_KEY),
+        });
+      }
+      return sub;
+    } catch (e) {
+      console.warn('[push] Subscribe failed:', e.message);
+      return null;
+    }
+  }
+
+  // ── Send subscription + settings to Vercel so the cron can push ─────────
+  window.syncPushSubscription = async function (settings) {
+    if (Notification.permission !== 'granted') return;
+    const sub = await subscribePush();
+    if (!sub) return;
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    try {
+      await fetch('/api/push-subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: sub.toJSON(), settings, timezone }),
+      });
+      console.log('[push] Subscription synced to server');
+    } catch (e) {
+      console.warn('[push] Sync failed:', e.message);
+    }
+  };
 
   // ── Service Worker registration ─────────────────────────────────────────
   if ('serviceWorker' in navigator) {
@@ -277,7 +323,10 @@
   window.requestNotifPermission = async function () {
     if (!('Notification' in window)) return 'unsupported';
     const result = await Notification.requestPermission();
-    if (result === 'granted') boot();
+    if (result === 'granted') {
+      boot();
+      window.syncPushSubscription(getSettings());
+    }
     return result;
   };
 })();
