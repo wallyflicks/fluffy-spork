@@ -1407,8 +1407,8 @@
       const tomorrowKey = getTomorrowKey();
       const keys = storeListKeys('goals:').sort();
       const activeDay = activeKey.slice(6);
-      const tomorrowGoals = getGoalsFor(tomorrowKey);
-      const dedupe = new Set(tomorrowGoals.map(g => g.text.trim()));
+      const todayGoals = getGoalsFor(activeKey);
+      const dedupe = new Set(todayGoals.map(g => g.text.trim()));
       keys.forEach(key => {
         const date = key.slice(6);
         if (date >= activeDay) return;
@@ -1416,13 +1416,19 @@
         const undone = goals.filter(g => !g.done).map(g => ({ text: g.text, done: false, queued: false }));
         undone.forEach(g => {
           if (!dedupe.has(g.text.trim())) {
-            tomorrowGoals.push(g);
+            todayGoals.push(g);
             dedupe.add(g.text.trim());
           }
         });
         storeDelete(key);
       });
-      if (tomorrowGoals.length > 0) saveGoalsFor(tomorrowKey, tomorrowGoals);
+      if (todayGoals.length > 0) saveGoalsFor(activeKey, todayGoals);
+      // Remove from tomorrow any tasks that already exist in today's list
+      const tomorrowGoals = getGoalsFor(tomorrowKey);
+      if (tomorrowGoals.length > 0) {
+        const cleaned = tomorrowGoals.filter(g => !dedupe.has(g.text.trim()));
+        if (cleaned.length !== tomorrowGoals.length) saveGoalsFor(tomorrowKey, cleaned);
+      }
     }
 
     function updateStreak() {
