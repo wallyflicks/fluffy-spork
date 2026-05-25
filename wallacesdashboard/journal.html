@@ -394,6 +394,7 @@ textarea::placeholder { color: var(--text-4); }
 </div>
 
 <div class="section-label">TODAY</div>
+<div id="journalLoading" style="display:none;text-align:center;color:rgba(255,255,255,0.3);font-size:13px;padding:28px 0;font-style:italic">Loading…</div>
 
 <!-- Read mode -->
 <div class="card" id="readCard" style="display:none">
@@ -540,11 +541,16 @@ textarea::placeholder { color: var(--text-4); }
       });
       if (res.ok) {
         console.log('JOURNAL SAVED TO SUPABASE:', entry.date, 'OK');
+        return true;
       } else {
         const detail = await res.text();
         console.warn('JOURNAL SAVED TO SUPABASE: failed', res.status, detail);
+        return false;
       }
-    } catch (e) { console.warn('JOURNAL SAVED TO SUPABASE: error', e.message); }
+    } catch (e) {
+      console.warn('JOURNAL SAVED TO SUPABASE: error', e.message);
+      return false;
+    }
   }
 
   async function sbFetchAll() {
@@ -580,8 +586,7 @@ textarea::placeholder { color: var(--text-4); }
   buildRatingSelector();
   buildPhotoUI();
   wireButtons();
-  renderPage();
-  syncFromSupabase();
+  init();
 
   // ── Rating selector ──────────────────────────────────────────────
   function buildRatingSelector() {
@@ -682,8 +687,20 @@ textarea::placeholder { color: var(--text-4); }
       created_at: (existing && existing.created_at) || new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    const ok = await sbUpsert(entry);
+    if (!ok) {
+      btn.disabled = false;
+      btn.textContent = 'Save entry';
+      showToast('Save failed — check connection', true);
+      return;
+    }
+
     putEntry(entry);
-    sbUpsert(entry);
     isEditMode = false;
     showToast('Saved');
     renderPage();
@@ -902,31 +919,61 @@ textarea::placeholder { color: var(--text-4); }
   }
 
   // ── Toast ─────────────────────────────────────────────────────────
-  function showToast(msg) {
+  function showToast(msg, isError) {
     const t = document.getElementById('saveToast');
-    t.textContent = msg; t.classList.add('show');
+    t.textContent = msg;
+    if (isError) {
+      t.style.background = 'rgba(255,138,138,0.12)';
+      t.style.borderColor = 'rgba(255,138,138,0.3)';
+      t.style.color = 'var(--bad)';
+    } else {
+      t.style.background = '';
+      t.style.borderColor = '';
+      t.style.color = '';
+    }
+    t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 2400);
   }
 
-  // ── Supabase sync on load — Supabase always wins ─────────────────
-  async function syncFromSupabase() {
-    const rows = await sbFetchAll();
-    if (rows === null) return; // network/auth failure — keep localStorage as-is
-    if (!rows.length) return;  // nothing in Supabase yet — keep localStorage as-is
-    const all = {};
-    rows.forEach(row => {
-      all[row.date] = {
-        date:      row.date,
-        wins:      row.wins     || '',
-        losses:    row.losses   || '',
-        tomorrow:  row.tomorrow || '',
-        rating:    row.rating   || null,
-        photos:    row.photos   || [],
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-      };
-    });
-    setAll(all); // overwrite localStorage completely — Supabase is source of truth
+  // ── Loading state ────────────────────────────────────────────────
+  function showLoading() {
+    document.getElementById('journalLoading').style.display = '';
+    document.getElementById('readCard').style.display = 'none';
+    document.getElementById('formCard').style.display = 'none';
+  }
+  function hideLoading() {
+    document.getElementById('journalLoading').style.display = 'none';
+  }
+
+  // ── Init: fetch Supabase first, render only after ─────────────────
+  async function init() {
+    showLoading();
+    let rows = null;
+    try {
+      rows = await Promise.race([
+        sbFetchAll(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+      ]);
+    } catch {
+      rows = null; // timed out — fall back to localStorage
+    }
+    if (rows !== null && rows.length > 0) {
+      const all = {};
+      rows.forEach(row => {
+        all[row.date] = {
+          date:       row.date,
+          wins:       row.wins      || '',
+          losses:     row.losses    || '',
+          tomorrow:   row.tomorrow  || '',
+          rating:     row.rating    || null,
+          photos:     row.photos    || [],
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+        };
+      });
+      setAll(all);
+    }
+    hideLoading();
     renderPage();
   }
 
