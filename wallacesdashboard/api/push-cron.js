@@ -23,13 +23,17 @@ function getVancouverTime() {
   return { hour: hour === 24 ? 0 : hour, minute };
 }
 
+function getVancouverDate() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
+}
+
 function matchesTime(configTime, defaultTime, vanHour, vanMinute) {
   const t = configTime || defaultTime;
   const [h, m] = t.split(':').map(Number);
   return h === vanHour && m === vanMinute;
 }
 
-function getNotificationsToFire(settings, vanHour, vanMinute) {
+function getNotificationsToFire(settings, vanHour, vanMinute, journalDoneToday) {
   const s = settings || {};
   const out = [];
 
@@ -91,6 +95,13 @@ function getNotificationsToFire(settings, vanHour, vanMinute) {
     }
   }
 
+  // Journal reminder — only fires if today's entry not yet written
+  if (s.journalReminder && s.journalReminder.enabled) {
+    if (matchesTime(s.journalReminder.time, '21:30', vanHour, vanMinute) && !journalDoneToday) {
+      out.push({ tag: 'journal', title: '📓 Journal', body: 'Time to journal — log your W/L for the day.' });
+    }
+  }
+
   return out;
 }
 
@@ -104,6 +115,22 @@ module.exports = async function handler(req, res) {
 
   const van = getVancouverTime();
 
+  // Check if today's journal entry exists (to conditionally fire journal reminder)
+  const vanDate = getVancouverDate();
+  let journalDoneToday = false;
+  try {
+    const jRes = await fetch(
+      SUPA_URL + '/rest/v1/journal_entries?date=eq.' + vanDate + '&select=date',
+      { headers: SB_HEADERS }
+    );
+    if (jRes.ok) {
+      const jRows = await jRes.json();
+      journalDoneToday = jRows.length > 0;
+    }
+  } catch (e) {
+    console.warn('[push-cron] journal check failed:', e.message);
+  }
+
   const r = await fetch(SUPA_URL + '/rest/v1/push_subscriptions?select=*', { headers: SB_HEADERS });
   if (!r.ok) {
     const detail = await r.text();
@@ -114,7 +141,7 @@ module.exports = async function handler(req, res) {
   let sent = 0;
 
   for (const row of subscriptions) {
-    const notifications = getNotificationsToFire(row.notification_settings, van.hour, van.minute);
+    const notifications = getNotificationsToFire(row.notification_settings, van.hour, van.minute, journalDoneToday);
     for (const notif of notifications) {
       const pushSub = {
         endpoint: row.endpoint,

@@ -336,6 +336,19 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
   <label class="notif-toggle"><input type="checkbox" id="planTomorrowEnabled"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
 </div>
 
+<!-- Journal reminder -->
+<div class="notif-card" id="card-journal">
+  <span class="notif-card-emoji">📓</span>
+  <div class="notif-card-body">
+    <div class="notif-card-title">Journal reminder</div>
+    <div class="notif-card-desc">Nightly reminder to log your W/L for the day</div>
+    <div class="notif-card-control">
+      <input type="time" class="notif-time-input" id="journalTime" value="21:30">
+    </div>
+  </div>
+  <label class="notif-toggle"><input type="checkbox" id="journalEnabled"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+</div>
+
 <!-- Test notification button -->
 <button id="testNotifBtn" style="width:100%;margin-top:8px;padding:12px;border-radius:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent" onclick="sendTestNotification()">
   🔔 Send test notification
@@ -349,6 +362,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
     <a href="finance.html"  class="tabbar-link" aria-label="Finance"><i data-lucide="dollar-sign"></i></a>
     <a href="sleep.html"    class="tabbar-link" aria-label="Sleep"><i data-lucide="moon"></i></a>
     <a href="deepwork.html" class="tabbar-link" aria-label="Deep Work"><i data-lucide="brain"></i></a>
+    <a href="journal.html"  class="tabbar-link" aria-label="Journal"><i data-lucide="book-open"></i></a>
   </div>
 </nav>
 <script>if(window.lucide)lucide.createIcons();</script>
@@ -377,6 +391,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
     const ec = s.eveningCheckIn   || {};
     const wm = s.workoutMissed    || {};
     const pt = s.planTomorrow     || {};
+    const jr = s.journalReminder  || {};
 
     document.getElementById('waterEnabled').checked = !!w.enabled;
     document.getElementById('waterInterval').value  = w.interval || '2';
@@ -395,6 +410,8 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
     document.getElementById('workoutMissedTime').value       = wm.time || '19:00';
     document.getElementById('planTomorrowEnabled').checked   = !!pt.enabled;
     document.getElementById('planTomorrowTime').value        = pt.time || '21:30';
+    document.getElementById('journalEnabled').checked        = !!jr.enabled;
+    document.getElementById('journalTime').value             = jr.time || '21:30';
     updateDisabledState();
   }
 
@@ -407,7 +424,8 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
       deepWorkReminder: { enabled: document.getElementById('deepworkEnabled').checked, time: document.getElementById('deepworkTime').value, targetHours: parseFloat(document.getElementById('deepworkTarget').value) || 2 },
       eveningCheckIn:   { enabled: document.getElementById('eveningCheckInEnabled').checked, time: document.getElementById('eveningCheckInTime').value },
       workoutMissed:    { enabled: document.getElementById('workoutMissedEnabled').checked,  time: document.getElementById('workoutMissedTime').value },
-      planTomorrow:     { enabled: document.getElementById('planTomorrowEnabled').checked,   time: document.getElementById('planTomorrowTime').value }
+      planTomorrow:     { enabled: document.getElementById('planTomorrowEnabled').checked,   time: document.getElementById('planTomorrowTime').value },
+      journalReminder:  { enabled: document.getElementById('journalEnabled').checked,        time: document.getElementById('journalTime').value }
     });
     localStorage.setItem('deepWorkDailyTarget', String(parseFloat(document.getElementById('deepworkTarget').value) || 2));
   }
@@ -434,7 +452,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
 
   function updateDisabledState() {
     const denied = !('Notification' in window) || Notification.permission === 'denied';
-    ['water','todo','bedtime','gym','deepwork','eveningCheckIn','workoutMissed','planTomorrow'].forEach(id => {
+    ['water','todo','bedtime','gym','deepwork','eveningCheckIn','workoutMissed','planTomorrow','journal'].forEach(id => {
       const card = document.getElementById('card-' + id);
       if (card) card.classList.toggle('disabled', denied);
     });
@@ -493,6 +511,9 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
     }
     if ((s.planTomorrow || {}).enabled) {
       await fireNotification('📋 Plan tomorrow', 'Have you planned tomorrow yet? Write it tonight.', 'test-plan');
+    }
+    if ((s.journalReminder || {}).enabled) {
+      await fireNotification('📓 Journal', 'Time to journal — log your W/L for the day.', 'test-journal');
     }
 
     console.log('[test notif] Sent', sent, 'notification(s)');
