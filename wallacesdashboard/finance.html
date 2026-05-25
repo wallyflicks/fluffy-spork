@@ -322,6 +322,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
   <div class="fin-card fin-hero">
     <div class="fin-hero-label">Total Net Worth</div>
     <div class="fin-hero-value"><span class="fin-currency">$</span><span id="nwHeroVal">—</span></div>
+    <div id="nwDailyPnl" style="min-height:20px;margin-top:6px;font-size:12px;letter-spacing:0.02em"></div>
     <!-- Formula breakdown -->
     <div class="nw-breakdown" id="nwBreakdown">
       <div class="nw-breakdown-row">
@@ -707,8 +708,9 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     EXP:   'finance_expenses',            // [{ id, desc, amount, date, tag }]
     GOALS: 'finance_savings_goals',       // [{ id, name, target, current, deadline }]
   };
-  const RATE_KEY     = 'usdCadRate';        // { rate: number, date: 'YYYY-MM-DD' }
-  const SNAPSHOT_KEY = 'portfolioSnapshots'; // [{ date: 'YYYY-MM-DD', valueCAD: number }]
+  const RATE_KEY     = 'usdCadRate';             // { rate: number, date: 'YYYY-MM-DD' }
+  const SNAPSHOT_KEY = 'portfolioSnapshots';     // [{ date: 'YYYY-MM-DD', valueCAD: number }]
+  const NW_SNAP_KEY  = 'wallaceNetWorthSnapshots'; // [{ date: 'YYYY-MM-DD', totalCAD: number }]
 
   // ── Supabase sync ────────────────────────────────────────────────────────
   const SUPA_URL = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
@@ -762,6 +764,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     const d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   }
+  function todayVan() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' }); }
   function fmt$(n, dec) {
     if (n == null || isNaN(n)) return '—';
     return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: dec ?? 0, maximumFractionDigits: dec ?? 0 });
@@ -1050,6 +1053,54 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     set('nwCashLine',   fmt$(cash,   2));
     set('nwStocksLine', fmt$(stocks, 2));
     set('nwInvLine',    fmt$(inv,    2));
+    renderNetWorthPnL();
+  }
+
+  // Save full net worth snapshot (Cash + Stocks CAD + Investments) — once per day, updated after price refresh
+  function saveNetWorthSnapshot() {
+    const rate      = getCachedRate();
+    const cash      = (loadObj(K.CASH).value) || 0;
+    const stocksCAD = calcPortfolioCAD(rate);
+    const inv       = load(K.INV).reduce((s, a) => s + (a.value || 0), 0);
+    const totalCAD  = cash + stocksCAD + inv;
+    if (totalCAD <= 0) return;
+    const dateStr   = todayVan();
+    const snaps     = (() => { try { return JSON.parse(localStorage.getItem(NW_SNAP_KEY)) || []; } catch { return []; } })();
+    const idx       = snaps.findIndex(s => s.date === dateStr);
+    const entry     = { date: dateStr, totalCAD: Math.round(totalCAD * 100) / 100 };
+    if (idx >= 0) snaps[idx] = entry; else snaps.push(entry);
+    snaps.sort((a, b) => a.date.localeCompare(b.date));
+    while (snaps.length > 30) snaps.shift();
+    localStorage.setItem(NW_SNAP_KEY, JSON.stringify(snaps));
+  }
+
+  // Daily P&L = (today's full net worth − yesterday's snapshot) + today's income − today's expenses
+  function renderNetWorthPnL() {
+    const el = document.getElementById('nwDailyPnl');
+    if (!el) return;
+    const rate      = getCachedRate();
+    const cash      = (loadObj(K.CASH).value) || 0;
+    const stocksCAD = calcPortfolioCAD(rate);
+    const inv       = load(K.INV).reduce((s, a) => s + (a.value || 0), 0);
+    const todayCAD  = cash + stocksCAD + inv;
+    const snaps     = (() => { try { return JSON.parse(localStorage.getItem(NW_SNAP_KEY)) || []; } catch { return []; } })();
+    const todayStr  = todayVan();
+    const yesterday = snaps.filter(s => s.date < todayStr).slice(-1)[0];
+    if (!yesterday || todayCAD <= 0) {
+      el.innerHTML = '<span style="color:rgba(255,255,255,0.25)">—</span>';
+      return;
+    }
+    const nwChange = todayCAD - yesterday.totalCAD;
+    const todayInc = load(K.INC).filter(e => e.date === todayStr).reduce((s, e) => s + e.amount, 0);
+    const todayExp = load(K.EXP).filter(e => e.date === todayStr).reduce((s, e) => s + e.amount, 0);
+    const pnl      = nwChange + todayInc - todayExp;
+    const pct      = yesterday.totalCAD > 0 ? pnl / yesterday.totalCAD * 100 : 0;
+    if (Math.abs(pnl) < 0.005) { el.innerHTML = '<span style="color:rgba(255,255,255,0.28)">—</span>'; return; }
+    const up    = pnl > 0;
+    const color = up ? '#4ade80' : '#f87171';
+    const arrow = up ? '↑' : '↓';
+    const sign  = up ? '+' : '';
+    el.innerHTML = `<span style="color:${color};font-weight:600;font-variant-numeric:tabular-nums">${arrow} ${sign}$${Math.abs(pnl).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} today (${sign}${pct.toFixed(1)}%)</span>`;
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -1149,6 +1200,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     if (rateEl) rateEl.textContent = `1 USD = ${rate.toFixed(4)} CAD`;
     const totalCAD = calcPortfolioCAD(rate);
     if (totalCAD > 0) saveSnapshot(totalCAD);
+    saveNetWorthSnapshot();
 
     renderStocks();
     renderNetWorth();
@@ -1735,6 +1787,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     initPortfolioChartTooltip();
     window.addEventListener('resize', renderPortfolioChart);
 
+    saveNetWorthSnapshot(); // save with cached data; updated again after price refresh below
     refreshStockPrices(true); // fetches live prices + updates rate + saves snapshot
   }
 
