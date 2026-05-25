@@ -948,6 +948,10 @@ textarea::placeholder { color: var(--text-4); }
   // ── Init: fetch Supabase first, render only after ─────────────────
   async function init() {
     showLoading();
+
+    // Snapshot local entries before any network call
+    const localAll = getAll();
+
     let rows = null;
     try {
       rows = await Promise.race([
@@ -957,10 +961,12 @@ textarea::placeholder { color: var(--text-4); }
     } catch {
       rows = null; // timed out — fall back to localStorage
     }
-    if (rows !== null && rows.length > 0) {
-      const all = {};
+
+    if (rows !== null) {
+      // Build Supabase map
+      const sbAll = {};
       rows.forEach(row => {
-        all[row.date] = {
+        sbAll[row.date] = {
           date:       row.date,
           wins:       row.wins      || '',
           losses:     row.losses    || '',
@@ -971,8 +977,22 @@ textarea::placeholder { color: var(--text-4); }
           updated_at: row.updated_at,
         };
       });
-      setAll(all);
+
+      // Upload any local entries that Supabase doesn't have yet
+      const sbDates = new Set(Object.keys(sbAll));
+      Object.keys(localAll).forEach(d => {
+        if (!sbDates.has(d)) {
+          console.log('[journal] uploading local-only entry to Supabase:', d);
+          sbUpsert(localAll[d]);
+        }
+      });
+
+      // Merge: keep local-only dates, Supabase wins any conflict
+      const merged = Object.assign({}, localAll, sbAll);
+      console.log('[journal] merged entries:', Object.keys(merged).length, '(sb:', rows.length, 'local:', Object.keys(localAll).length, ')');
+      setAll(merged);
     }
+
     hideLoading();
     renderPage();
   }
