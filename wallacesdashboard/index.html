@@ -951,6 +951,77 @@
     }
     .notif-bell-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.08); }
     .notif-bell-btn svg { width: 18px; height: 18px; }
+
+    /* ── Weekly Review ── */
+    .wr-overlay {
+      position: fixed; inset: 0; z-index: 10000;
+      background: rgba(0,0,0,0.85); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      display: flex; align-items: flex-start; justify-content: center;
+      padding: 24px 16px; overflow-y: auto;
+    }
+    .wr-modal {
+      width: 100%; max-width: 460px; margin: auto;
+      background: #111113; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 22px; padding: 26px 22px 22px;
+      display: flex; flex-direction: column;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.7);
+      animation: wr-in 0.28s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @keyframes wr-in {
+      from { opacity:0; transform:translateY(20px) scale(0.97); }
+      to   { opacity:1; transform:none; }
+    }
+    .wr-modal-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+    .wr-week-label { font-size:10px; font-weight:700; letter-spacing:0.2em; text-transform:uppercase; color:var(--text-tertiary); font-family:var(--mono); }
+    .wr-x-btn { background:none; border:none; color:var(--text-tertiary); font-size:26px; line-height:1; cursor:pointer; padding:0 2px; }
+    .wr-x-btn:hover { color:var(--text-primary); }
+    .wr-row { display:grid; grid-template-columns:24px 1fr auto; gap:10px; align-items:center; padding:9px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+    .wr-row:last-child { border-bottom:none; }
+    .wr-row-icon { font-size:15px; text-align:center; line-height:1; }
+    .wr-row-left { display:flex; flex-direction:column; gap:2px; min-width:0; }
+    .wr-row-name { font-size:13px; font-weight:600; color:var(--text-primary); }
+    .wr-row-val  { font-size:11px; color:var(--text-secondary); font-family:var(--mono); }
+    .wr-row-right { display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex-shrink:0; }
+    .wr-row-bar { font-size:10px; color:var(--success); letter-spacing:-0.02em; font-family:var(--mono); }
+    .wr-row-pts { font-size:10px; color:var(--text-tertiary); font-family:var(--mono); }
+    .wr-score-block { text-align:center; padding:18px 0 6px; border-top:1px solid rgba(255,255,255,0.08); margin-top:14px; }
+    .wr-score-val { font-size:44px; font-weight:800; letter-spacing:-0.04em; font-family:var(--mono); line-height:1; }
+    .wr-score-lbl { font-size:10px; color:var(--text-tertiary); letter-spacing:0.2em; text-transform:uppercase; margin-top:4px; font-family:var(--mono); }
+    .wr-days-line { font-size:12px; color:var(--text-secondary); text-align:center; font-family:var(--mono); min-height:18px; margin:10px 0 20px; }
+    .wr-btn-row { display:flex; gap:8px; }
+    .wr-save-btn {
+      flex:1; padding:13px; background:linear-gradient(180deg,#fff 0%,#E8E5DD 100%);
+      color:#0a0a0b; border:none; border-radius:12px; font-size:14px; font-weight:700;
+      cursor:pointer; font-family:var(--sans);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,0.55),0 4px 14px rgba(0,0,0,0.35);
+      transition:opacity 0.15s;
+    }
+    .wr-save-btn:hover { opacity:0.88; }
+    .wr-save-btn:disabled { opacity:0.5; cursor:default; }
+    .wr-close-btn {
+      padding:13px 18px; background:rgba(255,255,255,0.05); color:var(--text-secondary);
+      border:1px solid rgba(255,255,255,0.08); border-radius:12px; font-size:14px;
+      font-weight:600; cursor:pointer; font-family:var(--sans); transition:background 0.15s;
+    }
+    .wr-close-btn:hover { background:rgba(255,255,255,0.09); }
+    /* Past reviews cards */
+    .wr-past-card { background:var(--card); border:1px solid rgba(255,255,255,0.06); border-radius:14px; overflow:hidden; margin-bottom:8px; }
+    .wr-past-header { display:flex; align-items:center; gap:12px; padding:13px 16px; cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent; }
+    .wr-past-header:hover { background:rgba(255,255,255,0.02); }
+    .wr-past-week { font-size:10px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-secondary); font-family:var(--mono); flex:1; }
+    .wr-past-score { font-size:13px; font-weight:700; font-family:var(--mono); }
+    .wr-past-chevron { color:var(--text-tertiary); font-size:11px; transition:transform 0.2s; }
+    .wr-past-card.open .wr-past-chevron { transform:rotate(180deg); }
+    .wr-past-body { display:none; padding:2px 16px 14px; border-top:1px solid rgba(255,255,255,0.05); }
+    .wr-past-card.open .wr-past-body { display:block; }
+    /* Review trigger button */
+    .wr-trigger-btn {
+      font-size:10px; letter-spacing:0.12em; text-transform:uppercase;
+      background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1);
+      border-radius:999px; color:var(--text-secondary); padding:5px 12px;
+      cursor:pointer; font-family:var(--mono); white-space:nowrap; transition:background 0.15s;
+    }
+    .wr-trigger-btn:hover { background:rgba(255,255,255,0.08); color:var(--text-primary); }
   </style>
 </head>
 <body>
@@ -1050,7 +1121,10 @@
             <p class="gm-eyebrow">Weekly tasks</p>
             <p style="font-size:11px;color:var(--text-tertiary);margin-top:2px">Uncompleted tasks carry over each Monday</p>
           </div>
-          <div class="tomorrow-badge" id="weeklyBadge">0 left</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="tomorrow-badge" id="weeklyBadge">0 left</div>
+            <button id="weeklyReviewTrigger" class="wr-trigger-btn">📋 Review</button>
+          </div>
         </div>
         <ul id="weeklyList" class="goal-list"></ul>
         <div id="weeklyEmpty" class="empty-state">No weekly tasks yet — add one below.</div>
@@ -1059,6 +1133,12 @@
           <button type="button" class="goal-add-btn" id="weeklyAdd">+ Add</button>
         </div>
       </section>
+    </div>
+
+    <!-- ── Past Reviews ── -->
+    <div id="pastReviewsSection" style="display:none;margin-bottom:16px">
+      <p style="font-size:11px;font-weight:600;letter-spacing:0.08em;color:var(--text-tertiary);margin-bottom:8px;text-transform:uppercase">Past Weekly Reviews</p>
+      <div id="pastReviewsList"></div>
     </div>
 
     <!-- ── Charts ── -->
@@ -2105,6 +2185,36 @@
     })();
   </script>
 
+  <!-- ── Weekly Review Modal ── -->
+  <div id="wrOverlay" class="wr-overlay" style="display:none" role="dialog" aria-modal="true" aria-label="Weekly Review">
+    <div class="wr-modal">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+        <div>
+          <p style="font-size:11px;font-weight:600;letter-spacing:0.08em;color:var(--text-tertiary);text-transform:uppercase;margin-bottom:2px">Weekly Review</p>
+          <p id="wrWeekLabel" style="font-size:13px;color:var(--text-secondary)"></p>
+        </div>
+        <button id="wrClose" style="background:none;border:none;cursor:pointer;color:var(--text-tertiary);padding:4px">✕</button>
+      </div>
+
+      <div id="wrRows"></div>
+
+      <div class="wr-score-block">
+        <p style="font-size:11px;color:var(--text-tertiary);letter-spacing:0.05em">WEEK SCORE</p>
+        <p id="wrScore" style="font-size:36px;font-weight:700;color:var(--text-primary);line-height:1.1"></p>
+        <p id="wrScoreBar" style="font-size:14px;letter-spacing:1px;color:var(--text-secondary);margin-top:4px"></p>
+        <p id="wrScoreLabel" style="font-size:11px;color:var(--text-tertiary);margin-top:6px"></p>
+      </div>
+
+      <div id="wrJournalHighlights" style="margin-top:4px;margin-bottom:16px;font-size:12px;color:var(--text-tertiary);line-height:1.6"></div>
+
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <button id="wrSave" style="flex:1;padding:13px;border-radius:12px;border:none;cursor:pointer;background:var(--accent-blue);color:#fff;font-size:13px;font-weight:600">Save this review</button>
+        <button id="wrCloseBottom" style="padding:13px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);cursor:pointer;background:none;color:var(--text-secondary);font-size:13px">Close</button>
+      </div>
+      <p id="wrSavedMsg" style="text-align:center;font-size:11px;color:var(--text-tertiary);margin-top:10px;min-height:16px"></p>
+    </div>
+  </div>
+
   <nav class="tabbar" aria-label="Bottom navigation">
   <div class="tabbar-inner">
     <a href="index.html"    class="tabbar-link active" aria-current="page" aria-label="Main"><i data-lucide="home"></i></a>
@@ -2118,5 +2228,361 @@
 </nav>
 <script>if(window.lucide)lucide.createIcons();</script>
 <script src="cinematic.js" defer></script>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── helpers ── */
+  function vanNow() {
+    // Return a Date whose .getFullYear/.getMonth/.getDate/.getDay reflect Vancouver local time
+    const str = new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' });
+    return new Date(str);
+  }
+  function vanDateStr(d) {
+    // ISO date string for a Date in Vancouver timezone
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  function bar(pct, len) {
+    len = len || 10;
+    const n = Math.min(len, Math.max(0, Math.round(pct * len)));
+    return '█'.repeat(n) + '░'.repeat(len - n);
+  }
+  function getWeek() {
+    const now = vanNow();
+    const dow = now.getDay(); // 0=Sun
+    const daysFromMon = (dow + 6) % 7;
+    const mon = new Date(now);
+    mon.setDate(now.getDate() - daysFromMon);
+    mon.setHours(0, 0, 0, 0);
+    const dates = Array.from({ length: 7 }, function (_, i) {
+      const d = new Date(mon);
+      d.setDate(mon.getDate() + i);
+      return vanDateStr(d);
+    });
+    return { weekStart: dates[0], weekEnd: dates[6], dates: dates };
+  }
+
+  const SUPA_URL  = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
+  const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
+  const SB_HDR = {
+    'Content-Type': 'application/json',
+    'apikey': SUPA_ANON,
+    'Authorization': 'Bearer ' + SUPA_ANON,
+  };
+
+  /* ── data collection ── */
+  function collectWeekData(week) {
+    const dates = week.dates; // Mon–Sun strings
+
+    // Deep Work hours
+    var dwRaw = JSON.parse(localStorage.getItem('dw_sessions') || '[]');
+    var totalDwHours = 0;
+    dwRaw.forEach(function (s) {
+      if (dates.indexOf(s.date) !== -1) totalDwHours += (s.duration || 0) / 3600;
+    });
+
+    // Gym training days
+    var workoutDone = JSON.parse(localStorage.getItem('po_coach_workout_done') || '{}');
+    var trainingDays = 0;
+    dates.forEach(function (d) { if (workoutDone[d]) trainingDays++; });
+
+    // Expected gym days from split rotation
+    var poc = JSON.parse(localStorage.getItem('po_coach_v1') || '{}');
+    var rotation = poc.splitRotation || [];
+    var expectedDays = 0;
+    if (rotation.length > 0) {
+      var nonRest = rotation.filter(function (s) { return s && s.toLowerCase() !== 'rest'; }).length;
+      expectedDays = Math.round((nonRest / rotation.length) * 7);
+    } else {
+      expectedDays = 4;
+    }
+
+    // Goals completion
+    var totalGoalsAdded = 0, totalGoalsDone = 0;
+    dates.forEach(function (d) {
+      var goals = JSON.parse(localStorage.getItem('goals:' + d) || '[]');
+      totalGoalsAdded += goals.length;
+      totalGoalsDone  += goals.filter(function (g) { return g.done; }).length;
+    });
+
+    // Water days on target
+    var waterRaw = JSON.parse(localStorage.getItem('po_water_v1') || '{}');
+    var waterTarget = parseInt(waterRaw.target) || 8;
+    var waterDaysOnTarget = 0;
+    dates.forEach(function (d) {
+      var cups = parseInt((waterRaw.logs || {})[d]) || 0;
+      if (cups >= waterTarget) waterDaysOnTarget++;
+    });
+
+    // Sleep average
+    var sleepSessions = JSON.parse(localStorage.getItem('sleepSessions') || '[]');
+    var sleepHoursArr = [];
+    sleepSessions.forEach(function (s) {
+      // Each session has wakeDate (the morning date) and duration in minutes
+      if (dates.indexOf(s.wakeDate || s.date) !== -1 && s.duration) {
+        sleepHoursArr.push(s.duration / 60);
+      }
+    });
+    var avgSleep = sleepHoursArr.length > 0
+      ? sleepHoursArr.reduce(function (a, b) { return a + b; }, 0) / sleepHoursArr.length
+      : 0;
+
+    // Journal avg rating + best/worst day
+    var journalAll = JSON.parse(localStorage.getItem('wallace_journal') || '{}');
+    var journalRatings = [];
+    var bestDay = null, worstDay = null;
+    dates.forEach(function (d) {
+      var entry = journalAll[d];
+      if (entry && typeof entry.rating === 'number') {
+        journalRatings.push({ date: d, rating: entry.rating });
+      }
+    });
+    var avgJournal = journalRatings.length > 0
+      ? journalRatings.reduce(function (a, b) { return a + b.rating; }, 0) / journalRatings.length
+      : 0;
+    if (journalRatings.length > 0) {
+      var sorted = journalRatings.slice().sort(function (a, b) { return b.rating - a.rating; });
+      bestDay  = sorted[0];
+      worstDay = sorted[sorted.length - 1];
+    }
+
+    return {
+      totalDwHours, trainingDays, expectedDays,
+      totalGoalsAdded, totalGoalsDone,
+      waterDaysOnTarget, waterTarget,
+      avgSleep, avgJournal,
+      journalRatings, bestDay, worstDay,
+    };
+  }
+
+  /* ── score calculation ── */
+  function calcScore(d) {
+    var dw     = Math.min(20, d.totalDwHours / 14 * 20);
+    var gym    = d.expectedDays > 0 ? Math.min(20, d.trainingDays / d.expectedDays * 20) : 0;
+    var goals  = d.totalGoalsAdded > 0 ? Math.min(20, d.totalGoalsDone / d.totalGoalsAdded * 20) : 0;
+    var water  = Math.min(15, d.waterDaysOnTarget / 7 * 15);
+    var sleep  = Math.min(15, d.avgSleep / 8 * 15);
+    var journal = Math.min(10, d.avgJournal / 10 * 10);
+    return Math.round(dw + gym + goals + water + sleep + journal);
+  }
+
+  function scoreLabel(s) {
+    if (s >= 90) return 'Exceptional week';
+    if (s >= 75) return 'Strong week';
+    if (s >= 60) return 'Solid week';
+    if (s >= 45) return 'Average week';
+    if (s >= 30) return 'Below average';
+    return 'Rough week';
+  }
+
+  /* ── render modal ── */
+  function renderModal(week, data, score) {
+    document.getElementById('wrWeekLabel').textContent =
+      week.weekStart + ' → ' + week.weekEnd;
+
+    var rows = [
+      {
+        icon: '🧠',
+        label: 'Deep Work',
+        val: data.totalDwHours.toFixed(1) + 'h / 14h target',
+        pct: Math.min(1, data.totalDwHours / 14),
+      },
+      {
+        icon: '🏋️',
+        label: 'Gym',
+        val: data.trainingDays + ' / ' + data.expectedDays + ' days',
+        pct: data.expectedDays > 0 ? Math.min(1, data.trainingDays / data.expectedDays) : 0,
+      },
+      {
+        icon: '✅',
+        label: 'Goals',
+        val: data.totalGoalsDone + ' / ' + data.totalGoalsAdded + ' done',
+        pct: data.totalGoalsAdded > 0 ? Math.min(1, data.totalGoalsDone / data.totalGoalsAdded) : 0,
+      },
+      {
+        icon: '💧',
+        label: 'Water',
+        val: data.waterDaysOnTarget + ' / 7 days on target',
+        pct: Math.min(1, data.waterDaysOnTarget / 7),
+      },
+      {
+        icon: '😴',
+        label: 'Sleep avg',
+        val: data.avgSleep.toFixed(1) + 'h / night',
+        pct: Math.min(1, data.avgSleep / 8),
+      },
+      {
+        icon: '📓',
+        label: 'Journal avg',
+        val: data.avgJournal.toFixed(1) + ' / 10 rating',
+        pct: Math.min(1, data.avgJournal / 10),
+      },
+    ];
+
+    var rowsHtml = rows.map(function (r) {
+      return '<div class="wr-row">' +
+        '<span>' + r.icon + '</span>' +
+        '<div>' +
+          '<div style="font-size:13px;font-weight:500;color:var(--text-primary)">' + r.label + '</div>' +
+          '<div style="font-size:11px;color:var(--text-tertiary);margin-top:1px;font-family:monospace">' + bar(r.pct) + '</div>' +
+        '</div>' +
+        '<div style="font-size:12px;color:var(--text-secondary);text-align:right;white-space:nowrap">' + r.val + '</div>' +
+      '</div>';
+    }).join('');
+    document.getElementById('wrRows').innerHTML = rowsHtml;
+
+    document.getElementById('wrScore').textContent = score + ' / 100';
+    document.getElementById('wrScoreBar').textContent = bar(score / 100);
+    document.getElementById('wrScoreLabel').textContent = scoreLabel(score);
+
+    var highlights = '';
+    if (data.bestDay)  highlights += '🏆 Best day: '  + data.bestDay.date  + ' (' + data.bestDay.rating  + '/10)<br>';
+    if (data.worstDay && data.worstDay !== data.bestDay)
+      highlights += '📉 Lowest day: ' + data.worstDay.date + ' (' + data.worstDay.rating + '/10)';
+    document.getElementById('wrJournalHighlights').innerHTML = highlights;
+
+    document.getElementById('wrSavedMsg').textContent = '';
+  }
+
+  /* ── open / close modal ── */
+  function openModal() {
+    var week  = getWeek();
+    var data  = collectWeekData(week);
+    var score = calcScore(data);
+    renderModal(week, data, score);
+    var overlay = document.getElementById('wrOverlay');
+    overlay.style.display = 'flex';
+    overlay._weeklyState  = { week, data, score };
+  }
+
+  function closeModal() {
+    document.getElementById('wrOverlay').style.display = 'none';
+  }
+
+  /* ── save review ── */
+  async function saveReview() {
+    var overlay = document.getElementById('wrOverlay');
+    var state   = overlay._weeklyState;
+    if (!state) return;
+
+    var { week, data, score } = state;
+    var entry = {
+      week_start: week.weekStart,
+      week_end:   week.weekEnd,
+      score:      score,
+      data:       data,
+      saved_at:   new Date().toISOString(),
+    };
+
+    // localStorage
+    var reviews = JSON.parse(localStorage.getItem('weeklyReviews') || '[]');
+    var idx = reviews.findIndex(function (r) { return r.week_start === week.weekStart; });
+    if (idx !== -1) reviews[idx] = entry; else reviews.push(entry);
+    reviews.sort(function (a, b) { return b.week_start.localeCompare(a.week_start); });
+    localStorage.setItem('weeklyReviews', JSON.stringify(reviews));
+
+    // Mark last review week so auto-trigger doesn't fire again
+    localStorage.setItem('lastWeeklyReview', week.weekStart);
+
+    // Supabase upsert
+    try {
+      await fetch(SUPA_URL + '/rest/v1/weekly_reviews', {
+        method: 'POST',
+        headers: Object.assign({}, SB_HDR, { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+        body: JSON.stringify({ week_start: week.weekStart, week_end: week.weekEnd, data: data, score: score }),
+      });
+    } catch (e) {
+      console.warn('[weekly-review] supabase save failed:', e.message);
+    }
+
+    document.getElementById('wrSavedMsg').textContent = '✓ Review saved';
+    renderPastReviews();
+  }
+
+  /* ── past reviews ── */
+  function renderPastReviews() {
+    var reviews = JSON.parse(localStorage.getItem('weeklyReviews') || '[]');
+    if (reviews.length === 0) {
+      document.getElementById('pastReviewsSection').style.display = 'none';
+      return;
+    }
+    var last4 = reviews.slice(0, 4);
+    var html = last4.map(function (r) {
+      return '<div class="wr-past-card">' +
+        '<div class="wr-past-header" onclick="this.nextElementSibling.hidden=!this.nextElementSibling.hidden">' +
+          '<span style="font-size:13px;font-weight:500;color:var(--text-primary)">' + r.week_start + ' → ' + r.week_end + '</span>' +
+          '<span style="font-size:13px;font-weight:600;color:var(--accent-blue)">' + r.score + '/100</span>' +
+        '</div>' +
+        '<div class="wr-past-body" hidden>' +
+          '<div style="font-family:monospace;font-size:12px;color:var(--text-secondary);line-height:1.9">' +
+            '🧠 DW ' + (r.data.totalDwHours || 0).toFixed(1) + 'h  ' + bar(Math.min(1,(r.data.totalDwHours||0)/14)) + '<br>' +
+            '🏋️ Gym ' + (r.data.trainingDays||0) + 'd  ' + bar(r.data.expectedDays>0?Math.min(1,(r.data.trainingDays||0)/r.data.expectedDays):0) + '<br>' +
+            '✅ Goals ' + (r.data.totalGoalsDone||0) + '/' + (r.data.totalGoalsAdded||0) + '  ' + bar(r.data.totalGoalsAdded>0?Math.min(1,(r.data.totalGoalsDone||0)/(r.data.totalGoalsAdded||1)):0) + '<br>' +
+            '💧 Water ' + (r.data.waterDaysOnTarget||0) + '/7d  ' + bar(Math.min(1,(r.data.waterDaysOnTarget||0)/7)) + '<br>' +
+            '😴 Sleep ' + (r.data.avgSleep||0).toFixed(1) + 'h  ' + bar(Math.min(1,(r.data.avgSleep||0)/8)) + '<br>' +
+            '📓 Journal ' + (r.data.avgJournal||0).toFixed(1) + '/10  ' + bar(Math.min(1,(r.data.avgJournal||0)/10)) +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    document.getElementById('pastReviewsList').innerHTML = html;
+    document.getElementById('pastReviewsSection').style.display = '';
+  }
+
+  /* ── load past reviews from Supabase ── */
+  async function loadPastReviewsFromSupabase() {
+    try {
+      var res = await fetch(
+        SUPA_URL + '/rest/v1/weekly_reviews?select=*&order=week_start.desc&limit=4',
+        { headers: SB_HDR }
+      );
+      if (!res.ok) return;
+      var rows = await res.json();
+      if (!rows || rows.length === 0) return;
+      // Merge into localStorage (Supabase wins per week_start)
+      var existing = JSON.parse(localStorage.getItem('weeklyReviews') || '[]');
+      rows.forEach(function (r) {
+        var entry = { week_start: r.week_start, week_end: r.week_end, score: r.score, data: r.data };
+        var idx = existing.findIndex(function (e) { return e.week_start === r.week_start; });
+        if (idx !== -1) existing[idx] = entry; else existing.push(entry);
+      });
+      existing.sort(function (a, b) { return b.week_start.localeCompare(a.week_start); });
+      localStorage.setItem('weeklyReviews', JSON.stringify(existing));
+      renderPastReviews();
+    } catch (e) {
+      console.warn('[weekly-review] supabase load failed:', e.message);
+    }
+  }
+
+  /* ── auto-trigger on Sunday ── */
+  function maybeAutoTrigger() {
+    var now = vanNow();
+    if (now.getDay() !== 0) return; // not Sunday
+    var week = getWeek();
+    var lastReview = localStorage.getItem('lastWeeklyReview');
+    if (lastReview === week.weekStart) return; // already reviewed this week
+    // Small delay so the page renders first
+    setTimeout(openModal, 1200);
+  }
+
+  /* ── wire up ── */
+  document.getElementById('weeklyReviewTrigger').addEventListener('click', openModal);
+  document.getElementById('wrClose').addEventListener('click', closeModal);
+  document.getElementById('wrCloseBottom').addEventListener('click', closeModal);
+  document.getElementById('wrSave').addEventListener('click', saveReview);
+  document.getElementById('wrOverlay').addEventListener('click', function (e) {
+    if (e.target === this) closeModal();
+  });
+
+  /* ── init ── */
+  renderPastReviews();
+  loadPastReviewsFromSupabase();
+  maybeAutoTrigger();
+})();
+</script>
 </body>
 </html>
