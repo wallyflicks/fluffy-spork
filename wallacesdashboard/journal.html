@@ -538,18 +538,33 @@ textarea::placeholder { color: var(--text-4); }
           updated_at: new Date().toISOString(),
         }),
       });
-      if (!res.ok) console.warn('[journal] upsert failed:', await res.text());
-    } catch (e) { console.warn('[journal] upsert error:', e.message); }
+      if (res.ok) {
+        console.log('JOURNAL SAVED TO SUPABASE:', entry.date, 'OK');
+      } else {
+        const detail = await res.text();
+        console.warn('JOURNAL SAVED TO SUPABASE: failed', res.status, detail);
+      }
+    } catch (e) { console.warn('JOURNAL SAVED TO SUPABASE: error', e.message); }
   }
 
-  async function sbFetchRange(from, to) {
+  async function sbFetchAll() {
     try {
       const res = await fetch(
-        SUPA_URL + '/rest/v1/journal_entries?date=gte.' + from + '&date=lte.' + to + '&order=date.desc',
+        SUPA_URL + '/rest/v1/journal_entries?select=*&order=date.desc',
         { headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY } }
       );
-      return res.ok ? await res.json() : [];
-    } catch { return []; }
+      if (!res.ok) {
+        const detail = await res.text();
+        console.warn('JOURNAL LOADED FROM SUPABASE: failed', res.status, detail);
+        return null;
+      }
+      const data = await res.json();
+      console.log('JOURNAL LOADED FROM SUPABASE:', data.length, 'entries', data);
+      return data;
+    } catch (e) {
+      console.warn('JOURNAL LOADED FROM SUPABASE: error', e.message);
+      return null;
+    }
   }
 
   // ── State ────────────────────────────────────────────────────────
@@ -893,33 +908,26 @@ textarea::placeholder { color: var(--text-4); }
     setTimeout(() => t.classList.remove('show'), 2400);
   }
 
-  // ── Supabase sync on load ────────────────────────────────────────
+  // ── Supabase sync on load — Supabase always wins ─────────────────
   async function syncFromSupabase() {
-    const toDate = TODAY;
-    const fromDate = new Date();
-    fromDate.setDate(fromDate.getDate() - 37);
-    const from = fromDate.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
-    const rows = await sbFetchRange(from, toDate);
-    if (!rows.length) return;
-    const all = getAll();
-    let changed = false;
+    const rows = await sbFetchAll();
+    if (rows === null) return; // network/auth failure — keep localStorage as-is
+    if (!rows.length) return;  // nothing in Supabase yet — keep localStorage as-is
+    const all = {};
     rows.forEach(row => {
-      const local = all[row.date];
-      if (!local || (row.updated_at && (!local.updated_at || local.updated_at < row.updated_at))) {
-        all[row.date] = {
-          date: row.date,
-          wins: row.wins || '',
-          losses: row.losses || '',
-          tomorrow: row.tomorrow || '',
-          rating: row.rating || null,
-          photos: row.photos || [],
-          created_at: row.created_at,
-          updated_at: row.updated_at,
-        };
-        changed = true;
-      }
+      all[row.date] = {
+        date:      row.date,
+        wins:      row.wins     || '',
+        losses:    row.losses   || '',
+        tomorrow:  row.tomorrow || '',
+        rating:    row.rating   || null,
+        photos:    row.photos   || [],
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+      };
     });
-    if (changed) { setAll(all); renderPage(); }
+    setAll(all); // overwrite localStorage completely — Supabase is source of truth
+    renderPage();
   }
 
 })();
