@@ -560,13 +560,14 @@ img, video, canvas, svg { max-width: 100%; }
   padding: 14px 0; text-align: center; font-size: 12px; color: var(--text-3);
   font-style: italic;
 }
+.po-hist-date-group { margin-bottom: 12px; }
+.po-hist-date-header { font-size: 11px; color: var(--text-3); font-family: var(--font-mono); font-weight: 700; padding: 4px 0 6px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
 .po-hist-row {
-  display: grid; grid-template-columns: 60px 1fr auto; gap: 12px;
-  padding: 10px 4px; align-items: center;
+  display: grid; grid-template-columns: 1fr auto; gap: 12px;
+  padding: 8px 4px; align-items: center;
   border-bottom: 1px solid var(--border);
 }
 .po-hist-row:last-child { border-bottom: none; }
-.po-hist-date { font-size: 11px; color: var(--text-3); font-family: var(--font-mono); }
 .po-hist-set { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .po-hist-del {
   background: transparent; border: none; color: var(--text-4);
@@ -830,18 +831,18 @@ img, video, canvas, svg { max-width: 100%; }
   display: flex; flex-direction: column; gap: 6px;
 }
 .po-tw-row {
-  display: flex; align-items: center; justify-content: space-between;
   padding: 10px 12px;
   background: rgba(255,255,255,0.025);
   border: 1px solid var(--border);
   border-radius: 10px;
   font-size: 13px;
 }
-.po-tw-row-name { font-weight: 600; color: var(--text-1); }
-.po-tw-row-meta {
-  font-size: 11px; color: var(--text-3);
+.po-tw-row-name { font-weight: 600; color: var(--text-1); margin-bottom: 4px; }
+.po-tw-set-line {
+  font-size: 12px; color: var(--text-3);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  padding: 2px 0;
 }
 .po-tw-empty {
   text-align: center; padding: 14px 0;
@@ -925,7 +926,10 @@ img, video, canvas, svg { max-width: 100%; }
 .wh-card.open .wh-card-arrow { transform: rotate(180deg); }
 .wh-card-body { display: none; padding: 0 14px 12px; }
 .wh-card.open .wh-card-body { display: block; }
-.wh-card-ex { font-size: 12px; color: var(--text-2); padding: 3px 0; }
+.wh-card-ex { padding: 6px 0; border-bottom: 1px solid var(--border); }
+.wh-card-ex:last-of-type { border-bottom: none; }
+.wh-card-ex-name { font-size: 12px; font-weight: 700; color: var(--text-1); margin-bottom: 3px; }
+.wh-card-set-line { font-size: 11px; color: var(--text-3); font-family: var(--font-mono); font-variant-numeric: tabular-nums; padding: 1px 0 1px 8px; }
 .wh-card-total { font-size: 11px; color: var(--text-3); font-family: var(--font-mono); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
 .wh-rest { color: var(--text-4); font-style: italic; }
 
@@ -2023,15 +2027,29 @@ img, video, canvas, svg { max-width: 100%; }
       wrap.innerHTML = '<div class="po-empty">No logs yet.</div>';
       return;
     }
-    wrap.innerHTML = logs.slice(0, 12).map((l, i) => {
+    const slice = logs.slice(0, 40);
+    const groups = [];
+    const dateMap = {};
+    slice.forEach((l, i) => {
       const d = new Date(l.date);
       const dStr = (d.getMonth() + 1) + '/' + d.getDate();
-      const setStr = ex.bw ? (l.reps + ' reps') : (l.weight + unit() + ' × ' + l.reps);
-      const realIdx = logs.length - 1 - i; // since we reversed
-      return '<div class="po-hist-row">'
-        + '<div class="po-hist-date">' + dStr + '</div>'
-        + '<div class="po-hist-set">' + setStr + '</div>'
-        + '<button class="po-hist-del" data-idx="' + realIdx + '" aria-label="Delete">×</button>'
+      if (!dateMap[dStr]) {
+        dateMap[dStr] = { dStr, entries: [] };
+        groups.push(dateMap[dStr]);
+      }
+      dateMap[dStr].entries.push({ l, realIdx: logs.length - 1 - i });
+    });
+    wrap.innerHTML = groups.map(g => {
+      const setsHtml = g.entries.map(({ l, realIdx }) => {
+        const setStr = ex.bw ? (l.reps + ' reps') : (l.weight + unit() + ' × ' + l.reps);
+        return '<div class="po-hist-row">'
+          + '<div class="po-hist-set">' + setStr + '</div>'
+          + '<button class="po-hist-del" data-idx="' + realIdx + '" aria-label="Delete">×</button>'
+          + '</div>';
+      }).join('');
+      return '<div class="po-hist-date-group">'
+        + '<div class="po-hist-date-header">' + g.dStr + '</div>'
+        + setsHtml
         + '</div>';
     }).join('');
     wrap.querySelectorAll('.po-hist-del').forEach(b => {
@@ -2269,14 +2287,15 @@ img, video, canvas, svg { max-width: 100%; }
     } else {
       empty.classList.add('hidden');
       list.innerHTML = sum.perEx.map(e => {
-        const sets = e.sets.length;
-        const vol  = Math.round(e.vol);
-        const meta = e.ex.bw
-          ? sets + ' set' + (sets !== 1 ? 's' : '')
-          : sets + ' set' + (sets !== 1 ? 's' : '') + ' · ' + vol + u;
+        const setsHtml = e.sets.map((s, i) => {
+          const setStr = e.ex.bw
+            ? 'Set ' + (i + 1) + ' — ' + s.reps + ' reps'
+            : 'Set ' + (i + 1) + ' — ' + s.weight + u + ' \xd7 ' + s.reps;
+          return '<div class="po-tw-set-line">' + setStr + '</div>';
+        }).join('');
         return '<li class="po-tw-row">'
-          + '<span class="po-tw-row-name">' + escape(e.ex.name) + '</span>'
-          + '<span class="po-tw-row-meta">' + meta + '</span>'
+          + '<div class="po-tw-row-name">' + escape(e.ex.name) + '</div>'
+          + setsHtml
           + '</li>';
       }).join('');
     }
@@ -2346,13 +2365,15 @@ img, video, canvas, svg { max-width: 100%; }
         + '</div>'
         + '<div class="wh-card-body">'
         + sum.perEx.map(e => {
-            const vol = Math.round(e.vol);
-            const txt = e.ex.bw
-              ? e.sets.length + ' sets'
-              : e.sets.length + ' sets · ' + vol + u;
-            return '<div class="wh-card-ex">· ' + escape(e.ex.name) + ' — ' + txt + '</div>';
+            const setsHtml = e.sets.map((s, i) => {
+              const setStr = e.ex.bw
+                ? 'Set ' + (i + 1) + ' — ' + s.reps + ' reps'
+                : 'Set ' + (i + 1) + ' — ' + s.weight + u + ' \xd7 ' + s.reps;
+              return '<div class="wh-card-set-line">' + setStr + '</div>';
+            }).join('');
+            return '<div class="wh-card-ex"><div class="wh-card-ex-name">' + escape(e.ex.name) + '</div>' + setsHtml + '</div>';
           }).join('')
-        + '<div class="wh-card-total">Total: ' + sum.totalSets + ' sets · ' + Math.round(sum.totalVol).toLocaleString() + u + ' lifted</div>'
+        + '<div class="wh-card-total">Total: ' + sum.totalSets + ' sets across ' + sum.perEx.length + ' exercise' + (sum.perEx.length !== 1 ? 's' : '') + '</div>'
         + '</div>';
 
       div.querySelector('.wh-card-header').addEventListener('click', () => {
