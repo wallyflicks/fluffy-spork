@@ -377,6 +377,178 @@ main {
   #dw-weekly-stats { flex-wrap: wrap; }
   .dw-stat { min-width: 80px; }
 }
+
+/* ── Lofi Music Player ──────────────────────────────────────── */
+.lofi-card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 14px 18px;
+  border: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lofi-main-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lofi-play-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.lofi-play-btn:hover  { background: rgba(255,255,255,0.13); }
+.lofi-play-btn:active { transform: scale(0.91); }
+
+.lofi-info { flex: 1; min-width: 0; }
+.lofi-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+.lofi-status {
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+/* Waveform */
+.lofi-wave {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.lofi-wave-bar {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--success);
+  opacity: 0.55;
+  height: 4px;
+}
+.lofi-wave.playing .lofi-wave-bar { opacity: 0.8; }
+.lofi-wave.playing .lofi-wave-bar:nth-child(1) { animation: lofiBar1 0.85s ease-in-out infinite; }
+.lofi-wave.playing .lofi-wave-bar:nth-child(2) { animation: lofiBar2 0.85s ease-in-out infinite 0.18s; }
+.lofi-wave.playing .lofi-wave-bar:nth-child(3) { animation: lofiBar3 0.85s ease-in-out infinite 0.36s; }
+
+@keyframes lofiBar1 { 0%,100%{height:4px} 50%{height:16px} }
+@keyframes lofiBar2 { 0%,100%{height:4px} 50%{height:11px} }
+@keyframes lofiBar3 { 0%,100%{height:4px} 50%{height:14px} }
+
+/* Volume row */
+.lofi-vol-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.lofi-vol-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.lofi-vol-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  border-radius: 99px;
+  background: rgba(255,255,255,0.1);
+  outline: none;
+  cursor: pointer;
+}
+.lofi-vol-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--text-primary);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.45);
+}
+.lofi-vol-slider::-moz-range-thumb {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--text-primary);
+  border: none;
+  cursor: pointer;
+}
+
+/* Auto-start toggle row */
+.lofi-auto-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.lofi-auto-lbl {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+.lofi-toggle {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.lofi-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0; height: 0;
+}
+.lofi-toggle-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 99px;
+  background: rgba(255,255,255,0.09);
+  border: 1px solid rgba(255,255,255,0.1);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.lofi-toggle-track::after {
+  content: '';
+  position: absolute;
+  left: 2px; top: 2px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  transition: transform 0.2s, background 0.2s;
+}
+.lofi-toggle input:checked + .lofi-toggle-track {
+  background: rgba(107,227,164,0.22);
+  border-color: rgba(107,227,164,0.38);
+}
+.lofi-toggle input:checked + .lofi-toggle-track::after {
+  transform: translateX(16px);
+  background: var(--success);
+}
+
+/* Mobile tap hint */
+.lofi-tap-hint {
+  display: none;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 2px 0;
+}
+.lofi-tap-hint.show { display: block; }
 </style>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
@@ -384,6 +556,40 @@ main {
 <script src="topbar.js" defer></script>
 
 <main>
+
+  <!-- ── Lofi Music Player ── -->
+  <div class="section">
+    <div class="section-title">Music</div>
+    <div class="lofi-card">
+      <div class="lofi-main-row">
+        <button class="lofi-play-btn" id="lofi-play-btn" aria-label="Play/Pause">
+          <svg id="lofi-icon-play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5,3 19,12 5,21"/></svg>
+          <svg id="lofi-icon-pause" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+        </button>
+        <div class="lofi-info">
+          <div class="lofi-title">Lofi Girl Radio</div>
+          <div class="lofi-status" id="lofi-status">Paused</div>
+        </div>
+        <div class="lofi-wave" id="lofi-wave">
+          <div class="lofi-wave-bar"></div>
+          <div class="lofi-wave-bar"></div>
+          <div class="lofi-wave-bar"></div>
+        </div>
+      </div>
+      <div class="lofi-vol-row">
+        <span class="lofi-vol-lbl">Vol</span>
+        <input type="range" class="lofi-vol-slider" id="lofi-vol" min="0" max="100" value="60">
+      </div>
+      <div class="lofi-auto-row">
+        <span class="lofi-auto-lbl">Auto-start music with session</span>
+        <label class="lofi-toggle">
+          <input type="checkbox" id="lofi-auto-toggle">
+          <span class="lofi-toggle-track"></span>
+        </label>
+      </div>
+      <div class="lofi-tap-hint" id="lofi-tap-hint">Tap play to start music</div>
+    </div>
+  </div>
 
   <!-- ── Timer / Session Control ── -->
   <div class="section">
@@ -475,6 +681,11 @@ main {
   </div>
 </nav>
 <script>if(window.lucide)lucide.createIcons();</script>
+
+<!-- Hidden YouTube player container (off-screen, not display:none so YT API works) -->
+<div id="lofi-yt-container" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;" aria-hidden="true">
+  <div id="lofi-yt-player"></div>
+</div>
 
 <script>
 (function () {
@@ -922,6 +1133,118 @@ main {
   /* ── Boot ── */
   initData();
 
+})();
+</script>
+
+<script>
+/* ── Lofi Music Player ── */
+(function() {
+  var LS_VOL  = 'lofiVolume';
+  var LS_AUTO = 'deepWorkAutoMusic';
+
+  var isPlaying = false;
+  var ytPlayer  = null;
+  var ytReady   = false;
+
+  var elBtn       = document.getElementById('lofi-play-btn');
+  var elIconPlay  = document.getElementById('lofi-icon-play');
+  var elIconPause = document.getElementById('lofi-icon-pause');
+  var elStatus    = document.getElementById('lofi-status');
+  var elWave      = document.getElementById('lofi-wave');
+  var elVol       = document.getElementById('lofi-vol');
+  var elAuto      = document.getElementById('lofi-auto-toggle');
+  var elTapHint   = document.getElementById('lofi-tap-hint');
+
+  // Restore saved state
+  var savedVol = parseInt(localStorage.getItem(LS_VOL), 10);
+  if (!isNaN(savedVol)) elVol.value = savedVol;
+  elAuto.checked = localStorage.getItem(LS_AUTO) === 'true';
+
+  // Load YouTube IFrame API
+  var tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(tag);
+
+  window.onYouTubeIframeAPIReady = function() {
+    ytPlayer = new YT.Player('lofi-yt-player', {
+      height: '1',
+      width: '1',
+      videoId: 'jfKfPfyJRdk',
+      playerVars: { autoplay: 0, controls: 0, loop: 1, playlist: 'jfKfPfyJRdk' },
+      events: {
+        onReady: function(e) {
+          ytReady = true;
+          e.target.setVolume(parseInt(elVol.value, 10));
+        },
+        onStateChange: function(e) {
+          if (e.data === YT.PlayerState.PLAYING) {
+            setPlayState(true);
+          } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) {
+            setPlayState(false);
+          }
+        }
+      }
+    });
+  };
+
+  function setPlayState(playing) {
+    isPlaying = playing;
+    elIconPlay.style.display  = playing ? 'none' : '';
+    elIconPause.style.display = playing ? ''     : 'none';
+    elStatus.textContent = playing ? 'Playing' : 'Paused';
+    if (playing) { elWave.classList.add('playing'); }
+    else         { elWave.classList.remove('playing'); }
+  }
+
+  function play() {
+    if (!ytReady || !ytPlayer) {
+      elTapHint.classList.add('show');
+      return;
+    }
+    ytPlayer.setVolume(parseInt(elVol.value, 10));
+    ytPlayer.playVideo();
+    setPlayState(true);
+    elTapHint.classList.remove('show');
+  }
+
+  function pause() {
+    if (ytPlayer && ytReady) ytPlayer.pauseVideo();
+    setPlayState(false);
+  }
+
+  elBtn.addEventListener('click', function() {
+    if (isPlaying) { pause(); } else { play(); }
+  });
+
+  elVol.addEventListener('input', function() {
+    localStorage.setItem(LS_VOL, elVol.value);
+    if (ytPlayer && ytReady) ytPlayer.setVolume(parseInt(elVol.value, 10));
+  });
+
+  elAuto.addEventListener('change', function() {
+    localStorage.setItem(LS_AUTO, elAuto.checked ? 'true' : 'false');
+  });
+
+  // Auto-start/pause hooks — listen after the existing IIFE's own listeners
+  var dwBtnStart = document.getElementById('dw-btn-start');
+  var dwBtnEnd   = document.getElementById('dw-btn-end');
+  var dwBtnKeep  = document.getElementById('dw-btn-keep');
+
+  if (dwBtnStart) {
+    dwBtnStart.addEventListener('click', function() {
+      if (elAuto.checked && !isPlaying) play();
+    });
+  }
+  if (dwBtnEnd) {
+    dwBtnEnd.addEventListener('click', function() {
+      if (isPlaying) pause();
+    });
+  }
+  if (dwBtnKeep) {
+    dwBtnKeep.addEventListener('click', function() {
+      if (elAuto.checked && !isPlaying) play();
+    });
+  }
 })();
 </script>
 </body>
