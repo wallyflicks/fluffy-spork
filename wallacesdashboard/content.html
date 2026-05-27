@@ -9,7 +9,6 @@
 <title>Content — Wallace's Dashboard</title>
 <link rel="manifest" href="/manifest.json">
 <script src="/notifications.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <style>
@@ -499,16 +498,11 @@ select.c-input option { background: #1a1a1c; }
 'use strict';
 
 // ── Supabase ─────────────────────────────────────────────────────
-const SUPA_URL = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
-const SB_H = {
-  'Content-Type': 'application/json',
-  'apikey': SUPA_KEY,
-  'Authorization': 'Bearer ' + SUPA_KEY,
-  'Prefer': 'resolution=merge-duplicates'
-};
+const SUPA_URL    = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
+const SUPA_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
+const CONTENT_KEY = 'content';
+const SB_H  = { 'Content-Type': 'application/json', 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Prefer': 'resolution=merge-duplicates' };
 const SB_RH = { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY };
-const supabaseClient = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 
 // ── localStorage keys ─────────────────────────────────────────────
 const LS_DEALS    = 'ugc_deals';
@@ -534,20 +528,24 @@ function esc(s)     { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&
 function ls(k)      { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } }
 function lsSet(k,v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 
-// ── Supabase helpers ──────────────────────────────────────────────
-async function sbUpsert(table, row) {
-  const { error } = await supabaseClient.from(table).upsert(row, { onConflict: 'id' });
-  if (error) throw new Error(error.message);
+// ── Cloud sync (app_state table, same as gym/deepwork/index) ─────
+async function fetchFromCloud() {
+  const res = await fetch(`${SUPA_URL}/rest/v1/app_state?key=eq.${CONTENT_KEY}&select=data`, { headers: SB_RH });
+  if (!res.ok) throw new Error('fetch failed ' + res.status);
+  const rows = await res.json();
+  return (rows.length && rows[0].data) ? rows[0].data : null;
 }
-async function sbDelete(table, id) {
-  const { error } = await supabaseClient.from(table).delete().eq('id', id);
-  if (error) throw new Error(error.message);
+async function pushToCloud() {
+  const bundle = { [LS_DEALS]: ls(LS_DEALS), [LS_PAYMENTS]: ls(LS_PAYMENTS), [LS_CONTENT]: ls(LS_CONTENT), [LS_VIDEOS]: ls(LS_VIDEOS) };
+  const res = await fetch(`${SUPA_URL}/rest/v1/app_state?on_conflict=key`, {
+    method: 'POST', headers: SB_H,
+    body: JSON.stringify({ key: CONTENT_KEY, data: bundle, updated_at: new Date().toISOString() })
+  });
+  if (!res.ok) throw new Error('push failed ' + res.status);
 }
-async function sbFetch(table) {
-  const { data, error } = await supabaseClient.from(table).select('*').order('created_at', { ascending: true });
-  if (error) throw new Error(error.message);
-  return data;
-}
+// Wrappers kept so all existing call-sites work unchanged
+async function sbUpsert() { await pushToCloud(); }
+async function sbDelete()  { await pushToCloud(); }
 
 // ── Finance integration ───────────────────────────────────────────
 async function pushToFinance(entry) {
@@ -555,10 +553,14 @@ async function pushToFinance(entry) {
   if (!arr.find(e => e.id === entry.id)) arr.push(entry);
   lsSet(FIN_INC, arr);
   try {
-    const { data: row } = await supabaseClient.from('app_state').select('data').eq('key', 'finance').maybeSingle();
-    let bundle = (row && row.data) ? row.data : {};
+    const res = await fetch(`${SUPA_URL}/rest/v1/app_state?key=eq.finance&select=data`, { headers: SB_RH });
+    let bundle = {};
+    if (res.ok) { const rows = await res.json(); if (rows.length && rows[0].data) bundle = rows[0].data; }
     bundle[FIN_INC] = ls(FIN_INC);
-    await supabaseClient.from('app_state').upsert({ key: 'finance', data: bundle, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    await fetch(`${SUPA_URL}/rest/v1/app_state?on_conflict=key`, {
+      method: 'POST', headers: SB_H,
+      body: JSON.stringify({ key: 'finance', data: bundle, updated_at: new Date().toISOString() })
+    });
   } catch(e) { console.warn('[content→finance sync]', e.message); }
 }
 
@@ -578,30 +580,23 @@ async function init() {
   document.getElementById('moveDate').value   = todayVan();
   syncState('syncing', 'syncing…');
 
-  // Test Supabase connection
-  const { data: _td, error: _te } = await supabaseClient.from('ugc_deals').select('id').limit(1);
-  console.log('CONTENT SUPABASE TEST:', _td, _te);
-
-  let coreErrs = 0;
-  async function tryFetch(table, lsKey, isCore) {
-    try {
-      const rows = await sbFetch(table);
-      lsSet(lsKey, rows);
-    } catch(e) {
-      console.log('CONTENT SUPABASE ERROR:', e);
-      if (isCore) coreErrs++;
+  try {
+    const bundle = await fetchFromCloud();
+    if (bundle) {
+      if (Array.isArray(bundle[LS_DEALS]))    lsSet(LS_DEALS,    bundle[LS_DEALS]);
+      if (Array.isArray(bundle[LS_PAYMENTS])) lsSet(LS_PAYMENTS, bundle[LS_PAYMENTS]);
+      if (Array.isArray(bundle[LS_CONTENT]))  lsSet(LS_CONTENT,  bundle[LS_CONTENT]);
+      if (Array.isArray(bundle[LS_VIDEOS]))   lsSet(LS_VIDEOS,   bundle[LS_VIDEOS]);
+    } else {
+      // Nothing in cloud yet — push local data up so other devices see it
+      const hasLocal = ls(LS_DEALS).length || ls(LS_PAYMENTS).length || ls(LS_CONTENT).length || ls(LS_VIDEOS).length;
+      if (hasLocal) pushToCloud().catch(() => {});
     }
+    syncState('ok', 'synced');
+  } catch(e) {
+    console.log('CONTENT SUPABASE ERROR:', e);
+    syncState('err', 'offline');
   }
-
-  await Promise.all([
-    tryFetch('ugc_deals',           LS_DEALS,    true),
-    tryFetch('ugc_payments',        LS_PAYMENTS, true),
-    tryFetch('wallyflicks_content', LS_CONTENT,  true),
-    tryFetch('ugc_videos',          LS_VIDEOS,   false), // table may not exist yet
-  ]);
-
-  syncState(coreErrs === 0 ? 'ok' : 'err',
-            coreErrs === 0 ? 'synced' : 'offline');
   render();
 }
 
