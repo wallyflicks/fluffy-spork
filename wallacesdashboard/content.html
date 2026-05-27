@@ -9,6 +9,7 @@
 <title>Content — Wallace's Dashboard</title>
 <link rel="manifest" href="/manifest.json">
 <script src="/notifications.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <style>
@@ -507,6 +508,7 @@ const SB_H = {
   'Prefer': 'resolution=merge-duplicates'
 };
 const SB_RH = { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY };
+const supabaseClient = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 
 // ── localStorage keys ─────────────────────────────────────────────
 const LS_DEALS    = 'ugc_deals';
@@ -534,21 +536,17 @@ function lsSet(k,v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch 
 
 // ── Supabase helpers ──────────────────────────────────────────────
 async function sbUpsert(table, row) {
-  const res = await fetch(`${SUPA_URL}/rest/v1/${table}?on_conflict=id`, {
-    method: 'POST', headers: SB_H, body: JSON.stringify(row)
-  });
-  if (!res.ok) { const t = await res.text(); throw new Error(t); }
+  const { error } = await supabaseClient.from(table).upsert(row, { onConflict: 'id' });
+  if (error) throw new Error(error.message);
 }
 async function sbDelete(table, id) {
-  const res = await fetch(`${SUPA_URL}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`, {
-    method: 'DELETE', headers: SB_RH
-  });
-  if (!res.ok) throw new Error(await res.text());
+  const { error } = await supabaseClient.from(table).delete().eq('id', id);
+  if (error) throw new Error(error.message);
 }
 async function sbFetch(table) {
-  const res = await fetch(`${SUPA_URL}/rest/v1/${table}?select=*&order=created_at.asc`, { headers: SB_RH });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  const { data, error } = await supabaseClient.from(table).select('*').order('created_at', { ascending: true });
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 // ── Finance integration ───────────────────────────────────────────
@@ -557,18 +555,10 @@ async function pushToFinance(entry) {
   if (!arr.find(e => e.id === entry.id)) arr.push(entry);
   lsSet(FIN_INC, arr);
   try {
-    const res = await fetch(`${SUPA_URL}/rest/v1/app_state?key=eq.finance&select=data`, { headers: SB_RH });
-    let bundle = {};
-    if (res.ok) {
-      const rows = await res.json();
-      if (rows.length && rows[0].data) bundle = rows[0].data;
-    }
+    const { data: row } = await supabaseClient.from('app_state').select('data').eq('key', 'finance').maybeSingle();
+    let bundle = (row && row.data) ? row.data : {};
     bundle[FIN_INC] = ls(FIN_INC);
-    await fetch(`${SUPA_URL}/rest/v1/app_state?on_conflict=key`, {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Prefer':'resolution=merge-duplicates' },
-      body: JSON.stringify({ key: 'finance', data: bundle, updated_at: new Date().toISOString() })
-    });
+    await supabaseClient.from('app_state').upsert({ key: 'finance', data: bundle, updated_at: new Date().toISOString() }, { onConflict: 'key' });
   } catch(e) { console.warn('[content→finance sync]', e.message); }
 }
 
@@ -587,6 +577,10 @@ async function init() {
   document.getElementById('datePosted').value = todayVan();
   document.getElementById('moveDate').value   = todayVan();
   syncState('syncing', 'syncing…');
+
+  // Test Supabase connection
+  const { data: _td, error: _te } = await supabaseClient.from('ugc_deals').select('id').limit(1);
+  console.log('CONTENT SUPABASE TEST:', _td, _te);
 
   let coreErrs = 0;
   async function tryFetch(table, lsKey, isCore) {

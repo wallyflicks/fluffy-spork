@@ -682,11 +682,6 @@ main {
 </nav>
 <script>if(window.lucide)lucide.createIcons();</script>
 
-<!-- Hidden YouTube player container (off-screen, not display:none so YT API works) -->
-<div id="lofi-yt-container" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;" aria-hidden="true">
-  <div id="lofi-yt-player"></div>
-</div>
-
 <script>
 (function () {
   'use strict';
@@ -1143,8 +1138,17 @@ main {
   var LS_AUTO = 'deepWorkAutoMusic';
 
   var isPlaying = false;
-  var ytPlayer  = null;
-  var ytReady   = false;
+
+  var audio = new Audio();
+  audio.crossOrigin = 'anonymous';
+  audio.src = 'https://stream.zeno.fm/0r0xa792kwzuv';
+
+  audio.addEventListener('error', function() {
+    if (audio.src.indexOf('0r0xa792kwzuv') !== -1) {
+      audio.src = 'https://stream.zeno.fm/f3wvbbqmdg8uv';
+      if (isPlaying) audio.play().catch(function() {});
+    }
+  });
 
   var elBtn       = document.getElementById('lofi-play-btn');
   var elIconPlay  = document.getElementById('lofi-icon-play');
@@ -1158,59 +1162,37 @@ main {
   // Restore saved state
   var savedVol = parseInt(localStorage.getItem(LS_VOL), 10);
   if (!isNaN(savedVol)) elVol.value = savedVol;
+  audio.volume = parseInt(elVol.value, 10) / 100;
   elAuto.checked = localStorage.getItem(LS_AUTO) === 'true';
-
-  // Load YouTube IFrame API
-  var tag = document.createElement('script');
-  tag.src = 'https://www.youtube.com/iframe_api';
-  document.head.appendChild(tag);
-
-  window.onYouTubeIframeAPIReady = function() {
-    ytPlayer = new YT.Player('lofi-yt-player', {
-      height: '1',
-      width: '1',
-      videoId: 'jfKfPfyJRdk',
-      playerVars: { autoplay: 0, controls: 0, loop: 1, playlist: 'jfKfPfyJRdk' },
-      events: {
-        onReady: function(e) {
-          ytReady = true;
-          e.target.setVolume(parseInt(elVol.value, 10));
-        },
-        onStateChange: function(e) {
-          if (e.data === YT.PlayerState.PLAYING) {
-            setPlayState(true);
-          } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) {
-            setPlayState(false);
-          }
-        }
-      }
-    });
-  };
 
   function setPlayState(playing) {
     isPlaying = playing;
     elIconPlay.style.display  = playing ? 'none' : '';
     elIconPause.style.display = playing ? ''     : 'none';
     elStatus.textContent = playing ? 'Playing' : 'Paused';
-    if (playing) { elWave.classList.add('playing'); }
-    else         { elWave.classList.remove('playing'); }
-  }
-
-  function play() {
-    if (!ytReady || !ytPlayer) {
-      elTapHint.classList.add('show');
-      return;
-    }
-    ytPlayer.setVolume(parseInt(elVol.value, 10));
-    ytPlayer.playVideo();
-    setPlayState(true);
+    if (playing) { elWave.classList.add('playing'); } else { elWave.classList.remove('playing'); }
     elTapHint.classList.remove('show');
   }
 
+  function play() {
+    audio.volume = parseInt(elVol.value, 10) / 100;
+    var promise = audio.play();
+    if (promise !== undefined) {
+      promise.then(function() { setPlayState(true); })
+             .catch(function() { elTapHint.classList.add('show'); setPlayState(false); });
+    } else {
+      setPlayState(true);
+    }
+  }
+
   function pause() {
-    if (ytPlayer && ytReady) ytPlayer.pauseVideo();
+    audio.pause();
     setPlayState(false);
   }
+
+  audio.addEventListener('play',  function() { if (!isPlaying) setPlayState(true); });
+  audio.addEventListener('pause', function() { if (isPlaying)  setPlayState(false); });
+  audio.addEventListener('ended', function() { setPlayState(false); });
 
   elBtn.addEventListener('click', function() {
     if (isPlaying) { pause(); } else { play(); }
@@ -1218,7 +1200,7 @@ main {
 
   elVol.addEventListener('input', function() {
     localStorage.setItem(LS_VOL, elVol.value);
-    if (ytPlayer && ytReady) ytPlayer.setVolume(parseInt(elVol.value, 10));
+    audio.volume = parseInt(elVol.value, 10) / 100;
   });
 
   elAuto.addEventListener('change', function() {
