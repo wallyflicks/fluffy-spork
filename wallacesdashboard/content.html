@@ -588,26 +588,26 @@ async function init() {
   document.getElementById('moveDate').value   = todayVan();
   syncState('syncing', 'syncing…');
 
-  let errCount = 0;
-  async function tryFetch(table, lsKey) {
+  let coreErrs = 0;
+  async function tryFetch(table, lsKey, isCore) {
     try {
       const rows = await sbFetch(table);
       lsSet(lsKey, rows);
     } catch(e) {
-      console.log('CONTENT SYNC:', table, e);
-      errCount++;
+      console.log('CONTENT SUPABASE ERROR:', e);
+      if (isCore) coreErrs++;
     }
   }
 
   await Promise.all([
-    tryFetch('ugc_deals',           LS_DEALS),
-    tryFetch('ugc_payments',        LS_PAYMENTS),
-    tryFetch('wallyflicks_content', LS_CONTENT),
-    tryFetch('ugc_videos',          LS_VIDEOS),
+    tryFetch('ugc_deals',           LS_DEALS,    true),
+    tryFetch('ugc_payments',        LS_PAYMENTS, true),
+    tryFetch('wallyflicks_content', LS_CONTENT,  true),
+    tryFetch('ugc_videos',          LS_VIDEOS,   false), // table may not exist yet
   ]);
 
-  syncState(errCount === 0 ? 'ok' : errCount < 4 ? 'ok' : 'err',
-            errCount === 0 ? 'synced' : errCount < 4 ? 'partial sync' : 'offline');
+  syncState(coreErrs === 0 ? 'ok' : 'err',
+            coreErrs === 0 ? 'synced' : 'offline');
   render();
 }
 
@@ -695,17 +695,7 @@ function renderDeals() {
             </select>
           </div>
           <div class="c-field">
-            <label>Views Earned</label>
-            <input class="c-input" type="number" id="vld-views-${esc(d.id)}" placeholder="0" min="0"
-              oninput="calcVideoTotal('${esc(d.id)}')">
-          </div>
-          <div class="c-field">
-            <label>View Bonus <span id="vld-vbshow-${esc(d.id)}" style="color:var(--info);font-weight:700;font-size:11px"></span></label>
-            <input class="c-input" type="text" id="vld-vbdisp-${esc(d.id)}" readonly placeholder="auto from views"
-              style="color:var(--text-3);cursor:default">
-          </div>
-          <div class="c-field">
-            <label>Manual Bonus (optional)</label>
+            <label>Bonus (optional)</label>
             <input class="c-input" type="number" id="vld-bonus-${esc(d.id)}" placeholder="0.00" min="0" step="0.01"
               oninput="calcVideoTotal('${esc(d.id)}')">
           </div>
@@ -715,7 +705,6 @@ function renderDeals() {
           </div>
           <div class="vlog-total-row c-form-span">
             Flat <b style="color:var(--text-1)">$${flat.toFixed(2)}</b>
-            + view <b style="color:var(--info)" id="vld-tvb-${esc(d.id)}">$0.00</b>
             + bonus <b style="color:var(--warn)" id="vld-tmb-${esc(d.id)}">$0.00</b>
             = <b style="color:var(--good)">$<span id="vld-total-${esc(d.id)}">${flat.toFixed(2)}</span></b>
           </div>
@@ -763,10 +752,16 @@ function buildVideoHistory(dealId) {
       <div style="display:flex;flex-direction:column;gap:4px">`;
 
     mvids.forEach(v => {
-      const sc = v.status === 'Approved' ? 'approved' : v.status === 'Pending' ? 'pending' : 'rejected';
-      const parts = [];
-      if (Number(v.view_bonus) > 0) parts.push(`view $${Number(v.view_bonus).toFixed(2)}`);
-      if (Number(v.bonus) > 0)      parts.push(`bonus $${Number(v.bonus).toFixed(2)}`);
+      const sc       = v.status === 'Approved' ? 'approved' : v.status === 'Pending' ? 'pending' : 'rejected';
+      const vb       = Number(v.view_bonus) || 0;
+      const mb       = Number(v.bonus) || 0;
+      const hasViews = vb > 0;
+
+      let breakdown = `flat $${Number(v.flat_rate).toFixed(2)}`;
+      if (vb > 0) breakdown += ` + view bonus $${vb.toFixed(2)}`;
+      if (mb > 0) breakdown += ` + bonus $${mb.toFixed(2)}`;
+      breakdown += ` = <b style="color:var(--text-2)">$${Number(v.total).toFixed(2)}</b>`;
+      if (v.notes) breakdown += ` <span style="color:var(--text-4)">· ${esc(v.notes)}</span>`;
 
       html += `<div class="video-item" id="vi-${esc(v.id)}">
         <div style="flex:1;min-width:0">
@@ -774,14 +769,26 @@ function buildVideoHistory(dealId) {
             <span class="v-badge ${sc}">${esc(v.status)}</span>
             <span style="font-size:12px;font-weight:600">${esc(v.date)}</span>
           </div>
-          <div style="font-size:11px;color:var(--text-3)">
-            flat $${Number(v.flat_rate).toFixed(2)}${parts.length ? ' + ' + parts.join(' + ') : ''}
-            = <b style="color:var(--text-2)">$${Number(v.total).toFixed(2)}</b>
-            ${v.notes ? `<span style="color:var(--text-4)"> · ${esc(v.notes)}</span>` : ''}
+          <div style="font-size:11px;color:var(--text-3)">${breakdown}</div>
+          <div id="vbf-${esc(v.id)}" style="display:none;margin-top:8px">
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+              <input class="c-input" type="number" id="vbf-views-${esc(v.id)}"
+                placeholder="Views earned" min="0"
+                style="font-size:12px;padding:6px 10px;max-width:150px"
+                oninput="calcVBPreview('${esc(v.id)}','${esc(dealId)}')">
+              <span id="vbf-calc-${esc(v.id)}" style="font-size:11px;color:var(--info)"></span>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="c-btn sm primary" style="flex:1" onclick="saveViewBonus('${esc(v.id)}','${esc(dealId)}')">Save</button>
+              <button class="c-btn sm" onclick="closeVBForm('${esc(v.id)}')">Cancel</button>
+            </div>
           </div>
         </div>
-        <button class="c-btn sm danger" id="vdel-${esc(v.id)}"
-          onclick="confirmDeleteVideo('${esc(v.id)}','${esc(dealId)}')" style="flex-shrink:0;margin-top:2px">✕</button>
+        <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-items:flex-end">
+          ${v.status !== 'Rejected' ? `<button class="c-btn sm" id="vbBtn-${esc(v.id)}" onclick="openVBForm('${esc(v.id)}','${esc(dealId)}')" style="font-size:10px">${hasViews ? '↺ Views' : '+ Views'}</button>` : ''}
+          <button class="c-btn sm danger" id="vdel-${esc(v.id)}"
+            onclick="confirmDeleteVideo('${esc(v.id)}','${esc(dealId)}')">✕</button>
+        </div>
       </div>`;
     });
 
@@ -798,8 +805,6 @@ function openVideoForm(dealId) {
   if (dateEl) dateEl.value = todayVan();
   const statusEl = document.getElementById('vld-status-' + dealId);
   if (statusEl) statusEl.value = 'Approved';
-  const viewsEl = document.getElementById('vld-views-' + dealId);
-  if (viewsEl) viewsEl.value = '';
   const bonusEl = document.getElementById('vld-bonus-' + dealId);
   if (bonusEl) bonusEl.value = '';
   const notesEl = document.getElementById('vld-notes-' + dealId);
@@ -817,21 +822,12 @@ function closeVideoForm(dealId) {
 function calcVideoTotal(dealId) {
   const deal = ls(LS_DEALS).find(d => d.id === dealId);
   if (!deal) return;
-  const views       = parseFloat(document.getElementById('vld-views-' + dealId)?.value) || 0;
-  const manBonus    = parseFloat(document.getElementById('vld-bonus-' + dealId)?.value) || 0;
-  const viewBonus   = (views / 1000) * (Number(deal.view_bonus_rate) || 0);
-  const flat        = Number(deal.rate_per_video);
-  const total       = flat + viewBonus + manBonus;
-
-  const vbDisp = document.getElementById('vld-vbdisp-' + dealId);
-  if (vbDisp) vbDisp.value = viewBonus > 0 ? '$' + viewBonus.toFixed(2) : '';
-  const vbShow = document.getElementById('vld-vbshow-' + dealId);
-  if (vbShow) vbShow.textContent = viewBonus > 0 ? '= $' + viewBonus.toFixed(2) : '';
-  const tvbEl = document.getElementById('vld-tvb-' + dealId);
-  if (tvbEl) tvbEl.textContent = '$' + viewBonus.toFixed(2);
-  const tmbEl = document.getElementById('vld-tmb-' + dealId);
+  const manBonus = parseFloat(document.getElementById('vld-bonus-' + dealId)?.value) || 0;
+  const flat     = Number(deal.rate_per_video);
+  const total    = flat + manBonus;
+  const tmbEl    = document.getElementById('vld-tmb-' + dealId);
   if (tmbEl) tmbEl.textContent = '$' + manBonus.toFixed(2);
-  const totEl = document.getElementById('vld-total-' + dealId);
+  const totEl    = document.getElementById('vld-total-' + dealId);
   if (totEl) totEl.textContent = total.toFixed(2);
 }
 
@@ -839,18 +835,16 @@ async function saveVideo(dealId) {
   const deal = ls(LS_DEALS).find(d => d.id === dealId);
   if (!deal) return;
 
-  const date      = document.getElementById('vld-date-' + dealId)?.value   || todayVan();
-  const status    = document.getElementById('vld-status-' + dealId)?.value || 'Approved';
-  const views     = parseFloat(document.getElementById('vld-views-' + dealId)?.value) || 0;
-  const manBonus  = parseFloat(document.getElementById('vld-bonus-' + dealId)?.value) || 0;
-  const notes     = document.getElementById('vld-notes-' + dealId)?.value.trim() || '';
-  const viewBonus = (views / 1000) * (Number(deal.view_bonus_rate) || 0);
-  const flat      = Number(deal.rate_per_video);
-  const total     = flat + viewBonus + manBonus;
+  const date     = document.getElementById('vld-date-' + dealId)?.value   || todayVan();
+  const status   = document.getElementById('vld-status-' + dealId)?.value || 'Approved';
+  const manBonus = parseFloat(document.getElementById('vld-bonus-' + dealId)?.value) || 0;
+  const notes    = document.getElementById('vld-notes-' + dealId)?.value.trim() || '';
+  const flat     = Number(deal.rate_per_video);
+  const total    = flat + manBonus;
 
   const row = {
     id: uid(), deal_id: dealId, brand_name: deal.brand_name,
-    date, status, flat_rate: flat, view_bonus: viewBonus, bonus: manBonus, total, notes,
+    date, status, flat_rate: flat, view_bonus: 0, views_earned: 0, bonus: manBonus, total, notes,
     created_at: new Date().toISOString()
   };
 
@@ -862,14 +856,6 @@ async function saveVideo(dealId) {
   renderDeals();
   renderSummary();
   renderEarningsHistory();
-
-  if (status === 'Approved') {
-    await pushToFinance({
-      id: 'ugcvid_' + row.id,
-      desc: 'UGC Video: ' + deal.brand_name + (notes ? ' — ' + notes : ''),
-      amount: total, date, tag: 'ugc'
-    });
-  }
 
   syncState('syncing','syncing…');
   try { await sbUpsert('ugc_videos', row); syncState('ok','synced'); }
@@ -915,6 +901,66 @@ async function deleteVideo(videoId, dealId) {
   renderSummary();
   renderEarningsHistory();
   try { await sbDelete('ugc_videos', videoId); syncState('ok','synced'); }
+  catch { syncState('err','sync err'); }
+}
+
+function openVBForm(videoId, dealId) {
+  const form = document.getElementById('vbf-' + videoId);
+  if (!form) return;
+  const video = ls(LS_VIDEOS).find(v => v.id === videoId);
+  const input = document.getElementById('vbf-views-' + videoId);
+  if (input && video) input.value = video.views_earned || '';
+  calcVBPreview(videoId, dealId);
+  form.style.display = '';
+  const btn = document.getElementById('vbBtn-' + videoId);
+  if (btn) btn.style.display = 'none';
+  if (input) input.focus();
+}
+
+function closeVBForm(videoId) {
+  const form = document.getElementById('vbf-' + videoId);
+  if (form) form.style.display = 'none';
+  const btn = document.getElementById('vbBtn-' + videoId);
+  if (btn) btn.style.display = '';
+}
+
+function calcVBPreview(videoId, dealId) {
+  const deal  = ls(LS_DEALS).find(d => d.id === dealId);
+  if (!deal) return;
+  const views = parseFloat(document.getElementById('vbf-views-' + videoId)?.value) || 0;
+  const bonus = (views / 1000) * (Number(deal.view_bonus_rate) || 0);
+  const el    = document.getElementById('vbf-calc-' + videoId);
+  if (el) el.textContent = views > 0 ? `= $${bonus.toFixed(2)} view bonus` : '';
+}
+
+async function saveViewBonus(videoId, dealId) {
+  const deal = ls(LS_DEALS).find(d => d.id === dealId);
+  if (!deal) return;
+  const views     = parseFloat(document.getElementById('vbf-views-' + videoId)?.value) || 0;
+  const viewBonus = (views / 1000) * (Number(deal.view_bonus_rate) || 0);
+
+  const videos = ls(LS_VIDEOS);
+  const idx    = videos.findIndex(v => v.id === videoId);
+  if (idx < 0) return;
+  videos[idx] = {
+    ...videos[idx],
+    views_earned: views,
+    view_bonus:   viewBonus,
+    total: Number(videos[idx].flat_rate) + viewBonus + Number(videos[idx].bonus || 0)
+  };
+  lsSet(LS_VIDEOS, videos);
+
+  // Refresh the open history panel without full re-render
+  const histEl = document.getElementById('vh-' + dealId);
+  if (histEl && histEl.style.display !== 'none') {
+    histEl.innerHTML = buildVideoHistory(dealId);
+  }
+  renderDeals();
+  renderSummary();
+  renderEarningsHistory();
+
+  syncState('syncing','syncing…');
+  try { await sbUpsert('ugc_videos', videos[idx]); syncState('ok','synced'); }
   catch { syncState('err','sync err'); }
 }
 
