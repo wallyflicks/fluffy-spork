@@ -263,17 +263,22 @@
         const gymState = JSON.parse(localStorage.getItem('po_coach_v1') || 'null') || {};
         const rotation = gymState.splitRotation || [];
         const anchor   = gymState.splitAnchor   || {};
+        const today    = todayStr();
         // Detect rest day
         if (anchor.date && anchor.index != null && rotation.length) {
           const anchorDate = new Date(anchor.date);
-          const today = new Date(); today.setHours(0,0,0,0); anchorDate.setHours(0,0,0,0);
-          const daysDiff = Math.round((today - anchorDate) / 86400000);
+          const todayDate = new Date(); todayDate.setHours(0,0,0,0); anchorDate.setHours(0,0,0,0);
+          const daysDiff = Math.round((todayDate - anchorDate) / 86400000);
           const idx = ((anchor.index + daysDiff) % rotation.length + rotation.length) % rotation.length;
           if ((rotation[idx] || '').toLowerCase() === 'rest') return; // rest day — don't fire
         }
-        // Check if any sets logged today across all exercises
+        // Check 1: "Mark workout done" was pressed today (wallace_workout_history localStorage)
+        try {
+          const wh = JSON.parse(localStorage.getItem('wallace_workout_history')) || {};
+          if (wh[today]) return;
+        } catch {}
+        // Check 2: any sets logged today via po_coach_v1 logs
         const logs = gymState.logs || {};
-        const today = todayStr();
         const hasSets = Object.values(logs).some(arr =>
           Array.isArray(arr) && arr.some(l => (l.date || '').slice(0, 10) === today)
         );

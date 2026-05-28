@@ -27,13 +27,45 @@ function getVancouverDate() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
 }
 
+function getVancouverDayOfWeek() {
+  // Returns JS day-of-week (0=Sun, 1=Mon, ..., 6=Sat) in Vancouver timezone
+  const vanDateStr = getVancouverDate();
+  const [y, m, d] = vanDateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).getDay();
+}
+
+// Returns true if the given Vancouver time falls inside the user's sleep window
+function isInSleepWindow(sleepSchedule, vanHour, vanMinute, vanDayOfWeek) {
+  if (!sleepSchedule) return false;
+  let bedtime, wakeUp;
+  if (sleepSchedule.customByDay && Array.isArray(sleepSchedule.days) && sleepSchedule.days.length === 7) {
+    // Mon-Sun array: 0=Mon…5=Sat, 6=Sun. JS getDay(): 0=Sun, 1=Mon…6=Sat.
+    const dayIdx = vanDayOfWeek === 0 ? 6 : vanDayOfWeek - 1;
+    const dayData = sleepSchedule.days[dayIdx] || {};
+    bedtime = dayData.bedtime || '23:30';
+    wakeUp  = dayData.wakeUp  || '08:00';
+  } else {
+    bedtime = sleepSchedule.defaultBedtime || '23:30';
+    wakeUp  = sleepSchedule.defaultWakeUp  || '08:00';
+  }
+  const [bH, bM] = bedtime.split(':').map(Number);
+  const [wH, wM] = wakeUp.split(':').map(Number);
+  const cur  = vanHour * 60 + vanMinute;
+  const bed  = bH * 60 + bM;
+  const wake = wH * 60 + wM;
+  // Overnight window (most common: e.g. 23:30 → 08:00)
+  if (bed > wake) return cur >= bed || cur < wake;
+  // Same-day window (e.g. nap: 14:00 → 15:30)
+  return cur >= bed && cur < wake;
+}
+
 function matchesTime(configTime, defaultTime, vanHour, vanMinute) {
   const t = configTime || defaultTime;
   const [h, m] = t.split(':').map(Number);
   return h === vanHour && m === vanMinute;
 }
 
-function getNotificationsToFire(settings, vanHour, vanMinute, journalDoneToday) {
+function getNotificationsToFire(settings, vanHour, vanMinute, journalDoneToday, workoutDoneToday) {
   const s = settings || {};
   const out = [];
 
@@ -81,8 +113,8 @@ function getNotificationsToFire(settings, vanHour, vanMinute, journalDoneToday) 
     }
   }
 
-  // Workout missed
-  if (s.workoutMissed && s.workoutMissed.enabled) {
+  // Workout missed — only fire if workout not already done
+  if (s.workoutMissed && s.workoutMissed.enabled && !workoutDoneToday) {
     if (matchesTime(s.workoutMissed.time, '19:00', vanHour, vanMinute)) {
       out.push({ tag: 'workoutMissed', title: '💪 Workout missed', body: "Haven't hit the gym yet today — still time." });
     }
@@ -114,6 +146,7 @@ module.exports = async function handler(req, res) {
   webPush.setVapidDetails('mailto:wallacechenga@gmail.com', VAPID_PUBLIC_KEY, vapidPrivateKey);
 
   const van = getVancouverTime();
+  const vanDow = getVancouverDayOfWeek();
 
   // Check if today's journal entry exists (to conditionally fire journal reminder)
   const vanDate = getVancouverDate();
@@ -131,6 +164,44 @@ module.exports = async function handler(req, res) {
     console.warn('[push-cron] journal check failed:', e.message);
   }
 
+  // Check if workout was done today (for workout-missed notification)
+  let workoutDoneToday = false;
+  try {
+    // Check 1: workout_history table (set when "Mark workout done" is pressed)
+    const whRes = await fetch(
+      SUPA_URL + '/rest/v1/workout_history?date=eq.' + vanDate + '&select=date',
+      { headers: SB_HEADERS }
+    );
+    if (whRes.ok) {
+      const whRows = await whRes.json();
+      if (whRows.length > 0) workoutDoneToday = true;
+    }
+  } catch (e) {
+    console.warn('[push-cron] workout_history check failed:', e.message);
+  }
+  if (!workoutDoneToday) {
+    try {
+      // Check 2: po_coach_v1 sets logged today (synced to app_state key="gym")
+      const gymRes = await fetch(
+        SUPA_URL + '/rest/v1/app_state?key=eq.gym&select=data',
+        { headers: SB_HEADERS }
+      );
+      if (gymRes.ok) {
+        const gymRows = await gymRes.json();
+        if (gymRows.length > 0 && gymRows[0].data) {
+          const coachV1 = gymRows[0].data['po_coach_v1'] || {};
+          const logs = coachV1.logs || {};
+          const hasSets = Object.values(logs).some(arr =>
+            Array.isArray(arr) && arr.some(l => (l.date || '').slice(0, 10) === vanDate)
+          );
+          if (hasSets) workoutDoneToday = true;
+        }
+      }
+    } catch (e) {
+      console.warn('[push-cron] gym app_state check failed:', e.message);
+    }
+  }
+
   const r = await fetch(SUPA_URL + '/rest/v1/push_subscriptions?select=*', { headers: SB_HEADERS });
   if (!r.ok) {
     const detail = await r.text();
@@ -141,7 +212,14 @@ module.exports = async function handler(req, res) {
   let sent = 0;
 
   for (const row of subscriptions) {
-    const notifications = getNotificationsToFire(row.notification_settings, van.hour, van.minute, journalDoneToday);
+    // Skip all notifications during sleep window
+    const settings = row.notification_settings || {};
+    if (isInSleepWindow(settings.sleepSchedule, van.hour, van.minute, vanDow)) {
+      console.log('[push-cron] Sleep window active — skipping all notifications for endpoint', row.endpoint.slice(-20));
+      continue;
+    }
+
+    const notifications = getNotificationsToFire(settings, van.hour, van.minute, journalDoneToday, workoutDoneToday);
     for (const notif of notifications) {
       const pushSub = {
         endpoint: row.endpoint,

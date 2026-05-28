@@ -166,6 +166,28 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
 .notif-card.disabled .notif-card-title { opacity: 0.5; }
 .notif-card.disabled .notif-card-control { opacity: 0.4; pointer-events: none; }
 
+/* Sleep schedule */
+.sleep-customize-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+.sleep-day-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+  flex-wrap: wrap;
+}
+.sleep-day-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  width: 34px;
+  flex-shrink: 0;
+}
+
 /* Tabbar */
 .tabbar {
   position: fixed;
@@ -219,6 +241,27 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
   <span class="perm-icon">🔔</span>
   <div class="perm-text" id="permText">Enable notifications to get reminders for water, tasks, bedtime, gym, and deep work.</div>
   <button class="perm-btn" id="permBtn" onclick="enableNotifs()">Enable</button>
+</div>
+
+<div class="notif-section-label" style="margin-top:0">Sleep Schedule</div>
+
+<div class="notif-card" id="card-sleepSchedule" style="align-items:flex-start">
+  <span class="notif-card-emoji">😴</span>
+  <div class="notif-card-body">
+    <div class="notif-card-title">Quiet hours</div>
+    <div class="notif-card-desc">No notifications sent while you're asleep</div>
+    <div class="notif-card-control" id="sleep-default-row">
+      <label style="font-size:11px;color:var(--text-tertiary);white-space:nowrap">Bedtime</label>
+      <input type="time" class="notif-time-input" id="sleepBedtime" value="23:30">
+      <label style="font-size:11px;color:var(--text-tertiary);white-space:nowrap">Wake up</label>
+      <input type="time" class="notif-time-input" id="sleepWakeUp" value="08:00">
+    </div>
+    <div class="sleep-customize-row">
+      <span style="font-size:12px;color:var(--text-secondary)">Customize by day</span>
+      <label class="notif-toggle"><input type="checkbox" id="sleepCustomByDay"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+    </div>
+    <div id="sleep-day-rows" style="display:none;margin-top:10px"></div>
+  </div>
 </div>
 
 <div class="notif-section-label">Reminders</div>
@@ -360,9 +403,9 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
     <a href="health.html"   class="tabbar-link" aria-label="Health"><i data-lucide="heart"></i></a>
     <a href="gym.html"      class="tabbar-link" aria-label="Gym"><i data-lucide="dumbbell"></i></a>
     <a href="finance.html"  class="tabbar-link" aria-label="Finance"><i data-lucide="dollar-sign"></i></a>
-    <a href="sleep.html"    class="tabbar-link" aria-label="Sleep"><i data-lucide="moon"></i></a>
     <a href="deepwork.html" class="tabbar-link" aria-label="Deep Work"><i data-lucide="brain"></i></a>
     <a href="journal.html"  class="tabbar-link" aria-label="Journal"><i data-lucide="book-open"></i></a>
+    <a href="content.html"  class="tabbar-link" aria-label="Content"><i data-lucide="video"></i></a>
   </div>
 </nav>
 <script>if(window.lucide)lucide.createIcons();</script>
@@ -379,6 +422,15 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
   }
   function saveSettings(s) {
     localStorage.setItem(NOTIF_KEY, JSON.stringify(s));
+  }
+  // Merge sleep schedule into settings so it's included in the server sync
+  function getSettingsForSync() {
+    const s = getSettings();
+    try {
+      const sleep = JSON.parse(localStorage.getItem('sleepSchedule'));
+      if (sleep) s.sleepSchedule = sleep;
+    } catch {}
+    return s;
   }
 
   function loadUI() {
@@ -523,7 +575,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
   document.querySelectorAll('input, select').forEach(el => {
     el.addEventListener('change', () => {
       saveFromUI();
-      if (window.syncPushSubscription) window.syncPushSubscription(getSettings());
+      if (window.syncPushSubscription) window.syncPushSubscription(getSettingsForSync());
     });
   });
 
@@ -533,8 +585,117 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
   // If permission already granted, re-sync subscription on every page open
   // (ensures the server always has a valid subscription and latest settings)
   if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-    if (window.syncPushSubscription) window.syncPushSubscription(getSettings());
+    if (window.syncPushSubscription) window.syncPushSubscription(getSettingsForSync());
   }
+})();
+</script>
+
+<script>
+/* ── Sleep Schedule (quiet hours) ─────────────────────────────────── */
+(function () {
+  'use strict';
+  const SLEEP_KEY = 'sleepSchedule';
+  const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const DEFAULTS = {
+    customByDay: false,
+    defaultBedtime: '23:30',
+    defaultWakeUp: '08:00',
+    days: DAYS.map(function(d) { return { day: d, bedtime: '23:30', wakeUp: '08:00' }; })
+  };
+
+  function getSleepSchedule() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(SLEEP_KEY));
+      if (!raw) return JSON.parse(JSON.stringify(DEFAULTS));
+      if (!Array.isArray(raw.days) || raw.days.length !== 7)
+        raw.days = DEFAULTS.days.map(function(d, i) { return raw.days && raw.days[i] ? raw.days[i] : d; });
+      return raw;
+    } catch { return JSON.parse(JSON.stringify(DEFAULTS)); }
+  }
+
+  function saveSleepSchedule(s) {
+    localStorage.setItem(SLEEP_KEY, JSON.stringify(s));
+    // Re-sync push subscription with sleep schedule included
+    if (window.syncPushSubscription) {
+      try {
+        var notifSettings = JSON.parse(localStorage.getItem('notifSettings')) || {};
+        notifSettings.sleepSchedule = s;
+        window.syncPushSubscription(notifSettings);
+      } catch {}
+    }
+  }
+
+  function buildDayRows() {
+    var container = document.getElementById('sleep-day-rows');
+    if (!container) return;
+    container.innerHTML = '';
+    var s = getSleepSchedule();
+    DAYS.forEach(function(day, i) {
+      var data = (s.days && s.days[i]) || { day: day, bedtime: '23:30', wakeUp: '08:00' };
+      var row = document.createElement('div');
+      row.className = 'sleep-day-row';
+      row.innerHTML =
+        '<span class="sleep-day-label">' + day + '</span>' +
+        '<input type="time" class="notif-time-input" id="sleep-' + day + '-bed" value="' + (data.bedtime || '23:30') + '">' +
+        '<span style="font-size:10px;color:var(--text-tertiary)">→</span>' +
+        '<input type="time" class="notif-time-input" id="sleep-' + day + '-wake" value="' + (data.wakeUp || '08:00') + '">';
+      container.appendChild(row);
+      row.querySelectorAll('input').forEach(function(el) {
+        el.addEventListener('change', saveSleepFromUI);
+      });
+    });
+  }
+
+  function toggleCustomDay(on) {
+    var defRow = document.getElementById('sleep-default-row');
+    var dayRows = document.getElementById('sleep-day-rows');
+    if (defRow) defRow.style.display = on ? 'none' : '';
+    if (dayRows) dayRows.style.display = on ? '' : 'none';
+  }
+
+  function loadSleepUI() {
+    var s = getSleepSchedule();
+    var bedEl  = document.getElementById('sleepBedtime');
+    var wakeEl = document.getElementById('sleepWakeUp');
+    var togEl  = document.getElementById('sleepCustomByDay');
+    if (bedEl)  bedEl.value  = s.defaultBedtime || '23:30';
+    if (wakeEl) wakeEl.value = s.defaultWakeUp  || '08:00';
+    if (togEl)  togEl.checked = !!s.customByDay;
+    buildDayRows();
+    toggleCustomDay(!!s.customByDay);
+  }
+
+  function saveSleepFromUI() {
+    var s = getSleepSchedule();
+    var customEl = document.getElementById('sleepCustomByDay');
+    var bedEl    = document.getElementById('sleepBedtime');
+    var wakeEl   = document.getElementById('sleepWakeUp');
+    s.customByDay     = !!(customEl && customEl.checked);
+    s.defaultBedtime  = (bedEl  && bedEl.value)  || '23:30';
+    s.defaultWakeUp   = (wakeEl && wakeEl.value) || '08:00';
+    DAYS.forEach(function(day, i) {
+      var bEl = document.getElementById('sleep-' + day + '-bed');
+      var wEl = document.getElementById('sleep-' + day + '-wake');
+      if (bEl && wEl) {
+        s.days[i] = { day: day, bedtime: bEl.value || '23:30', wakeUp: wEl.value || '08:00' };
+      }
+    });
+    saveSleepSchedule(s);
+  }
+
+  var custToggle = document.getElementById('sleepCustomByDay');
+  if (custToggle) {
+    custToggle.addEventListener('change', function() {
+      toggleCustomDay(this.checked);
+      saveSleepFromUI();
+    });
+  }
+  var sleepBed  = document.getElementById('sleepBedtime');
+  var sleepWake = document.getElementById('sleepWakeUp');
+  if (sleepBed)  sleepBed.addEventListener('change',  saveSleepFromUI);
+  if (sleepWake) sleepWake.addEventListener('change', saveSleepFromUI);
+
+  loadSleepUI();
 })();
 </script>
 </body>

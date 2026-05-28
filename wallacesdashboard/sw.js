@@ -4,7 +4,7 @@
 const CACHE_NAME = 'wallace-v8';
 const SHELL = [
   '/', '/index.html', '/health.html', '/gym.html',
-  '/finance.html', '/sleep.html', '/deepwork.html', '/notifications.html',
+  '/finance.html', '/deepwork.html', '/notifications.html',
   '/notifications.js', '/topbar.js',
   '/icons/w-192.png', '/icons/w-512.png', '/manifest.json'
 ];
