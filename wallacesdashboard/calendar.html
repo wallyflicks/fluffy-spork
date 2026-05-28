@@ -647,6 +647,10 @@
       <label class="modal-label">Title</label>
       <input type="text" class="modal-input" id="evTitle" placeholder="Event title…" autocomplete="off">
     </div>
+    <div class="modal-field">
+      <label class="modal-label">Description</label>
+      <textarea class="modal-input" id="evDesc" rows="3" placeholder="Add details, notes, or what you need to prepare…" style="resize:none;line-height:1.45;font-family:var(--sans)"></textarea>
+    </div>
     <div class="modal-row">
       <div class="modal-field">
         <label class="modal-label">Date</label>
@@ -688,6 +692,7 @@
     <div class="event-detail-title" id="detailTitle"></div>
     <div class="event-detail-time" id="detailTime"></div>
     <div class="event-detail-repeat" id="detailRepeat"></div>
+    <div id="detailDesc" style="font-size:13px;color:var(--text-secondary);line-height:1.5;white-space:pre-wrap;margin-bottom:14px;display:none"></div>
     <div class="modal-actions">
       <button class="modal-btn" onclick="CAL.closeModal('detailModal')">Close</button>
       <button class="modal-btn" id="detailEditBtn">Edit</button>
@@ -735,6 +740,10 @@
     <div class="modal-field">
       <label class="modal-label">Duration</label>
       <div class="repeat-pills" id="durationPills"></div>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Description (Optional)</label>
+      <textarea class="modal-input" id="taskCalDesc" rows="3" placeholder="Add details about what you need to do…" style="resize:none;line-height:1.45;font-family:var(--sans)"></textarea>
     </div>
     <div style="margin-top:20px;display:flex;flex-direction:column;gap:8px;padding-bottom:4px">
       <button id="taskCalSaveBtn" style="width:100%;padding:14px;border-radius:12px;border:none;background:#4ade80;color:#000;font-size:15px;font-weight:700;font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transparent;">Add to Calendar</button>
@@ -872,20 +881,10 @@ const CAL = (function () {
   function lsLoad() { try { return JSON.parse(localStorage.getItem(LS_KEY))||[]; } catch { return []; } }
 
   async function loadEvents() {
-    let from, to;
-    if (view==='day') { from=to=curDate; }
-    else { const w=weekDates(curDate); from=w[0]; to=w[6]; }
-
-    const rows = await sbFetch(`calendar_events?date=gte.${from}&date=lte.${to}&order=start_time.asc`);
-    if (rows!==null) {
-      const local = lsLoad();
-      const fetched = new Set();
-      const [fy,fm,fd]=from.split('-').map(Number);
-      const [ty,tm,td]=to.split('-').map(Number);
-      for (let dt=new Date(fy,fm-1,fd),end=new Date(ty,tm-1,td); dt<=end; dt.setDate(dt.getDate()+1)) {
-        fetched.add(vanDate(dt));
-      }
-      events = [...local.filter(e=>!fetched.has(e.date)), ...rows];
+    const rows = await sbFetch('calendar_events?order=date.asc,start_time.asc');
+    console.log('CALENDAR SYNC:', rows, rows===null ? 'Supabase unreachable — using localStorage' : null);
+    if (rows !== null) {
+      events = rows;
       lsSave();
     } else {
       events = lsLoad();
@@ -1159,6 +1158,7 @@ const CAL = (function () {
     document.getElementById('editingParentId').value='';
     document.getElementById('editingFuture').value='';
     document.getElementById('evTitle').value='';
+    document.getElementById('evDesc').value='';
     document.getElementById('evDate').value=ds||curDate;
     const st=`${String(hr||9).padStart(2,'0')}:${String(mn||0).padStart(2,'0')}`;
     document.getElementById('evStart').value=st;
@@ -1176,6 +1176,7 @@ const CAL = (function () {
     document.getElementById('editingParentId').value=ev.parent_id||'';
     document.getElementById('editingFuture').value=editFuture?'1':'';
     document.getElementById('evTitle').value=ev.title;
+    document.getElementById('evDesc').value=ev.description||'';
     document.getElementById('evDate').value=ev.date;
     document.getElementById('evStart').value=ev.start_time;
     document.getElementById('evEnd').value=ev.end_time;
@@ -1190,6 +1191,9 @@ const CAL = (function () {
     document.getElementById('detailTime').textContent=`${fmt12(ev.start_time)} – ${fmt12(ev.end_time)}`;
     const rl=REPEAT_OPTS.find(r=>r.v===ev.repeat_type);
     document.getElementById('detailRepeat').textContent=(ev.repeat_type&&ev.repeat_type!=='none')?`Repeats ${rl?.l||ev.repeat_type}`:'';
+    const descEl=document.getElementById('detailDesc');
+    if (ev.description) { descEl.textContent=ev.description; descEl.style.display=''; }
+    else { descEl.textContent=''; descEl.style.display='none'; }
 
     document.getElementById('detailEditBtn').onclick=()=>{
       closeModal('detailModal');
@@ -1233,6 +1237,7 @@ const CAL = (function () {
     const date=document.getElementById('evDate').value;
     const start_time=document.getElementById('evStart').value;
     const end_time=document.getElementById('evEnd').value;
+    const description=document.getElementById('evDesc').value.trim();
     const color=selColor;
     const repeat_type=selRepeat;
     const repeat_days=repeat_type==='custom'?[...selCustomDays]:null;
@@ -1242,7 +1247,7 @@ const CAL = (function () {
     if (tMin(start_time)>=tMin(end_time)) { alert('End time must be after start time.'); return; }
 
     closeModal('eventModal');
-    const data={title,date,start_time,end_time,color,repeat_type,repeat_days};
+    const data={title,description,date,start_time,end_time,color,repeat_type,repeat_days};
 
     if (id) {
       if (isFuture&&parentId) {
@@ -1294,18 +1299,55 @@ const CAL = (function () {
     tasks.forEach((task,idx)=>{
       const row=document.createElement('div');
       row.className='task-item';
+
       const chk=document.createElement('div');
       chk.className='task-item-check'+(task.done?' done':'');
+      chk.style.cursor='pointer';
+      chk.addEventListener('click',()=>{
+        const newDone=!task.done;
+        task.done=newDone;
+        chk.classList.toggle('done',newDone);
+        txt.classList.toggle('done',newDone);
+        if (prefix==='td_') toggleTodayGoal(idx, newDone);
+        else toggleWeeklyTodo(task.id, newDone);
+      });
+
       const txt=document.createElement('div');
       txt.className='task-item-text'+(task.done?' done':'');
       txt.textContent=task.text;
+
       const btn=document.createElement('button');
       btn.className='task-add-cal-btn';
       btn.textContent='+ Cal';
       btn.addEventListener('click',()=>openTaskCal({...task,_tid:prefix+(task.id||idx)}));
+
       row.appendChild(chk); row.appendChild(txt); row.appendChild(btn);
       container.appendChild(row);
     });
+  }
+
+  function toggleTodayGoal(idx, newDone) {
+    const today=vanDate();
+    const key='goals:'+today;
+    let goals=[];
+    try { goals=JSON.parse(localStorage.getItem(key))||[]; } catch {}
+    if (goals[idx]) { goals[idx].done=newDone; }
+    try { localStorage.setItem(key, JSON.stringify(goals)); } catch {}
+    // Sync to Supabase goals table (same table index.html uses)
+    const payload={day_key:today, goals_json:goals};
+    fetch(`${SUPA_URL}/rest/v1/goals`, {
+      method:'POST',
+      headers:{...SB_H,'Prefer':'resolution=merge-duplicates,return=minimal'},
+      body:JSON.stringify(payload)
+    }).catch(()=>{});
+  }
+
+  function toggleWeeklyTodo(id, newDone) {
+    let todos=[];
+    try { todos=JSON.parse(localStorage.getItem('weeklyTodos'))||[]; } catch {}
+    const t=todos.find(x=>x.id===id);
+    if (t) t.done=newDone;
+    try { localStorage.setItem('weeklyTodos', JSON.stringify(todos)); } catch {}
   }
 
   function openTaskCal(task) {
@@ -1348,6 +1390,7 @@ const CAL = (function () {
       }
       dp.appendChild(btn);
     });
+    document.getElementById('taskCalDesc').value=task.text;
     openModal('taskCalModal');
   }
 
@@ -1355,10 +1398,11 @@ const CAL = (function () {
     if (!taskForCal) return;
     const date=document.getElementById('taskCalDate').value;
     const st=document.getElementById('taskCalStart').value;
+    const description=document.getElementById('taskCalDesc').value.trim();
     if (!date||!st) return;
     closeModal('taskCalModal');
     const et=addMin(st,selDuration||60);
-    const nev=await evCreate({title:taskForCal.text,date,start_time:st,end_time:et,color:COLORS[0].v,repeat_type:'none',repeat_days:null,task_id:taskForCal._tid||null});
+    const nev=await evCreate({title:taskForCal.text,description,date,start_time:st,end_time:et,color:COLORS[0].v,repeat_type:'none',repeat_days:null,task_id:taskForCal._tid||null});
     if (nev) buildGrid();
   }
 
