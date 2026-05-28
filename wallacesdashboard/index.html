@@ -1402,6 +1402,7 @@
       // always mirror to localStorage as offline backup
       try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
       if (key.startsWith('goals:')) {
+        console.log('GOAL COMPLETION KEY:', key, value);
         scheduleSyncKey(key);
         window.dispatchEvent(new CustomEvent('goals-changed'));
       }

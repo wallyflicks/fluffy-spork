@@ -234,6 +234,7 @@
     .task-item-check.done { background: var(--success); border-color: var(--success); }
     .task-item-text {
       flex: 1;
+      min-width: 0;
       font-size: 12px;
       color: var(--text-secondary);
       line-height: 1.35;
@@ -871,10 +872,14 @@ const CAL = (function () {
   async function sbFetch(path, opts) {
     try {
       const r = await fetch(`${SUPA_URL}/rest/v1/${path}`, { headers: SB_H, ...opts });
-      if (!r.ok) return null;
+      if (!r.ok) {
+        const body = await r.text().catch(()=>'');
+        console.error('Supabase error:', r.status, path, body);
+        return null;
+      }
       const t = await r.text();
       return t ? JSON.parse(t) : [];
-    } catch { return null; }
+    } catch (e) { console.error('Supabase fetch failed:', e); return null; }
   }
 
   function lsSave() { try { localStorage.setItem(LS_KEY, JSON.stringify(events)); } catch {} }
@@ -882,7 +887,7 @@ const CAL = (function () {
 
   async function loadEvents() {
     const rows = await sbFetch('calendar_events?order=date.asc,start_time.asc');
-    console.log('CALENDAR SYNC:', rows, rows===null ? 'Supabase unreachable — using localStorage' : null);
+    console.log('CALENDAR LOADED:', rows?.length, 'events from Supabase', rows===null ? '— unreachable, using localStorage' : '');
     if (rows !== null) {
       events = rows;
       lsSave();
@@ -1274,11 +1279,30 @@ const CAL = (function () {
   }
 
   // ── Task panel ──
-  function loadTasks() {
+  async function loadTasks() {
     const today=vanDate();
     let todayGoals=[];
     let weeklyTodos=[];
-    try { todayGoals=JSON.parse(localStorage.getItem('goals:'+today))||[]; } catch {}
+
+    // Fetch today's goals from Supabase first (same source as index.html)
+    const READ_H={'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY};
+    try {
+      const r=await fetch(`${SUPA_URL}/rest/v1/goals?day_key=eq.${encodeURIComponent(today)}&limit=1`,{headers:READ_H});
+      if (r.ok) {
+        const rows=await r.json();
+        if (rows.length>0) {
+          todayGoals=JSON.parse(rows[0].goals_json)||[];
+          try { localStorage.setItem('goals:'+today, JSON.stringify(todayGoals)); } catch {}
+        } else {
+          try { todayGoals=JSON.parse(localStorage.getItem('goals:'+today))||[]; } catch {}
+        }
+      } else {
+        try { todayGoals=JSON.parse(localStorage.getItem('goals:'+today))||[]; } catch {}
+      }
+    } catch {
+      try { todayGoals=JSON.parse(localStorage.getItem('goals:'+today))||[]; } catch {}
+    }
+
     try { weeklyTodos=JSON.parse(localStorage.getItem('weeklyTodos'))||[]; } catch {}
 
     renderTaskList(document.getElementById('todayTaskList'), todayGoals, 'td_');
@@ -1326,20 +1350,34 @@ const CAL = (function () {
     });
   }
 
-  function toggleTodayGoal(idx, newDone) {
+  async function toggleTodayGoal(idx, newDone) {
     const today=vanDate();
     const key='goals:'+today;
     let goals=[];
     try { goals=JSON.parse(localStorage.getItem(key))||[]; } catch {}
     if (goals[idx]) { goals[idx].done=newDone; }
     try { localStorage.setItem(key, JSON.stringify(goals)); } catch {}
-    // Sync to Supabase goals table (same table index.html uses)
-    const payload={day_key:today, goals_json:goals};
-    fetch(`${SUPA_URL}/rest/v1/goals`, {
-      method:'POST',
-      headers:{...SB_H,'Prefer':'resolution=merge-duplicates,return=minimal'},
-      body:JSON.stringify(payload)
-    }).catch(()=>{});
+    console.log('GOAL COMPLETION KEY:', key, goals);
+    // Match index.html sbUpsertGoals exactly: check-then-PATCH/POST, goals_json is JSON.stringify(goals)
+    const READ_H={'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY};
+    const WRITE_H={'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY};
+    try {
+      const checkRes=await fetch(
+        `${SUPA_URL}/rest/v1/goals?day_key=eq.${encodeURIComponent(today)}&select=id&limit=1`,
+        {headers:READ_H}
+      );
+      if (checkRes.ok) {
+        const existing=await checkRes.json();
+        const payload=JSON.stringify({day_key:today, goals_json:JSON.stringify(goals), updated_at:new Date().toISOString()});
+        if (existing.length>0) {
+          await fetch(`${SUPA_URL}/rest/v1/goals?day_key=eq.${encodeURIComponent(today)}`,
+            {method:'PATCH',headers:WRITE_H,body:payload});
+        } else {
+          await fetch(`${SUPA_URL}/rest/v1/goals`,
+            {method:'POST',headers:WRITE_H,body:payload});
+        }
+      }
+    } catch(e) { console.error('Goal sync error:',e); }
   }
 
   function toggleWeeklyTodo(id, newDone) {
