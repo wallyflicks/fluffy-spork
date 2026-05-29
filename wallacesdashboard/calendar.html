@@ -712,10 +712,10 @@
       <div class="repeat-pills" id="repeatPills"></div>
       <div class="custom-days-row" id="customDaysRow" style="display:none"></div>
     </div>
-    <div class="modal-actions">
-      <button class="modal-btn" onclick="CAL.closeModal('eventModal')">Cancel</button>
-      <button class="modal-btn primary" id="saveEventBtn">Save</button>
+    <div style="margin-top:20px;display:flex;flex-direction:column;gap:8px;padding-bottom:4px">
+      <button id="saveEventBtn" style="width:100%;padding:14px;border-radius:12px;border:none;background:#22c55e;color:#000;font-size:15px;font-weight:700;font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transparent;">Save Event</button>
       <button class="modal-btn danger modal-btn-full" id="deleteEventBtn" style="display:none">Delete</button>
+      <button onclick="CAL.closeModal('eventModal')" style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.45);font-size:14px;font-weight:600;font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transparent;">Cancel</button>
     </div>
   </div>
 </div>
