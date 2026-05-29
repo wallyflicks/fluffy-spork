@@ -579,6 +579,28 @@
     .recur-choice-btn small { display: block; font-size: 11px; font-weight: 400; color: var(--text-tertiary); margin-top: 2px; }
 
     .task-empty-msg { padding: 8px 12px; font-size: 12px; color: var(--text-tertiary); }
+
+    .img-upload-btn {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 11px;
+      border: 1.5px dashed rgba(255,255,255,0.12);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.02);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-family: var(--sans);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      width: 100%;
+      text-align: left;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .img-upload-btn:hover { border-color: rgba(255,255,255,0.28); background: rgba(255,255,255,0.05); }
+    .img-upload-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; opacity: 0.6; }
+    .img-preview-wrap { position: relative; margin-top: 8px; }
+    .img-preview-wrap img { width: 100%; border-radius: 8px; display: block; max-height: 180px; object-fit: cover; }
+    .img-remove-btn { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.15); color: #fff; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; line-height: 1; }
+    .detail-image { width: 100%; border-radius: 10px; display: block; margin-bottom: 14px; max-height: 220px; object-fit: cover; }
   </style>
 </head>
 <body>
@@ -652,6 +674,18 @@
       <label class="modal-label">Description</label>
       <textarea class="modal-input" id="evDesc" rows="3" placeholder="Add details, notes, or what you need to prepare…" style="resize:none;line-height:1.45;font-family:var(--sans)"></textarea>
     </div>
+    <div class="modal-field">
+      <label class="modal-label">Image</label>
+      <input type="file" id="evImageInput" accept="image/*" style="display:none">
+      <button type="button" class="img-upload-btn" id="evImageBtn">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        Add image
+      </button>
+      <div class="img-preview-wrap" id="evImagePreviewWrap" style="display:none">
+        <img id="evImagePreview" alt="">
+        <button type="button" class="img-remove-btn" id="evImageRemove">×</button>
+      </div>
+    </div>
     <div class="modal-row">
       <div class="modal-field">
         <label class="modal-label">Date</label>
@@ -694,6 +728,7 @@
     <div class="event-detail-time" id="detailTime"></div>
     <div class="event-detail-repeat" id="detailRepeat"></div>
     <div id="detailDesc" style="font-size:13px;color:var(--text-secondary);line-height:1.5;white-space:pre-wrap;margin-bottom:14px;display:none"></div>
+    <img id="detailImage" class="detail-image" alt="" style="display:none">
     <div class="modal-actions">
       <button class="modal-btn" onclick="CAL.closeModal('detailModal')">Close</button>
       <button class="modal-btn" id="detailEditBtn">Edit</button>
@@ -818,6 +853,7 @@ const CAL = (function () {
   let taskForCal = null;
   let dragId = null;
   let dragOffMin = 0;
+  let selImage = null;
 
   // ── Helpers ──
   function vanDate(d) {
@@ -866,6 +902,35 @@ const CAL = (function () {
     const dt=new Date(y,mo-1,d);
     dt.setDate(dt.getDate()+n);
     curDate=vanDate(dt);
+  }
+
+  // ── Image compression ──
+  function compressImage(file, cb) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 900;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+          else { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        cb(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function setImageUI(b64) {
+    selImage = b64 || null;
+    document.getElementById('evImagePreview').src = b64 || '';
+    document.getElementById('evImagePreviewWrap').style.display = b64 ? '' : 'none';
+    document.getElementById('evImageBtn').style.display = b64 ? 'none' : '';
   }
 
   // ── Supabase ──
@@ -1169,6 +1234,8 @@ const CAL = (function () {
     document.getElementById('evStart').value=st;
     document.getElementById('evEnd').value=addMin(st,60);
     document.getElementById('deleteEventBtn').style.display='none';
+    document.getElementById('evImageInput').value='';
+    setImageUI(null);
     buildColors(); buildRepeat('none'); buildCustomDays([]);
     openModal('eventModal');
     setTimeout(()=>document.getElementById('evTitle').focus(),280);
@@ -1186,6 +1253,8 @@ const CAL = (function () {
     document.getElementById('evStart').value=ev.start_time;
     document.getElementById('evEnd').value=ev.end_time;
     document.getElementById('deleteEventBtn').style.display='';
+    document.getElementById('evImageInput').value='';
+    setImageUI(ev.image||null);
     buildColors(ev.color); buildRepeat(ev.repeat_type||'none'); buildCustomDays(ev.repeat_days||[]);
     openModal('eventModal');
   }
@@ -1199,6 +1268,9 @@ const CAL = (function () {
     const descEl=document.getElementById('detailDesc');
     if (ev.description) { descEl.textContent=ev.description; descEl.style.display=''; }
     else { descEl.textContent=''; descEl.style.display='none'; }
+    const imgEl=document.getElementById('detailImage');
+    if (ev.image) { imgEl.src=ev.image; imgEl.style.display=''; }
+    else { imgEl.src=''; imgEl.style.display='none'; }
 
     document.getElementById('detailEditBtn').onclick=()=>{
       closeModal('detailModal');
@@ -1252,7 +1324,7 @@ const CAL = (function () {
     if (tMin(start_time)>=tMin(end_time)) { alert('End time must be after start time.'); return; }
 
     closeModal('eventModal');
-    const data={title,description,date,start_time,end_time,color,repeat_type,repeat_days};
+    const data={title,description,date,start_time,end_time,color,repeat_type,repeat_days,image:selImage};
 
     if (id) {
       if (isFuture&&parentId) {
@@ -1469,6 +1541,17 @@ const CAL = (function () {
     document.getElementById('saveEventBtn').addEventListener('click',saveEvent);
     document.getElementById('deleteEventBtn').addEventListener('click',deleteFromModal);
     document.getElementById('taskCalSaveBtn').addEventListener('click',saveTaskCal);
+
+    document.getElementById('evImageBtn').addEventListener('click',()=>document.getElementById('evImageInput').click());
+    document.getElementById('evImageInput').addEventListener('change',e=>{
+      const file=e.target.files?.[0];
+      if (!file) return;
+      compressImage(file, b64=>setImageUI(b64));
+    });
+    document.getElementById('evImageRemove').addEventListener('click',()=>{
+      document.getElementById('evImageInput').value='';
+      setImageUI(null);
+    });
 
     const toggle=document.getElementById('taskPanelToggle');
     const content=document.getElementById('taskPanelContent');
