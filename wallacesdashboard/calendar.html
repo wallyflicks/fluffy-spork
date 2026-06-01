@@ -402,7 +402,7 @@
       position: absolute;
       left: 0; right: 0;
       height: 2px;
-      background: #ef4444;
+      background: #4ade80;
       z-index: 10;
       pointer-events: none;
     }
@@ -413,7 +413,7 @@
       top: -3.5px;
       width: 9px; height: 9px;
       border-radius: 50%;
-      background: #ef4444;
+      background: #4ade80;
     }
 
     /* ── Modal overlay ── */
@@ -812,7 +812,7 @@ const CAL = (function () {
   const SB_H = { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
   const LS_KEY = 'calendarEvents';
   const HOUR_H = 64;
-  const START_H = 6;
+  const START_H = 0;
   const END_H = 24;
 
   const COLORS = [
@@ -1038,7 +1038,7 @@ const CAL = (function () {
       const el=document.createElement('div');
       el.className='time-label';
       el.style.top=((h-START_H)*HOUR_H)+'px';
-      el.textContent = h===12?'12 PM': h===24?'12 AM': h<12?h+' AM':(h-12)+' PM';
+      el.textContent = h===0?'12 AM': h===12?'12 PM': h===24?'12 AM': h<12?h+' AM':(h-12)+' PM';
       timeLabels.appendChild(el);
     }
 
@@ -1106,10 +1106,9 @@ const CAL = (function () {
       dayColumns.appendChild(col);
     });
 
-    // Scroll to near current time (or 8 AM)
+    // Scroll so current time is visible with ~1 hour of context above it
     const {h:ch}=vanNow();
-    const scrollTop = Math.max(0, (Math.min(ch,END_H-1)-START_H-1)*HOUR_H);
-    document.getElementById('calScroll').scrollTop = scrollTop > 0 ? scrollTop : 2*HOUR_H;
+    document.getElementById('calScroll').scrollTop = Math.max(0, (ch - 1) * HOUR_H);
   }
 
   function buildBlock(ev) {
