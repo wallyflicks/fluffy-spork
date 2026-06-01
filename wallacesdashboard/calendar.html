@@ -859,6 +859,13 @@ const CAL = (function () {
   function vanDate(d) {
     return (d || new Date()).toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
   }
+  // Mirror index.html's getActiveDateString(): treat midnight–6am Vancouver as the previous day,
+  // so the day key matches exactly what index.html stores tasks under.
+  function taskDayKey() {
+    const van = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
+    if (van.getHours() < 6) van.setDate(van.getDate() - 1);
+    return van.getFullYear() + '-' + String(van.getMonth() + 1).padStart(2, '0') + '-' + String(van.getDate()).padStart(2, '0');
+  }
   function vanNow() {
     const now = new Date();
     const h = Number(now.toLocaleString('en-US', { timeZone: 'America/Vancouver', hour: 'numeric', hour12: false })) % 24;
@@ -1352,18 +1359,18 @@ const CAL = (function () {
 
   // ── Task panel ──
   async function loadTasks() {
-    const today=vanDate();
+    const today=taskDayKey();
     let todayGoals=[];
     let weeklyTodos=[];
 
     // Fetch today's goals from Supabase first (same source as index.html)
     const READ_H={'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY};
     try {
-      const r=await fetch(`${SUPA_URL}/rest/v1/goals?day_key=eq.${encodeURIComponent(today)}&limit=1`,{headers:READ_H});
+      const r=await fetch(`${SUPA_URL}/rest/v1/goals?day_key=eq.${encodeURIComponent(today)}&select=goals_json&limit=1`,{headers:READ_H});
       if (r.ok) {
         const rows=await r.json();
         if (rows.length>0) {
-          todayGoals=JSON.parse(rows[0].goals_json)||[];
+          try { todayGoals=JSON.parse(rows[0].goals_json)||[]; } catch {}
           try { localStorage.setItem('goals:'+today, JSON.stringify(todayGoals)); } catch {}
         } else {
           try { todayGoals=JSON.parse(localStorage.getItem('goals:'+today))||[]; } catch {}
@@ -1423,7 +1430,7 @@ const CAL = (function () {
   }
 
   async function toggleTodayGoal(idx, newDone) {
-    const today=vanDate();
+    const today=taskDayKey();
     const key='goals:'+today;
     let goals=[];
     try { goals=JSON.parse(localStorage.getItem(key))||[]; } catch {}
