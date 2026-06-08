@@ -342,30 +342,6 @@
       font-family: var(--sans);
     }
 
-    .gm-streak-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 12px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.04);
-      color: var(--text-tertiary);
-      font-size: 11px;
-      line-height: 1;
-      border: 1px solid transparent;
-    }
-
-    .gm-streak-pill.active {
-      background: rgba(242,192,99,0.10);
-      color: var(--warning);
-      border-color: rgba(242,192,99,0.32);
-    }
-
-    .gm-streak-pill span:first-child { font-size: 13px; filter: drop-shadow(0 0 0 transparent); }
-    .gm-streak-pill.active span:first-child { filter: drop-shadow(0 0 6px rgba(242,192,99,0.6)); }
-
-    .gm-streak-num { font-family: var(--mono); font-weight: 700; }
-
     .gm-bar {
       display: flex;
       gap: 4px;
@@ -1003,8 +979,13 @@
             </div>
             <p class="gm-progress-label" id="gmProgressLabel">no goals yet</p>
           </div>
-          <div class="gm-streak-pill" id="gmStreak">
-            <span>⚡</span><span class="gm-streak-num" id="gmStreakNum">0</span><span>day streak</span>
+          <div id="gmProgressRing" style="position:relative;width:56px;height:56px;flex-shrink:0">
+            <svg width="56" height="56" viewBox="0 0 56 56" style="transform:rotate(-90deg)">
+              <circle cx="28" cy="28" r="22" fill="none" stroke="#2a2a2a" stroke-width="5"/>
+              <circle id="gmRingFill" cx="28" cy="28" r="22" fill="none" stroke="#22c55e" stroke-width="5"
+                stroke-dasharray="138.23 138.23" stroke-dashoffset="138.23" stroke-linecap="round"/>
+            </svg>
+            <div id="gmRingPct" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:var(--mono);color:var(--text-primary)">0%</div>
           </div>
         </div>
         <div class="gm-bar" id="gmBar"></div>
@@ -1176,8 +1157,6 @@
     const gmProgressNum = document.getElementById('gmProgressNum');
     const gmProgressTotal = document.getElementById('gmProgressTotal');
     const gmProgressLabel = document.getElementById('gmProgressLabel');
-    const gmStreak = document.getElementById('gmStreak');
-    const gmStreakNum = document.getElementById('gmStreakNum');
     const gmBar = document.getElementById('gmBar');
     const goalList = document.getElementById('goalList');
     const tomorrowList = document.getElementById('tomorrowList');
@@ -1531,6 +1510,19 @@
       else card.classList.remove('gm-all-done');
       gmPushBtn.classList.toggle('hidden', goals.filter(g => !g.done).length === 0);
       renderBarSegments(goals);
+      updateProgressRing();
+    }
+
+    function updateProgressRing() {
+      const goals = getGoalsFor(getTodayKey());
+      const total = goals.length;
+      const done = goals.filter(g => g.done).length;
+      const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+      const circumference = 138.23;
+      const fill = document.getElementById('gmRingFill');
+      const label = document.getElementById('gmRingPct');
+      if (fill) fill.style.strokeDashoffset = circumference * (1 - pct / 100);
+      if (label) label.textContent = pct + '%';
     }
 
     function renderBarSegments(goals) {
@@ -1577,27 +1569,6 @@
       text.textContent = goal.text;
       text.tabIndex = 0;
       row.appendChild(text);
-
-      const actionWrap = document.createElement('div');
-      actionWrap.className = 'goal-actions';
-      if (!readOnly) {
-        const queueBtn = document.createElement('button');
-        queueBtn.type = 'button';
-        queueBtn.className = 'gm-queue-btn';
-        queueBtn.textContent = '⚡';
-        if (goal.queued) queueBtn.classList.add('active');
-        actionWrap.appendChild(queueBtn);
-        row.appendChild(actionWrap);
-        queueBtn.addEventListener('click', () => {
-          const goals = getGoalsFor(key);
-          const item = goals[index];
-          if (!item) return;
-          item.queued = !item.queued;
-          saveGoalsFor(key, goals);
-          queueBtn.classList.add('flash');
-          setTimeout(() => queueBtn.classList.remove('flash'), 500);
-        });
-      }
 
       const deleteBtn = document.createElement('button');
       deleteBtn.type = 'button';
