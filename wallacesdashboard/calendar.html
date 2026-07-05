@@ -732,8 +732,8 @@
     <div class="modal-actions">
       <button class="modal-btn" onclick="CAL.closeModal('detailModal')">Close</button>
       <button class="modal-btn" id="detailEditBtn">Edit</button>
-      <button class="modal-btn danger" id="detailDeleteBtn">Delete</button>
     </div>
+    <button class="modal-btn danger modal-btn-full" id="detailDeleteBtn" style="margin-top:8px">Delete</button>
   </div>
 </div>
 
@@ -1094,7 +1094,16 @@ const CAL = (function () {
       col.addEventListener('dragleave', ()=>col.classList.remove('drag-over'));
       col.addEventListener('drop', e=>{ col.classList.remove('drag-over'); onDrop(e, ds, col); });
 
-      // Events
+      // Continuation blocks for overnight events that started the previous day
+      const [y,mo,d]=ds.split('-').map(Number);
+      const prevD=new Date(y,mo-1,d-1);
+      const prevDs=[prevD.getFullYear(),String(prevD.getMonth()+1).padStart(2,'0'),String(prevD.getDate()).padStart(2,'0')].join('-');
+      events.filter(e=>e.date===prevDs&&tMin(e.end_time)<=tMin(e.start_time)).forEach(ev=>{
+        const block=buildContinuationBlock(ev);
+        if (block) col.appendChild(block);
+      });
+
+      // Events starting on this day
       events.filter(e=>e.date===ds).forEach(ev=>{
         const block=buildBlock(ev);
         if (block) col.appendChild(block);
@@ -1114,8 +1123,10 @@ const CAL = (function () {
   function buildBlock(ev) {
     const sm=tMin(ev.start_time), em=tMin(ev.end_time);
     if (isNaN(sm)||isNaN(em)) return null;
+    const overnight=em<=sm;
+    const effectiveEm=overnight?END_H*60:em;
     const top=((sm/60)-START_H)*HOUR_H;
-    const ht=Math.max(18,((em-sm)/60)*HOUR_H);
+    const ht=Math.max(18,((effectiveEm-sm)/60)*HOUR_H);
     if (top>=(END_H-START_H)*HOUR_H||top+ht<=0) return null;
 
     const color=ev.color||COLORS[0].v;
@@ -1123,8 +1134,9 @@ const CAL = (function () {
     blk.className='cal-event';
     blk.dataset.eid=ev.id;
     blk.style.cssText=`top:${top}px;height:${ht}px;background:${color}20;border-left-color:${color};color:${color};`;
+    const timeLabel=overnight?`${fmt12(ev.start_time)} – ${fmt12(ev.end_time)} +1`:`${fmt12(ev.start_time)} – ${fmt12(ev.end_time)}`;
     blk.innerHTML=`<div class="cal-event-title">${esc(ev.title)}</div>`+
-      (ht>28?`<div class="cal-event-time">${fmt12(ev.start_time)} – ${fmt12(ev.end_time)}</div>`:'');
+      (ht>28?`<div class="cal-event-time">${timeLabel}</div>`:'');
 
     blk.addEventListener('click', e=>{ e.stopPropagation(); openDetail(ev); });
     blk.draggable=true;
@@ -1137,6 +1149,21 @@ const CAL = (function () {
       e.dataTransfer.setData('text/plain',ev.id);
     });
     blk.addEventListener('dragend', ()=>blk.classList.remove('dragging'));
+    return blk;
+  }
+
+  function buildContinuationBlock(ev) {
+    const em=tMin(ev.end_time);
+    if (em<=0) return null;
+    const ht=Math.max(18,(em/60)*HOUR_H);
+    const color=ev.color||COLORS[0].v;
+    const blk=document.createElement('div');
+    blk.className='cal-event';
+    blk.dataset.eid=ev.id;
+    blk.style.cssText=`top:0px;height:${ht}px;background:${color}14;border-left-color:${color};color:${color};opacity:0.85;`;
+    blk.innerHTML=`<div class="cal-event-title">${esc(ev.title)}</div>`+
+      (ht>28?`<div class="cal-event-time">until ${fmt12(ev.end_time)}</div>`:'');
+    blk.addEventListener('click', e=>{ e.stopPropagation(); openDetail(ev); });
     return blk;
   }
 
@@ -1283,10 +1310,26 @@ const CAL = (function () {
       if (ev.parent_id||(ev.repeat_type&&ev.repeat_type!=='none')) showRecurChoice('edit',ev);
       else openEdit(ev,false);
     };
-    document.getElementById('detailDeleteBtn').onclick=()=>{
-      closeModal('detailModal');
-      if (ev.parent_id||(ev.repeat_type&&ev.repeat_type!=='none')) showRecurChoice('delete',ev);
-      else doDelete(ev);
+    const delBtn=document.getElementById('detailDeleteBtn');
+    delBtn.textContent='Delete';
+    delBtn.style.background='';
+    let delConfirming=false, delTimer=null;
+    delBtn.onclick=()=>{
+      if (delConfirming) {
+        clearTimeout(delTimer);
+        closeModal('detailModal');
+        if (ev.parent_id||(ev.repeat_type&&ev.repeat_type!=='none')) showRecurChoice('delete',ev);
+        else evDelete(ev.id).then(()=>buildGrid());
+      } else {
+        delConfirming=true;
+        delBtn.textContent='Are you sure? Tap again to delete';
+        delBtn.style.background='rgba(255,107,107,0.25)';
+        delTimer=setTimeout(()=>{
+          delConfirming=false;
+          delBtn.textContent='Delete';
+          delBtn.style.background='';
+        }, 3000);
+      }
     };
     openModal('detailModal');
   }
@@ -1327,7 +1370,6 @@ const CAL = (function () {
 
     if (!title) { document.getElementById('evTitle').focus(); return; }
     if (!date||!start_time||!end_time) return;
-    if (tMin(start_time)>=tMin(end_time)) { alert('End time must be after start time.'); return; }
 
     closeModal('eventModal');
     const data={title,description,date,start_time,end_time,color,repeat_type,repeat_days,image:selImage};
