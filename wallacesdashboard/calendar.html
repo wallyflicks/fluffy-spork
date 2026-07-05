@@ -1035,11 +1035,12 @@ const CAL = (function () {
   function occursOnDate(ev, ds) {
     const rt = ev.repeat_type;
     if (!rt || rt === 'none') return false;
-    if (ev.date >= ds) return false; // hasn't started yet, or is the origin date itself
+    const evDate = (ev.date || '').slice(0, 10);
+    if (evDate >= ds) return false; // hasn't started yet, or is the origin date itself
     const [y,mo,d] = ds.split('-').map(Number);
     const dt = new Date(y, mo-1, d);
     const dow = dt.getDay();
-    const [oy,om,od] = ev.date.split('-').map(Number);
+    const [oy,om,od] = evDate.split('-').map(Number);
     const origin = new Date(oy, om-1, od);
     const baseDow = origin.getDay();
     if (rt === 'daily') return true;
@@ -1137,21 +1138,22 @@ const CAL = (function () {
       const [y,mo,d]=ds.split('-').map(Number);
       const prevD=new Date(y,mo-1,d-1);
       const prevDs=[prevD.getFullYear(),String(prevD.getMonth()+1).padStart(2,'0'),String(prevD.getDate()).padStart(2,'0')].join('-');
-      events.filter(e=>e.date===prevDs&&tMin(e.end_time)<=tMin(e.start_time)).forEach(ev=>{
+      events.filter(e=>(e.date||'').slice(0,10)===prevDs&&tMin(e.end_time)<=tMin(e.start_time)).forEach(ev=>{
         const block=buildContinuationBlock(ev);
         if (block) col.appendChild(block);
       });
 
-      // Real stored events for this exact date
-      const realEvents = events.filter(e => e.date === ds);
+      // Real stored events for this exact date (normalize to YYYY-MM-DD before comparing)
+      const realEvents = events.filter(e => (e.date || '').slice(0, 10) === ds);
 
-      // Virtual occurrences: loop ALL events, find any with a repeat rule that
-      // fires on this date, and skip ones that already have a real stored entry here.
-      const alreadyShown = new Set(realEvents.map(e => e.parent_id || e.id));
+      // Virtual occurrences: loop ALL parent events, find any whose repeat rule
+      // fires on this date, skip ones already covered by a real stored entry.
+      const directIds = new Set(realEvents.map(e => e.id));
+      const coveredParentIds = new Set(realEvents.filter(e => e.parent_id).map(e => e.parent_id));
       const virtualEvents = [];
       for (const e of events) {
-        if (alreadyShown.has(e.id)) continue;          // already showing this event directly
-        if (e.parent_id && alreadyShown.has(e.parent_id)) continue; // real child already covers it
+        if (directIds.has(e.id)) continue;          // already showing this event directly
+        if (coveredParentIds.has(e.id)) continue;   // a real child already covers this parent
         if (!occursOnDate(e, ds)) continue;
         virtualEvents.push({ ...e, date: ds });
       }
