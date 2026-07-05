@@ -1102,59 +1102,65 @@ const CAL = (function () {
         if (block) col.appendChild(block);
       });
 
-      // Render events for this column.
-      // Skip pre-baked children (parent_id set) — the parent's repeat rule covers them.
-      const seen = new Set();
-      console.log(`[CAL] building column ${ds} — checking ${events.length} events`);
+      // Render events for this date column.
+      //
+      // Two-pass approach so old pre-baked children AND new parent-only data both work:
+      //   Pass 1 — collect events explicitly stored on this exact date (parent origin days
+      //             AND old pre-baked child rows). Note which parent IDs are already covered.
+      //   Pass 2 — for repeating parents whose repeat rule fires on ds but no child exists
+      //             for ds, generate a virtual occurrence.
+      const explicitOnDate = events.filter(ev => (ev.date || '').slice(0, 10) === ds);
+      const childCoveredParentIds = new Set(
+        explicitOnDate.filter(ev => ev.parent_id).map(ev => ev.parent_id)
+      );
+      const toRender = [...explicitOnDate];
+
+      console.log(`[CAL] col ${ds}: explicit=${explicitOnDate.map(e=>e.id?.slice(0,6)).join(',')||'none'} coveredParents=${[...childCoveredParentIds].map(id=>id?.slice(0,6)).join(',')||'none'}`);
+
       for (const ev of events) {
-        if (ev.parent_id) {
-          console.log(`  SKIP (has parent_id) id=${ev.id?.slice(0,8)} title="${ev.title}"`);
-          continue;
-        }
+        if (ev.parent_id) continue;                      // only parents generate virtual occurrences
+        if (childCoveredParentIds.has(ev.id)) continue;  // child already covers this parent on ds
         const evDate = (ev.date || '').slice(0, 10);
+        if (evDate === ds) continue;                     // already in explicitOnDate (origin day)
         const rt = ev.repeat_type || 'none';
+        if (rt === 'none') continue;                     // non-repeating shows only on its exact date
+        if (evDate > ds) continue;                       // event starts in the future
+
+        const [cy, cm, cd] = ds.split('-').map(Number);
+        const dt = new Date(cy, cm - 1, cd);
+        const dow = dt.getDay();
         let show = false;
         let reason = '';
-        if (rt === 'none') {
-          show = evDate === ds;
-          reason = `none: evDate(${evDate}) === ds(${ds}) → ${show}`;
-        } else if (evDate <= ds) {
-          const [cy, cm, cd] = ds.split('-').map(Number);
-          const dt = new Date(cy, cm - 1, cd);
-          const dow = dt.getDay();
-          if (rt === 'daily') {
-            show = true;
-            reason = `daily: evDate(${evDate}) <= ds(${ds}) → show`;
-          } else if (rt === 'weekdays') {
-            show = dow >= 1 && dow <= 5;
-            reason = `weekdays: dow=${dow} → ${show}`;
-          } else if (rt === 'weekly') {
-            const [oy, om, od] = evDate.split('-').map(Number);
-            const originDow = new Date(oy, om - 1, od).getDay();
-            show = dow === originDow;
-            reason = `weekly: dow=${dow} originDow=${originDow} → ${show}`;
-          } else if (rt === 'biweekly') {
-            const [oy, om, od] = evDate.split('-').map(Number);
-            const origin = new Date(oy, om - 1, od);
-            const diffWeeks = Math.round((dt - origin) / (7 * 86400000));
-            show = dow === origin.getDay() && diffWeeks % 2 === 0;
-            reason = `biweekly: dow=${dow} originDow=${origin.getDay()} diffWeeks=${diffWeeks} → ${show}`;
-          } else if (rt === 'custom' && ev.repeat_days?.length) {
-            show = ev.repeat_days.includes(DAY_VALS[dow]);
-            reason = `custom: DAY_VALS[${dow}]=${DAY_VALS[dow]} in [${ev.repeat_days}] → ${show}`;
-          } else {
-            reason = `unknown rt="${rt}" or custom with no repeat_days`;
-          }
+
+        if (rt === 'daily') {
+          show = true; reason = 'daily';
+        } else if (rt === 'weekdays') {
+          show = dow >= 1 && dow <= 5; reason = `weekdays dow=${dow}`;
+        } else if (rt === 'weekly') {
+          const [oy, om, od] = evDate.split('-').map(Number);
+          const odow = new Date(oy, om - 1, od).getDay();
+          show = dow === odow; reason = `weekly dow=${dow} odow=${odow}`;
+        } else if (rt === 'biweekly') {
+          const [oy, om, od] = evDate.split('-').map(Number);
+          const origin = new Date(oy, om - 1, od);
+          const diffW = Math.round((dt - origin) / (7 * 86400000));
+          show = dow === origin.getDay() && diffW % 2 === 0;
+          reason = `biweekly dow=${dow} odow=${origin.getDay()} diffW=${diffW}`;
+        } else if (rt === 'custom' && ev.repeat_days?.length) {
+          show = ev.repeat_days.includes(DAY_VALS[dow]);
+          reason = `custom day=${DAY_VALS[dow]} in [${ev.repeat_days}]`;
         } else {
-          reason = `evDate(${evDate}) > ds(${ds}), not yet started`;
+          reason = `unknown rt="${rt}"`;
         }
-        console.log(`  id=${ev.id?.slice(0,8)} rt=${rt} evDate=${evDate} → show=${show} (${reason})`);
-        if (show && !seen.has(ev.id)) {
-          seen.add(ev.id);
-          const block = buildBlock({ ...ev, date: ds });
-          console.log(`    buildBlock result: ${block ? 'OK' : 'NULL (bad times?)'} start=${ev.start_time} end=${ev.end_time}`);
-          if (block) col.appendChild(block);
-        }
+
+        console.log(`  [virt] id=${ev.id?.slice(0,6)} rt=${rt} evDate=${evDate} ds=${ds} show=${show} (${reason})`);
+        if (show) toRender.push({ ...ev, date: ds });
+      }
+
+      for (const ev of toRender) {
+        const block = buildBlock(ev);
+        console.log(`  [render] "${ev.title}" id=${ev.id?.slice(0,6)} parent=${ev.parent_id?.slice(0,6)||'none'} start=${ev.start_time} block=${block?'OK':'NULL'}`);
+        if (block) col.appendChild(block);
       }
 
       // Current time
