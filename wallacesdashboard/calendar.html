@@ -9,6 +9,7 @@
   <title>Calendar — Wallace's Dashboard</title>
   <link rel="manifest" href="/manifest.json">
   <script src="/notifications.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     :root {
       color-scheme: dark;
@@ -17,1740 +18,531 @@
       --text-secondary: #B8B6B0;
       --text-tertiary: #76746E;
       --success: #6BE3A4;
-      --warning: #F2C063;
-      --danger: #FF6B6B;
       --card: rgba(255,255,255,0.04);
-      --card-border: rgba(255,255,255,0.06);
-      --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
       --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      --hour-h: 64px;
-      --time-w: 48px;
-      --tabbar-h: calc(66px + env(safe-area-inset-bottom, 0px));
+      --hour-h: 64;
+      --time-w: 44px;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html, body {
-      height: 100%;
-      background: var(--bg);
-      color: var(--text-primary);
-      font-family: var(--sans);
-      overflow: hidden;
-    }
-
-    body {
-      display: flex;
-      flex-direction: column;
-    }
+    html, body { height: 100%; background: var(--bg); color: var(--text-primary); font-family: var(--sans); overflow: hidden; }
+    body { display: flex; flex-direction: column; }
 
     /* ── Tabbar ── */
-    .tabbar {
-      position: fixed;
-      left: 0; right: 0; bottom: 0;
-      z-index: 9999;
-      display: flex;
-      justify-content: center;
-      padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
-      background: rgba(10,10,11,0.95);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      border-top: 1px solid rgba(255,255,255,0.06);
-    }
-    .tabbar-inner {
-      width: 100%;
-      max-width: 520px;
-      display: flex;
-      align-items: center;
-      padding: 5px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 999px;
-      gap: 3px;
-    }
-    .tabbar-link {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 40px;
-      min-width: 0;
-      color: rgba(255,255,255,0.38);
-      text-decoration: none;
-      border-radius: 999px;
-      transition: color 0.15s;
-      -webkit-tap-highlight-color: transparent;
-    }
+    .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 999; display: flex; justify-content: center; padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px)); background: rgba(10,10,11,0.95); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border-top: 1px solid rgba(255,255,255,0.06); }
+    .tabbar-inner { width: 100%; max-width: 520px; display: flex; align-items: center; padding: 5px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; gap: 3px; }
+    .tabbar-link { flex: 1; display: flex; align-items: center; justify-content: center; height: 40px; color: rgba(255,255,255,0.38); text-decoration: none; border-radius: 999px; transition: color 0.15s; -webkit-tap-highlight-color: transparent; }
     .tabbar-link svg { width: 19px; height: 19px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .tabbar-link.active { background: #ffffff; color: #0a0a0a; }
-    .tabbar-link:hover:not(.active) { color: rgba(255,255,255,0.65); }
 
-    /* ── Page header ── */
-    .page-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: calc(env(safe-area-inset-top, 0px) + 10px) 14px 8px;
-      flex-shrink: 0;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-    }
-    .page-title {
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      background: linear-gradient(180deg, #FFFFFF 0%, #C7C4BC 120%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .view-toggle {
-      display: flex;
-      background: rgba(255,255,255,0.06);
-      border-radius: 8px;
-      padding: 2px;
-      gap: 2px;
-    }
-    .view-btn {
-      padding: 5px 13px;
-      border-radius: 6px;
-      border: none;
-      background: transparent;
-      color: rgba(255,255,255,0.4);
-      font-size: 12px;
-      font-weight: 600;
-      font-family: var(--sans);
-      cursor: pointer;
-      transition: all 0.15s;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .view-btn.active { background: rgba(255,255,255,0.12); color: #fff; }
+    /* ── Header ── */
+    .cal-header { display: flex; align-items: center; gap: 6px; padding: calc(env(safe-area-inset-top, 0px) + 10px) 12px 8px; flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .cal-title { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; background: linear-gradient(180deg,#FFF 0%,#C7C4BC 120%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+    .spacer { flex: 1; }
+    .icon-btn { width: 32px; height: 32px; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(255,255,255,0.04); color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; transition: background 0.15s; flex-shrink: 0; }
+    .icon-btn:hover { background: rgba(255,255,255,0.08); }
+    .icon-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .week-label { font-size: 13px; font-weight: 600; color: var(--text-primary); min-width: 110px; text-align: center; }
+    .today-btn { padding: 5px 10px; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.55); font-size: 11px; font-weight: 600; font-family: var(--sans); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .add-btn { padding: 6px 13px; border: none; border-radius: 8px; background: var(--success); color: #000; font-size: 12px; font-weight: 700; font-family: var(--sans); cursor: pointer; -webkit-tap-highlight-color: transparent; }
 
-    /* ── Date nav ── */
-    .date-nav {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 14px;
-      flex-shrink: 0;
-    }
-    .date-nav-btn {
-      width: 30px; height: 30px;
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
-      background: rgba(255,255,255,0.04);
-      color: var(--text-secondary);
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      -webkit-tap-highlight-color: transparent;
-      transition: background 0.15s;
-      flex-shrink: 0;
-    }
-    .date-nav-btn:hover { background: rgba(255,255,255,0.08); }
-    .date-nav-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-    .date-nav-label {
-      flex: 1;
-      text-align: center;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-    .today-btn {
-      padding: 4px 10px;
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 6px;
-      background: rgba(255,255,255,0.05);
-      color: rgba(255,255,255,0.55);
-      font-size: 11px;
-      font-weight: 600;
-      font-family: var(--sans);
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      flex-shrink: 0;
-    }
-    .today-btn:hover { background: rgba(255,255,255,0.09); }
+    /* ── Tasks strip ── */
+    .tasks-strip { flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .tasks-toggle { display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none; }
+    .tasks-toggle-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary); }
+    .tasks-toggle-count { font-size: 11px; color: var(--text-tertiary); }
+    .tasks-body { display: none; padding: 0 12px 8px; flex-direction: column; gap: 5px; max-height: 140px; overflow-y: auto; }
+    .tasks-body.open { display: flex; }
+    .task-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+    .task-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--success); flex-shrink: 0; }
+    .task-item.done { color: var(--text-tertiary); text-decoration: line-through; }
+    .task-item.done .task-dot { background: var(--text-tertiary); }
 
-    /* ── Body layout ── */
-    .cal-body {
-      flex: 1;
-      display: flex;
-      overflow: hidden;
-      min-height: 0;
-    }
-
-    /* ── Task Panel ── */
-    .task-panel {
-      display: flex;
-      flex-direction: column;
-      flex-shrink: 0;
-      overflow: hidden;
-      border-right: 1px solid rgba(255,255,255,0.06);
-    }
-    .task-panel-toggle {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 14px;
-      background: rgba(255,255,255,0.025);
-      border-bottom: 1px solid rgba(255,255,255,0.05);
-      cursor: pointer;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text-tertiary);
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-      flex-shrink: 0;
-    }
-    .task-panel-toggle svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.2s; }
-    .task-panel-toggle.open svg { transform: rotate(180deg); }
-    .task-panel-content {
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-      display: none;
-    }
-    .task-panel-content.open { display: block; }
-    .task-section-label {
-      padding: 8px 12px 3px;
-      font-size: 9.5px;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--text-tertiary);
-    }
-    .task-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 7px;
-      padding: 5px 12px;
-      border-bottom: 1px solid rgba(255,255,255,0.035);
-    }
-    .task-item-check {
-      width: 13px; height: 13px;
-      border-radius: 3px;
-      border: 1.5px solid rgba(255,255,255,0.18);
-      flex-shrink: 0;
-      margin-top: 2px;
-    }
-    .task-item-check.done { background: var(--success); border-color: var(--success); }
-    .task-item-text {
-      flex: 1;
-      min-width: 0;
-      font-size: 12px;
-      color: var(--text-secondary);
-      line-height: 1.35;
-    }
-    .task-item-text.done { text-decoration: line-through; color: var(--text-tertiary); }
-    .task-add-cal-btn {
-      padding: 2px 7px;
-      border-radius: 5px;
-      border: 1px solid rgba(255,255,255,0.1);
-      background: rgba(255,255,255,0.03);
-      color: rgba(255,255,255,0.4);
-      font-size: 10px;
-      font-weight: 600;
-      font-family: var(--sans);
-      cursor: pointer;
-      white-space: nowrap;
-      -webkit-tap-highlight-color: transparent;
-      transition: all 0.15s;
-      flex-shrink: 0;
-      margin-top: 1px;
-    }
-    .task-add-cal-btn:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.75); }
-
-    @media (min-width: 700px) {
-      .task-panel { width: 210px; }
-      .task-panel-toggle { display: none; }
-      .task-panel-content { display: block !important; flex: 1; }
-    }
-    @media (max-width: 699px) {
-      .cal-body { flex-direction: column; }
-      .task-panel { width: 100%; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); }
-      .task-panel-content { max-height: 190px; }
-    }
-
-    /* ── Cal main ── */
-    .cal-main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      min-width: 0;
-    }
-
-    /* ── Week header ── */
-    .week-header {
-      display: flex;
-      border-bottom: 1px solid rgba(255,255,255,0.07);
-      flex-shrink: 0;
-    }
+    /* ── Week day header ── */
+    .week-header { display: flex; flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
     .week-header-spacer { width: var(--time-w); flex-shrink: 0; }
-    .week-day-head {
-      flex: 1;
-      text-align: center;
-      padding: 5px 2px;
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--text-tertiary);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      min-width: 0;
-    }
-    .week-day-head.today { color: var(--success); }
-    .week-day-head .day-num {
-      display: block;
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--text-primary);
-      letter-spacing: 0;
-      margin-top: 1px;
-    }
-    .week-day-head.today .day-num { color: var(--success); }
+    .week-header-days { flex: 1; display: grid; grid-template-columns: repeat(7, minmax(44px, 1fr)); overflow: hidden; }
+    .day-head { padding: 6px 4px; text-align: center; }
+    .day-name { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-tertiary); }
+    .day-num { font-size: 15px; font-weight: 700; color: var(--text-secondary); line-height: 1.2; margin-top: 1px; }
+    .day-head.today .day-name { color: var(--success); }
+    .day-head.today .day-num { color: var(--success); }
 
-    /* ── Grid scroll ── */
-    .cal-scroll {
-      flex: 1;
-      overflow-y: auto;
-      overflow-x: hidden;
-      -webkit-overflow-scrolling: touch;
-      position: relative;
-      padding-bottom: var(--tabbar-h);
-    }
-    .cal-scroll::-webkit-scrollbar { width: 3px; }
-    .cal-scroll::-webkit-scrollbar-track { background: transparent; }
-    .cal-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+    /* ── Calendar body ── */
+    .cal-body { flex: 1; overflow-y: auto; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
+    .cal-grid { display: flex; min-height: 100%; }
+    .time-col { width: var(--time-w); flex-shrink: 0; position: sticky; left: 0; z-index: 10; background: var(--bg); }
+    .time-label { position: absolute; right: 5px; font-size: 10px; color: var(--text-tertiary); transform: translateY(-50%); white-space: nowrap; pointer-events: none; }
+    .days-area { flex: 1; display: grid; grid-template-columns: repeat(7, minmax(44px, 1fr)); position: relative; }
+    .day-col { position: relative; border-left: 1px solid rgba(255,255,255,0.05); }
+    .hour-line { position: absolute; left: 0; right: 0; border-top: 1px solid rgba(255,255,255,0.05); pointer-events: none; }
+    .hour-line.half { border-top-color: rgba(255,255,255,0.025); }
+    .cal-event { position: absolute; left: 2px; right: 2px; border-radius: 5px; border-left: 3px solid; padding: 3px 5px; cursor: pointer; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+    .cal-event:active { opacity: 0.7; }
+    .ev-title { font-size: 10px; font-weight: 600; line-height: 1.2; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .ev-time { font-size: 9px; opacity: 0.75; margin-top: 1px; white-space: nowrap; }
+    .time-now-line { position: absolute; left: 0; right: 0; pointer-events: none; z-index: 5; }
+    .time-now-line::before { content: ''; position: absolute; left: 0; top: -4px; width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
+    .time-now-line::after { content: ''; position: absolute; left: 6px; right: 0; top: -1px; height: 2px; background: var(--success); }
 
-    /* ── Grid ── */
-    .cal-grid {
-      display: flex;
-      position: relative;
-    }
-
-    /* ── Time labels ── */
-    .time-labels {
-      width: var(--time-w);
-      flex-shrink: 0;
-      position: relative;
-    }
-    .time-label {
-      position: absolute;
-      right: 8px;
-      font-size: 9.5px;
-      font-family: var(--mono);
-      color: var(--text-tertiary);
-      transform: translateY(-50%);
-      white-space: nowrap;
-      letter-spacing: -0.01em;
-    }
-
-    /* ── Day columns ── */
-    .day-columns {
-      flex: 1;
-      display: flex;
-      position: relative;
-      min-width: 0;
-    }
-    .day-col {
-      flex: 1;
-      position: relative;
-      border-left: 1px solid rgba(255,255,255,0.05);
-      min-width: 0;
-    }
-    .day-col:first-child { border-left: none; }
-    .day-col.drag-over { background: rgba(255,255,255,0.025); }
-
-    .hour-line {
-      position: absolute;
-      left: 0; right: 0;
-      height: 1px;
-      background: rgba(255,255,255,0.05);
-      pointer-events: none;
-    }
-    .hour-line.half { background: rgba(255,255,255,0.022); }
-
-    .slot-tap {
-      position: absolute;
-      left: 0; right: 0;
-      cursor: pointer;
-      height: calc(var(--hour-h) / 2);
-    }
-    .slot-tap:hover { background: rgba(255,255,255,0.02); }
-
-    /* ── Events ── */
-    .cal-event {
-      position: absolute;
-      left: 2px; right: 2px;
-      border-radius: 5px;
-      padding: 3px 5px;
-      overflow: hidden;
-      cursor: pointer;
-      font-size: 11px;
-      font-weight: 600;
-      line-height: 1.25;
-      z-index: 2;
-      transition: opacity 0.12s;
-      -webkit-tap-highlight-color: transparent;
-      border-left: 3px solid transparent;
-    }
-    .cal-event:hover { opacity: 0.82; }
-    .cal-event.dragging { opacity: 0.45; cursor: grabbing; z-index: 50; }
-    .cal-event-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .cal-event-time { font-weight: 400; font-size: 9.5px; opacity: 0.75; margin-top: 1px; }
-
-    /* ── Current time line ── */
-    .current-time-line {
-      position: absolute;
-      left: 0; right: 0;
-      height: 2px;
-      background: #4ade80;
-      z-index: 10;
-      pointer-events: none;
-    }
-    .current-time-line::before {
-      content: '';
-      position: absolute;
-      left: -3px;
-      top: -3.5px;
-      width: 9px; height: 9px;
-      border-radius: 50%;
-      background: #4ade80;
-    }
-
-    /* ── Modal overlay ── */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 5000;
-      background: rgba(0,0,0,0.65);
-      display: flex;
-      align-items: flex-end;
-      justify-content: center;
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.18s;
-    }
-    .modal-overlay.open { opacity: 1; pointer-events: all; }
-    .modal-sheet {
-      width: 100%;
-      max-width: 500px;
-      background: #111113;
-      border-radius: 20px 20px 0 0;
-      border: 1px solid rgba(255,255,255,0.1);
-      border-bottom: none;
-      padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
-      transform: translateY(100%);
-      transition: transform 0.24s cubic-bezier(0.32, 0.72, 0, 1);
-      max-height: 90vh;
-      overflow-y: auto;
-    }
-    .modal-overlay.open .modal-sheet { transform: translateY(0); }
-    #detailModal .modal-sheet {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      max-width: 100%;
-      max-height: 85dvh;
-      overflow-y: auto;
-      border-radius: 20px 20px 0 0;
-      transform: translateY(100%);
-    }
-    #detailModal.open .modal-sheet {
-      transform: translateY(0);
-    }
-    .modal-handle {
-      width: 34px; height: 4px;
-      border-radius: 2px;
-      background: rgba(255,255,255,0.1);
-      margin: 0 auto 14px;
-    }
-    .modal-title {
-      font-size: 16px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      margin-bottom: 14px;
-      color: var(--text-primary);
-    }
-    .modal-field { margin-bottom: 13px; }
-    .modal-label {
-      display: block;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text-tertiary);
-      margin-bottom: 5px;
-    }
-    .modal-input {
-      width: 100%;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 10px;
-      padding: 9px 11px;
-      color: var(--text-primary);
-      font-size: 14px;
-      font-family: var(--sans);
-      outline: none;
-      -webkit-appearance: none;
-      appearance: none;
-    }
-    .modal-input:focus { border-color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.07); }
-    .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-
-    .color-picker { display: flex; gap: 8px; flex-wrap: wrap; }
-    .color-swatch {
-      width: 26px; height: 26px;
-      border-radius: 50%;
-      border: 2px solid transparent;
-      cursor: pointer;
-      transition: transform 0.12s;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .color-swatch.selected { border-color: rgba(255,255,255,0.8); transform: scale(1.18); }
-
-    .repeat-pills { display: flex; flex-wrap: wrap; gap: 5px; }
-    .repeat-pill {
-      padding: 4px 10px;
-      border-radius: 20px;
-      border: 1px solid rgba(255,255,255,0.1);
-      background: rgba(255,255,255,0.04);
-      color: var(--text-secondary);
-      font-size: 12px;
-      font-weight: 500;
-      font-family: var(--sans);
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      transition: all 0.12s;
-    }
-    .repeat-pill.selected { background: rgba(255,255,255,0.11); border-color: rgba(255,255,255,0.28); color: #fff; }
-
-    .custom-days-row { display: flex; gap: 5px; margin-top: 8px; }
-    .day-pill {
-      flex: 1;
-      height: 30px;
-      border-radius: 7px;
-      border: 1px solid rgba(255,255,255,0.09);
-      background: rgba(255,255,255,0.03);
-      color: var(--text-tertiary);
-      font-size: 10px;
-      font-weight: 700;
-      font-family: var(--sans);
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      transition: all 0.12s;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .day-pill.selected { background: rgba(255,255,255,0.13); color: #fff; border-color: rgba(255,255,255,0.24); }
-
-    .modal-actions { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
-    .modal-btn {
-      flex: 1;
-      padding: 11px;
-      border-radius: 11px;
-      border: 1px solid rgba(255,255,255,0.1);
-      background: rgba(255,255,255,0.05);
-      color: var(--text-secondary);
-      font-size: 13px;
-      font-weight: 600;
-      font-family: var(--sans);
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      transition: background 0.12s;
-      text-align: center;
-    }
-    .modal-btn:hover { background: rgba(255,255,255,0.09); }
-    .modal-btn.primary { background: rgba(107,227,164,0.13); border-color: rgba(107,227,164,0.28); color: var(--success); }
-    .modal-btn.primary:hover { background: rgba(107,227,164,0.2); }
-    .modal-btn.danger { background: rgba(255,107,107,0.1); border-color: rgba(255,107,107,0.22); color: var(--danger); }
-    .modal-btn.danger:hover { background: rgba(255,107,107,0.18); }
-    .modal-btn-full { flex-basis: 100%; }
-
-    .event-detail-title { font-size: 19px; font-weight: 700; margin-bottom: 5px; }
-    .event-detail-time { font-size: 13px; color: var(--text-secondary); margin-bottom: 3px; }
-    .event-detail-repeat { font-size: 11px; color: var(--text-tertiary); margin-bottom: 14px; }
-    .event-detail-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: middle; margin-right: 6px; margin-top: -2px; }
-
-    .recur-choice-btn {
-      display: block;
-      width: 100%;
-      padding: 13px 14px;
-      border-radius: 11px;
-      border: 1px solid rgba(255,255,255,0.09);
-      background: rgba(255,255,255,0.04);
-      color: var(--text-primary);
-      font-size: 13px;
-      font-weight: 600;
-      font-family: var(--sans);
-      cursor: pointer;
-      text-align: left;
-      margin-bottom: 7px;
-      -webkit-tap-highlight-color: transparent;
-      transition: background 0.12s;
-    }
-    .recur-choice-btn:hover { background: rgba(255,255,255,0.08); }
-    .recur-choice-btn small { display: block; font-size: 11px; font-weight: 400; color: var(--text-tertiary); margin-top: 2px; }
-
-    .task-empty-msg { padding: 8px 12px; font-size: 12px; color: var(--text-tertiary); }
-
-    .img-upload-btn {
-      display: flex; align-items: center; gap: 8px;
-      padding: 9px 11px;
-      border: 1.5px dashed rgba(255,255,255,0.12);
-      border-radius: 10px;
-      background: rgba(255,255,255,0.02);
-      color: var(--text-secondary);
-      font-size: 13px;
-      font-family: var(--sans);
-      cursor: pointer;
-      transition: border-color 0.15s, background 0.15s;
-      width: 100%;
-      text-align: left;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .img-upload-btn:hover { border-color: rgba(255,255,255,0.28); background: rgba(255,255,255,0.05); }
-    .img-upload-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; opacity: 0.6; }
-    .img-preview-wrap { position: relative; margin-top: 8px; }
-    .img-preview-wrap img { width: 100%; border-radius: 8px; display: block; max-height: 180px; object-fit: cover; }
-    .img-remove-btn { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.15); color: #fff; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; line-height: 1; }
-    .detail-image { width: 100%; border-radius: 10px; display: block; margin-bottom: 14px; max-height: 220px; object-fit: cover; }
+    /* ── Modals ── */
+    .backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 200; align-items: flex-end; justify-content: center; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+    .backdrop.open { display: flex; }
+    .modal { background: #111112; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px 20px 0 0; width: 100%; max-width: 540px; padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px)); max-height: 88vh; overflow-y: auto; }
+    .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+    .field { margin-bottom: 13px; }
+    .field-label { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 6px; }
+    .field-input { width: 100%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 12px; color: var(--text-primary); font-family: var(--sans); font-size: 14px; outline: none; -webkit-appearance: none; appearance: none; }
+    .field-input:focus { border-color: rgba(255,255,255,0.25); }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .swatch-row { display: flex; gap: 10px; }
+    .swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.1s; flex-shrink: 0; }
+    .swatch.sel { border-color: #fff; transform: scale(1.2); }
+    .pill-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .pill { padding: 5px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--sans); -webkit-tap-highlight-color: transparent; }
+    .pill.sel { background: rgba(255,255,255,0.14); color: #fff; border-color: rgba(255,255,255,0.28); }
+    .modal-actions { display: flex; gap: 8px; margin-top: 18px; }
+    .btn { flex: 1; padding: 12px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; font-family: var(--sans); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .btn-green { background: var(--success); color: #000; }
+    .btn-grey { background: rgba(255,255,255,0.08); color: var(--text-secondary); }
+    .btn-red { background: rgba(255,70,70,0.12); color: #ff6b6b; border: 1px solid rgba(255,70,70,0.2); }
+    .detail-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+    .detail-meta { font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
+    .detail-sub { font-size: 12px; color: var(--text-tertiary); margin-bottom: 18px; }
   </style>
 </head>
 <body>
-<div id="debug-banner" style="background:red;color:white;padding:12px;font-size:13px;position:fixed;top:0;left:0;right:0;z-index:99999;word-break:break-all;">Loading calendar...</div>
-<script>
-window.onerror = function(msg, src, line, col, err) {
-  document.getElementById('debug-banner').textContent = 'JS ERROR line ' + line + ': ' + msg;
-};
-</script>
 
-<!-- ── Header ── -->
-<div class="page-header">
-  <span class="page-title">Calendar</span>
-  <div class="view-toggle">
-    <button class="view-btn" id="dayBtn">Day</button>
-    <button class="view-btn" id="weekBtn">Week</button>
-  </div>
-</div>
-
-<!-- ── Date nav ── -->
-<div class="date-nav">
-  <button class="date-nav-btn" id="prevBtn" aria-label="Previous">
+<div class="cal-header">
+  <span class="cal-title">Calendar</span>
+  <div class="spacer"></div>
+  <button class="icon-btn" id="prevBtn">
     <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
   </button>
-  <span class="date-nav-label" id="dateNavLabel"></span>
-  <button class="date-nav-btn" id="nextBtn" aria-label="Next">
+  <span class="week-label" id="weekLabel"></span>
+  <button class="icon-btn" id="nextBtn">
     <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
   </button>
-  <button class="today-btn" id="todayJump">Today</button>
+  <button class="today-btn" id="todayBtn">Today</button>
+  <button class="add-btn" id="addBtn">+ Add</button>
 </div>
 
-<!-- ── Body ── -->
-<div class="cal-body">
-
-  <!-- Task Panel -->
-  <div class="task-panel" id="taskPanel">
-    <div class="task-panel-toggle" id="taskPanelToggle">
-      <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
-      Tasks
-      <span id="taskCount" style="margin-left:auto;font-size:10px;opacity:0.55"></span>
-    </div>
-    <div class="task-panel-content" id="taskPanelContent">
-      <div class="task-section-label">Today</div>
-      <div id="todayTaskList"></div>
-      <div class="task-section-label" style="margin-top:4px">This Week</div>
-      <div id="weeklyTaskList"></div>
-    </div>
+<div class="tasks-strip">
+  <div class="tasks-toggle" id="tasksToggle">
+    <span class="tasks-toggle-label">Tasks</span>
+    <span class="tasks-toggle-count" id="tasksCount"></span>
   </div>
+  <div class="tasks-body" id="tasksBody"></div>
+</div>
 
-  <!-- Calendar main -->
-  <div class="cal-main">
-    <div class="week-header" id="weekHeader" style="display:none"></div>
-    <div class="cal-scroll" id="calScroll">
-      <div class="cal-grid" id="calGrid">
-        <div class="time-labels" id="timeLabels"></div>
-        <div class="day-columns" id="dayColumns"></div>
-      </div>
-    </div>
+<div class="week-header">
+  <div class="week-header-spacer"></div>
+  <div class="week-header-days" id="weekHeaderDays"></div>
+</div>
+
+<div class="cal-body" id="calBody">
+  <div class="cal-grid" id="calGrid">
+    <div class="time-col" id="timeCol"></div>
+    <div class="days-area" id="daysArea"></div>
   </div>
 </div>
 
-<!-- ── Modals ── -->
-
-<!-- Create / Edit event -->
-<div class="modal-overlay" id="eventModal">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-title" id="eventModalTitle">New Event</div>
-    <input type="hidden" id="editingEventId">
-    <input type="hidden" id="editingParentId">
-    <input type="hidden" id="editingFuture">
-    <div class="modal-field">
-      <label class="modal-label">Title</label>
-      <input type="text" class="modal-input" id="evTitle" placeholder="Event title…" autocomplete="off">
+<!-- Add event modal -->
+<div class="backdrop" id="addModal">
+  <div class="modal">
+    <div class="modal-title">New Event</div>
+    <div class="field">
+      <label class="field-label">Title</label>
+      <input class="field-input" id="evTitle" type="text" placeholder="Event name" autocomplete="off">
     </div>
-    <div class="modal-field">
-      <label class="modal-label">Description</label>
-      <textarea class="modal-input" id="evDesc" rows="3" placeholder="Add details, notes, or what you need to prepare…" style="resize:none;line-height:1.45;font-family:var(--sans)"></textarea>
+    <div class="field">
+      <label class="field-label">Date</label>
+      <input class="field-input" id="evDate" type="date">
     </div>
-    <div class="modal-field">
-      <label class="modal-label">Image</label>
-      <input type="file" id="evImageInput" accept="image/*" style="display:none">
-      <button type="button" class="img-upload-btn" id="evImageBtn">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-        Add image
-      </button>
-      <div class="img-preview-wrap" id="evImagePreviewWrap" style="display:none">
-        <img id="evImagePreview" alt="">
-        <button type="button" class="img-remove-btn" id="evImageRemove">×</button>
+    <div class="field field-row">
+      <div>
+        <label class="field-label">Start time</label>
+        <input class="field-input" id="evStart" type="time">
+      </div>
+      <div>
+        <label class="field-label">End time</label>
+        <input class="field-input" id="evEnd" type="time">
       </div>
     </div>
-    <div class="modal-row">
-      <div class="modal-field">
-        <label class="modal-label">Date</label>
-        <input type="date" class="modal-input" id="evDate">
-      </div>
-      <div></div>
+    <div class="field">
+      <label class="field-label">Color</label>
+      <div class="swatch-row" id="swatchRow"></div>
     </div>
-    <div class="modal-row">
-      <div class="modal-field">
-        <label class="modal-label">Start time</label>
-        <input type="time" class="modal-input" id="evStart">
-      </div>
-      <div class="modal-field">
-        <label class="modal-label">End time</label>
-        <input type="time" class="modal-input" id="evEnd">
-      </div>
+    <div class="field">
+      <label class="field-label">Repeat</label>
+      <div class="pill-row" id="repeatRow"></div>
     </div>
-    <div class="modal-field">
-      <label class="modal-label">Color</label>
-      <div class="color-picker" id="colorPicker"></div>
-    </div>
-    <div class="modal-field" id="repeatSection">
-      <label class="modal-label">Repeat</label>
-      <div class="repeat-pills" id="repeatPills"></div>
-      <div class="custom-days-row" id="customDaysRow" style="display:none"></div>
-    </div>
-    <div style="margin-top:20px;display:flex;flex-direction:column;gap:8px;padding-bottom:4px">
-      <button id="saveEventBtn" style="width:100%;padding:14px;border-radius:12px;border:none;background:#22c55e;color:#000;font-size:15px;font-weight:700;font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transparent;">Save Event</button>
-      <button class="modal-btn danger modal-btn-full" id="deleteEventBtn" style="display:none">Delete</button>
-      <button onclick="CAL.closeModal('eventModal')" style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.45);font-size:14px;font-weight:600;font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transparent;">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- Event detail -->
-<div class="modal-overlay" id="detailModal">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="event-detail-title" id="detailTitle"></div>
-    <div class="event-detail-time" id="detailTime"></div>
-    <div class="event-detail-repeat" id="detailRepeat"></div>
-    <div id="detailDesc" style="font-size:13px;color:var(--text-secondary);line-height:1.5;white-space:pre-wrap;margin-bottom:14px;display:none"></div>
-    <img id="detailImage" class="detail-image" alt="" style="display:none">
     <div class="modal-actions">
-      <button class="modal-btn" onclick="CAL.closeModal('detailModal')">Close</button>
-      <button class="modal-btn" id="detailEditBtn">Edit</button>
-    </div>
-    <button class="modal-btn danger modal-btn-full" id="detailDeleteBtn" style="margin-top:8px">Delete</button>
-  </div>
-</div>
-
-<!-- Recurring choice -->
-<div class="modal-overlay" id="recurModal">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-title" id="recurModalTitle">Edit recurring event</div>
-    <button class="recur-choice-btn" id="recurThisBtn">
-      This event
-      <small>Only change this occurrence</small>
-    </button>
-    <button class="recur-choice-btn" id="recurFutureBtn">
-      This and following events
-      <small>Change this and all future occurrences</small>
-    </button>
-    <button class="modal-btn modal-btn-full" style="margin-top:4px" onclick="CAL.closeModal('recurModal')">Cancel</button>
-  </div>
-</div>
-
-<!-- Add task to calendar -->
-<div class="modal-overlay" id="taskCalModal">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-title">Add to Calendar</div>
-    <div class="modal-field">
-      <label class="modal-label">Task</label>
-      <div id="taskCalTitle" style="font-size:13px;color:var(--text-secondary);padding:2px 0 4px"></div>
-    </div>
-    <div class="modal-row">
-      <div class="modal-field">
-        <label class="modal-label">Date</label>
-        <input type="date" class="modal-input" id="taskCalDate">
-      </div>
-      <div class="modal-field">
-        <label class="modal-label">Start time</label>
-        <input type="time" class="modal-input" id="taskCalStart">
-      </div>
-    </div>
-    <div class="modal-field">
-      <label class="modal-label">Duration</label>
-      <div class="repeat-pills" id="durationPills"></div>
-    </div>
-    <div class="modal-field">
-      <label class="modal-label">Description (Optional)</label>
-      <textarea class="modal-input" id="taskCalDesc" rows="3" placeholder="Add details about what you need to do…" style="resize:none;line-height:1.45;font-family:var(--sans)"></textarea>
-    </div>
-    <div style="margin-top:20px;display:flex;flex-direction:column;gap:8px;padding-bottom:4px">
-      <button id="taskCalSaveBtn" style="width:100%;padding:14px;border-radius:12px;border:none;background:#4ade80;color:#000;font-size:15px;font-weight:700;font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transparent;">Add to Calendar</button>
-      <button onclick="CAL.closeModal('taskCalModal')" style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.45);font-size:14px;font-weight:600;font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transparent;">Cancel</button>
+      <button class="btn btn-grey" id="addCancel">Cancel</button>
+      <button class="btn btn-green" id="addSave">Save Event</button>
     </div>
   </div>
 </div>
 
-<!-- ── Nav ── -->
-<nav class="tabbar" aria-label="Bottom navigation">
+<!-- Detail modal -->
+<div class="backdrop" id="detailModal">
+  <div class="modal">
+    <div class="detail-title" id="detailTitle"></div>
+    <div class="detail-meta" id="detailMeta"></div>
+    <div class="detail-sub" id="detailSub"></div>
+    <div class="modal-actions">
+      <button class="btn btn-grey" id="detailClose">Close</button>
+      <button class="btn btn-red" id="detailDelete">Delete</button>
+    </div>
+  </div>
+</div>
+
+<nav class="tabbar">
   <div class="tabbar-inner">
-    <a href="index.html"    class="tabbar-link" aria-label="Main"><i data-lucide="home"></i></a>
-    <a href="health.html"   class="tabbar-link" aria-label="Health"><i data-lucide="heart"></i></a>
-    <a href="gym.html"      class="tabbar-link" aria-label="Gym"><i data-lucide="dumbbell"></i></a>
-    <a href="finance.html"  class="tabbar-link" aria-label="Finance"><i data-lucide="dollar-sign"></i></a>
-    <a href="deepwork.html" class="tabbar-link" aria-label="Deep Work"><i data-lucide="brain"></i></a>
-    <a href="journal.html"  class="tabbar-link" aria-label="Journal"><i data-lucide="book-open"></i></a>
-    <a href="content.html"  class="tabbar-link" aria-label="Content"><i data-lucide="video"></i></a>
-    <a href="calendar.html" class="tabbar-link active" aria-current="page" aria-label="Calendar"><i data-lucide="calendar"></i></a>
+    <a href="index.html" class="tabbar-link"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></a>
+    <a href="health.html" class="tabbar-link"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></a>
+    <a href="gym.html" class="tabbar-link"><svg viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg></a>
+    <a href="finance.html" class="tabbar-link"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></a>
+    <a href="deepwork.html" class="tabbar-link"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg></a>
+    <a href="journal.html" class="tabbar-link"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></a>
+    <a href="content.html" class="tabbar-link"><svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></a>
+    <a href="calendar.html" class="tabbar-link active"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></a>
   </div>
 </nav>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script>
-const CAL = (function () {
-  'use strict';
+const SUPA_URL = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
+const SB_H = { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+const HOUR_H = 64;
+const DAY_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const COLORS = [
+  { v: '#4ade80', l: 'Green' },
+  { v: '#60a5fa', l: 'Blue' },
+  { v: '#a78bfa', l: 'Purple' },
+  { v: '#fb923c', l: 'Orange' },
+  { v: '#f472b6', l: 'Pink' },
+];
+const REPEATS = [
+  { v: 'none',     l: 'None' },
+  { v: 'daily',    l: 'Daily' },
+  { v: 'weekdays', l: 'Weekdays' },
+  { v: 'weekly',   l: 'Weekly' },
+];
 
-  const SUPA_URL = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
-  const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
-  const SB_H = { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
-  const LS_KEY = 'calendarEvents';
-  const HOUR_H = 64;
-  const START_H = 0;
-  const END_H = 24;
+let events = [];
+let weekMon = null;  // Monday of displayed week (Date)
+let selColor = COLORS[0].v;
+let selRepeat = 'none';
+let activeEv = null;
+let scrolledOnce = false;
 
-  const COLORS = [
-    { v: '#4ade80', l: 'Green'  },
-    { v: '#60a5fa', l: 'Blue'   },
-    { v: '#a78bfa', l: 'Purple' },
-    { v: '#fb923c', l: 'Orange' },
-    { v: '#f472b6', l: 'Pink'   },
-  ];
-  const REPEAT_OPTS = [
-    { v: 'none',      l: 'None'     },
-    { v: 'daily',     l: 'Daily'    },
-    { v: 'weekdays',  l: 'Weekdays' },
-    { v: 'weekly',    l: 'Weekly'   },
-    { v: 'biweekly',  l: 'Biweekly' },
-    { v: 'custom',    l: 'Custom'   },
-  ];
-  const DAY_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const DAY_VALS  = ['sun','mon','tue','wed','thu','fri','sat'];
-  const DUR_OPTS  = [
-    { l: '30 min', m: 30 },
-    { l: '1 hr',   m: 60 },
-    { l: '1.5 hr', m: 90 },
-    { l: '2 hr',   m: 120 },
-    { l: 'Custom', m: 0  },
-  ];
+// ── Utilities ──
+function vanDate() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
+}
+function vanNow() {
+  const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Vancouver', hour: 'numeric', minute: 'numeric', hour12: false }).formatToParts(new Date());
+  const h = parseInt(p.find(x => x.type === 'hour').value);
+  const m = parseInt(p.find(x => x.type === 'minute').value);
+  return { h: h === 24 ? 0 : h, m };
+}
+function toDateStr(date) {
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+}
+function mondayOf(ds) {
+  const [y, m, d] = ds.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  const offset = dt.getDay() === 0 ? -6 : 1 - dt.getDay();
+  return new Date(y, m - 1, d + offset);
+}
+function fmt12(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${h < 12 ? 'AM' : 'PM'}`;
+}
+function tMin(t) {
+  if (!t) return 0;
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+function esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
-  // ── State ──
-  let events = [];
-  let view = 'day';
-  let curDate = vanDate();
-  let selColor = COLORS[0].v;
-  let selRepeat = 'none';
-  let selCustomDays = [];
-  let selDuration = 60;
-  let detailEv = null;
-  let editEv = null;
-  let taskForCal = null;
-  let dragId = null;
-  let dragOffMin = 0;
-  let selImage = null;
+// ── Supabase REST (via Vercel proxy — avoids iOS CORS issues) ──
+async function sbFetch(path, opts = {}) {
+  try {
+    const r = await fetch('/supabase-rest/' + path, { headers: SB_H, ...opts });
+    if (!r.ok) { console.error('sbFetch', r.status, path); return null; }
+    const t = await r.text();
+    return t ? JSON.parse(t) : [];
+  } catch (e) { console.error('sbFetch error:', e.message); return null; }
+}
 
-  // ── Helpers ──
-  function vanDate(d) {
-    return (d || new Date()).toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
+// ── Repeat logic ──
+function shouldShow(ev, ds) {
+  const rt = ev.repeat_type || 'none';
+  const origin = (ev.date || '').slice(0, 10);
+  if (rt === 'none' || !['daily','weekdays','weekly'].includes(rt)) return origin === ds;
+  if (origin > ds) return false;
+  const [y, m, d] = ds.split('-').map(Number);
+  const dow = new Date(y, m - 1, d).getDay();
+  if (rt === 'daily') return true;
+  if (rt === 'weekdays') return dow >= 1 && dow <= 5;
+  if (rt === 'weekly') {
+    const [oy, om, od] = origin.split('-').map(Number);
+    return new Date(oy, om - 1, od).getDay() === dow;
   }
-  // Mirror index.html's getActiveDateString(): treat midnight–6am Vancouver as the previous day,
-  // so the day key matches exactly what index.html stores tasks under.
-  function taskDayKey() {
-    const van = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
-    if (van.getHours() < 6) van.setDate(van.getDate() - 1);
-    return van.getFullYear() + '-' + String(van.getMonth() + 1).padStart(2, '0') + '-' + String(van.getDate()).padStart(2, '0');
-  }
-  function vanNow() {
-    const now = new Date();
-    const h = Number(now.toLocaleString('en-US', { timeZone: 'America/Vancouver', hour: 'numeric', hour12: false })) % 24;
-    const m = Number(now.toLocaleString('en-US', { timeZone: 'America/Vancouver', minute: '2-digit' }));
-    return { h, m };
-  }
-  function tMin(t) { if (!t) return 0; const [h,m]=t.split(':').map(Number); return h*60+m; }
-  function minToT(n) { const h=Math.floor(n/60)%24,m=n%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`; }
-  function addMin(t, n) { return minToT(tMin(t)+n); }
-  function fmt12(t) {
-    const [h,m]=t.split(':').map(Number);
-    return `${h%12||12}:${String(m).padStart(2,'0')} ${h<12?'AM':'PM'}`;
-  }
-  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  return false;
+}
 
-  function weekDates(dateStr) {
-    const [y,mo,d] = dateStr.split('-').map(Number);
-    const dt = new Date(y,mo-1,d);
-    const dow = dt.getDay();
-    const mon = new Date(dt);
-    mon.setDate(dt.getDate() - (dow===0 ? 6 : dow-1));
-    const out = [];
-    for (let i=0;i<7;i++) { const dd=new Date(mon); dd.setDate(mon.getDate()+i); out.push(vanDate(dd)); }
-    return out;
-  }
+// ── Render ──
+function renderGrid() {
+  const today = vanDate();
+  const mon = weekMon;
 
-  function dateLabel(dateStr, v) {
-    const [y,mo,d] = dateStr.split('-').map(Number);
-    const dt = new Date(y,mo-1,d);
-    if (v==='day') return dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
-    const dates = weekDates(dateStr);
-    const [ay,am,ad]=dates[0].split('-').map(Number);
-    const [zy,zm,zd]=dates[6].split('-').map(Number);
-    const a=new Date(ay,am-1,ad).toLocaleDateString('en-US',{month:'short',day:'numeric'});
-    const z=new Date(zy,zm-1,zd).toLocaleDateString('en-US',{month:'short',day:'numeric'});
-    return `${a} – ${z}`;
-  }
+  // Week label
+  const sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6);
+  const mf = d => new Intl.DateTimeFormat('en-US', { month: 'short' }).format(d);
+  document.getElementById('weekLabel').textContent = `${mf(mon)} ${mon.getDate()} – ${mf(sun)} ${sun.getDate()}`;
 
-  function shiftDate(n) {
-    const [y,mo,d]=curDate.split('-').map(Number);
-    const dt=new Date(y,mo-1,d);
-    dt.setDate(dt.getDate()+n);
-    curDate=vanDate(dt);
-  }
+  // 7 date strings Mon–Sun
+  const dates = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i);
+    return toDateStr(d);
+  });
 
-  // ── Image compression ──
-  function compressImage(file, cb) {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const img = new Image();
-      img.onload = () => {
-        const MAX = 900;
-        let w = img.width, h = img.height;
-        if (w > MAX || h > MAX) {
-          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
-          else { w = Math.round(w * MAX / h); h = MAX; }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        cb(canvas.toDataURL('image/jpeg', 0.82));
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
+  // Week header (day names + numbers)
+  const headerDays = document.getElementById('weekHeaderDays');
+  headerDays.innerHTML = dates.map(ds => {
+    const dt = new Date(ds + 'T12:00:00');
+    const isToday = ds === today;
+    return `<div class="day-head${isToday ? ' today' : ''}">
+      <div class="day-name">${DAY_SHORT[dt.getDay()]}</div>
+      <div class="day-num">${dt.getDate()}</div>
+    </div>`;
+  }).join('');
+
+  // Time column
+  const timeCol = document.getElementById('timeCol');
+  const totalH = 24 * HOUR_H;
+  timeCol.style.position = 'relative';
+  timeCol.style.height = totalH + 'px';
+  timeCol.innerHTML = '';
+  for (let h = 0; h <= 24; h++) {
+    const el = document.createElement('div');
+    el.className = 'time-label';
+    el.style.top = (h * HOUR_H) + 'px';
+    el.textContent = h === 0 || h === 24 ? '12 AM' : h === 12 ? '12 PM' : h < 12 ? h + ' AM' : (h - 12) + ' PM';
+    timeCol.appendChild(el);
   }
 
-  function setImageUI(b64) {
-    selImage = b64 || null;
-    document.getElementById('evImagePreview').src = b64 || '';
-    document.getElementById('evImagePreviewWrap').style.display = b64 ? '' : 'none';
-    document.getElementById('evImageBtn').style.display = b64 ? 'none' : '';
-  }
+  // Day columns
+  const daysArea = document.getElementById('daysArea');
+  daysArea.innerHTML = '';
+  daysArea.style.height = totalH + 'px';
 
-  // ── Supabase ──
-  async function sbFetch(path, opts) {
-    try {
-      const r = await fetch(`/supabase-rest/${path}`, { headers: SB_H, ...opts });
-      if (!r.ok) {
-        const body = await r.text().catch(()=>'');
-        const b = document.getElementById('debug-banner');
-        if (b) b.textContent = 'Supabase HTTP ' + r.status + ': ' + body.slice(0, 120);
-        console.error('Supabase error:', r.status, path, body);
-        return null;
-      }
-      const t = await r.text();
-      return t ? JSON.parse(t) : [];
-    } catch (e) {
-      const b = document.getElementById('debug-banner');
-      if (b) b.textContent = 'Fetch FAILED (' + (e.name||'') + '): ' + (e.message||String(e)).slice(0, 200);
-      console.error('Supabase fetch failed:', e);
-      return null;
-    }
-  }
+  const { h: nowH, m: nowM } = vanNow();
 
-  function lsSave() { try { localStorage.setItem(LS_KEY, JSON.stringify(events)); } catch {} }
-  function lsLoad() { try { return JSON.parse(localStorage.getItem(LS_KEY))||[]; } catch { return []; } }
+  dates.forEach(ds => {
+    const col = document.createElement('div');
+    col.className = 'day-col';
+    col.style.height = totalH + 'px';
+    col.style.position = 'relative';
 
-  async function loadEvents() {
-    const rows = await sbFetch('calendar_events?order=date.asc,start_time.asc');
-    if (rows !== null) {
-      events = rows;
-      lsSave();
-    } else {
-      events = lsLoad();
-    }
-  }
-
-  async function evCreate(data) {
-    const rows = await sbFetch('calendar_events', { method:'POST', body:JSON.stringify(data) });
-    const ev = rows?.[0] || { ...data, id:'local_'+Date.now(), created_at:new Date().toISOString() };
-    events.push(ev);
-    lsSave();
-    return ev;
-  }
-
-  async function evUpdate(id, changes) {
-    await sbFetch(`calendar_events?id=eq.${id}`, { method:'PATCH', body:JSON.stringify(changes) });
-    const i=events.findIndex(e=>e.id===id);
-    if (i>=0) events[i]={...events[i],...changes};
-    lsSave();
-  }
-
-  async function evDelete(id) {
-    await sbFetch(`calendar_events?id=eq.${id}`, { method:'DELETE' });
-    events=events.filter(e=>e.id!==id);
-    lsSave();
-  }
-
-  async function evDeleteFuture(parentId, fromDate) {
-    await sbFetch(`calendar_events?parent_id=eq.${parentId}&date=gte.${fromDate}`, { method:'DELETE' });
-    events=events.filter(e=>!(e.parent_id===parentId && e.date>=fromDate));
-    lsSave();
-  }
-
-  // ── Render helpers ──
-
-  // Returns all events that should render on targetDs — real rows + virtual occurrences,
-  // with exception suppression and end_date cutoff applied.
-  function eventsOnDate(targetDs) {
-    const explicit=events.filter(ev=>(ev.date||'').slice(0,10)===targetDs);
-    const excParentIds=new Set(
-      explicit.filter(ev=>ev.repeat_type==='exception').map(ev=>ev.parent_id).filter(Boolean)
-    );
-    const childCovered=new Set(
-      explicit.filter(ev=>ev.parent_id&&ev.repeat_type!=='exception').map(ev=>ev.parent_id)
-    );
-    const result=explicit.filter(ev=>
-      ev.repeat_type!=='exception'&&
-      !excParentIds.has(ev.id)&&
-      !excParentIds.has(ev.parent_id)
-    );
-    for (const ev of events) {
-      if (ev.parent_id) continue;
-      if (childCovered.has(ev.id)||excParentIds.has(ev.id)) continue;
-      const evDate=(ev.date||'').slice(0,10);
-      if (evDate===targetDs) continue;
-      const rt=ev.repeat_type||'none';
-      if (rt==='none'||rt==='exception') continue;
-      if (evDate>targetDs) continue;
-      if (ev.end_date&&targetDs>ev.end_date) continue;
-      const [cy,cm,cd]=targetDs.split('-').map(Number);
-      const dt=new Date(cy,cm-1,cd);
-      const dow=dt.getDay();
-      let show=false;
-      if (rt==='daily') show=true;
-      else if (rt==='weekdays') show=dow>=1&&dow<=5;
-      else if (rt==='weekly') { const [oy,om,od]=evDate.split('-').map(Number); show=dow===new Date(oy,om-1,od).getDay(); }
-      else if (rt==='biweekly') {
-        const [oy,om,od]=evDate.split('-').map(Number);
-        const origin=new Date(oy,om-1,od);
-        const diffW=Math.round((dt-origin)/(7*86400000));
-        show=dow===origin.getDay()&&diffW%2===0;
-      } else if (rt==='custom'&&ev.repeat_days?.length) show=ev.repeat_days.includes(DAY_VALS[dow]);
-      if (show) result.push({...ev,date:targetDs,_virtual:true});
-    }
-    return result;
-  }
-
-  // ── Render ──
-  function buildGrid() {
-    const timeLabels=document.getElementById('timeLabels');
-    const dayColumns=document.getElementById('dayColumns');
-    const weekHeader=document.getElementById('weekHeader');
-    const calGrid=document.getElementById('calGrid');
-
-    timeLabels.innerHTML='';
-    dayColumns.innerHTML='';
-    weekHeader.innerHTML='';
-
-    const today=vanDate();
-    const totalH=(END_H-START_H)*HOUR_H;
-    calGrid.style.height=totalH+'px';
-
-    // Time labels
-    for (let h=START_H;h<=END_H;h++) {
-      const el=document.createElement('div');
-      el.className='time-label';
-      el.style.top=((h-START_H)*HOUR_H)+'px';
-      el.textContent = h===0?'12 AM': h===12?'12 PM': h===24?'12 AM': h<12?h+' AM':(h-12)+' PM';
-      timeLabels.appendChild(el);
+    // Hour lines
+    for (let h = 0; h < 24; h++) {
+      const line = document.createElement('div');
+      line.className = 'hour-line';
+      line.style.top = (h * HOUR_H) + 'px';
+      col.appendChild(line);
+      const half = document.createElement('div');
+      half.className = 'hour-line half';
+      half.style.top = (h * HOUR_H + HOUR_H / 2) + 'px';
+      col.appendChild(half);
     }
 
-    let dates;
-    if (view==='day') {
-      dates=[curDate];
-      weekHeader.style.display='none';
-    } else {
-      dates=weekDates(curDate);
-      weekHeader.style.display='flex';
-      const sp=document.createElement('div');
-      sp.className='week-header-spacer';
-      weekHeader.appendChild(sp);
-      dates.forEach(ds => {
-        const [y,m,d]=ds.split('-').map(Number);
-        const dt=new Date(y,m-1,d);
-        const isToday=ds===today;
-        const h=document.createElement('div');
-        h.className='week-day-head'+(isToday?' today':'');
-        h.innerHTML=`${DAY_SHORT[dt.getDay()]}<span class="day-num">${d}</span>`;
-        weekHeader.appendChild(h);
-      });
+    // Events
+    events.forEach(ev => {
+      if (!shouldShow(ev, ds)) return;
+      const sm = tMin(ev.start_time);
+      const em = tMin(ev.end_time);
+      if (isNaN(sm)) return;
+      const top = (sm / 60) * HOUR_H;
+      const dur = em > sm ? em - sm : Math.max(30, (em + 1440) - sm);
+      const ht = Math.max(22, (dur / 60) * HOUR_H);
+      const color = ev.color || '#4ade80';
+      const blk = document.createElement('div');
+      blk.className = 'cal-event';
+      blk.style.cssText = `top:${top}px;height:${ht}px;background:${color}1a;border-left-color:${color};color:${color};`;
+      blk.innerHTML = `<div class="ev-title">${esc(ev.title)}</div>${ht > 32 ? `<div class="ev-time">${fmt12(ev.start_time)}–${fmt12(ev.end_time)}</div>` : ''}`;
+      blk.addEventListener('click', e => { e.stopPropagation(); openDetail(ev); });
+      col.appendChild(blk);
+    });
+
+    // Current time indicator
+    if (ds === today) {
+      const line = document.createElement('div');
+      line.className = 'time-now-line';
+      line.style.top = ((nowH + nowM / 60) * HOUR_H) + 'px';
+      col.appendChild(line);
     }
 
-    dates.forEach(ds => {
-      const col=document.createElement('div');
-      col.className='day-col';
-      col.dataset.date=ds;
+    daysArea.appendChild(col);
+  });
 
-      for (let h=START_H;h<END_H;h++) {
-        const line=document.createElement('div');
-        line.className='hour-line';
-        line.style.top=((h-START_H)*HOUR_H)+'px';
-        col.appendChild(line);
-
-        const half=document.createElement('div');
-        half.className='hour-line half';
-        half.style.top=((h-START_H)*HOUR_H+HOUR_H/2)+'px';
-        col.appendChild(half);
-
-        [[h,0],[h,30]].forEach(([hr,mn])=>{
-          const slot=document.createElement('div');
-          slot.className='slot-tap';
-          slot.style.top=((hr-START_H)*HOUR_H+mn/60*HOUR_H)+'px';
-          slot.dataset.hour=hr; slot.dataset.min=mn; slot.dataset.date=ds;
-          slot.addEventListener('click', e=>{ e.stopPropagation(); onSlotTap(e.currentTarget); });
-          col.appendChild(slot);
-        });
-      }
-
-      // Drag-drop drop zone
-      col.addEventListener('dragover', e=>{ e.preventDefault(); col.classList.add('drag-over'); });
-      col.addEventListener('dragleave', ()=>col.classList.remove('drag-over'));
-      col.addEventListener('drop', e=>{ col.classList.remove('drag-over'); onDrop(e, ds, col); });
-
-      // Continuation blocks — overnight events that started in the previous column
-      const [y,mo,d]=ds.split('-').map(Number);
-      const prevD=new Date(y,mo-1,d-1);
-      const prevDs=`${prevD.getFullYear()}-${String(prevD.getMonth()+1).padStart(2,'0')}-${String(prevD.getDate()).padStart(2,'0')}`;
-      eventsOnDate(prevDs)
-        .filter(ev=>{ const em=tMin(ev.end_time); return em>0&&em<tMin(ev.start_time); })
-        .forEach(ev=>{ const b=buildContinuationBlock(ev); if(b) col.appendChild(b); });
-
-      // Main events for this column
-      eventsOnDate(ds).forEach(ev=>{
-        const block=buildBlock(ev);
-        if (block) col.appendChild(block);
-      });
-
-      // Current time
-      if (ds===today) drawTimeLine(col);
-
-      dayColumns.appendChild(col);
-    });
-
-    // Scroll so current time is visible with ~1 hour of context above it
-    const {h:ch}=vanNow();
-    document.getElementById('calScroll').scrollTop = Math.max(0, (ch - 1) * HOUR_H);
+  // Auto-scroll to current time on first render only
+  if (!scrolledOnce) {
+    scrolledOnce = true;
+    const { h, m } = vanNow();
+    document.getElementById('calBody').scrollTop = Math.max(0, (h + m / 60) * HOUR_H - 120);
   }
+}
 
-  function buildBlock(ev) {
-    const sm=tMin(ev.start_time), em=tMin(ev.end_time);
-    if (isNaN(sm)||isNaN(em)) return null;
-    const overnight=em<=sm;
-    const effectiveEm=overnight?END_H*60:em;
-    const top=((sm/60)-START_H)*HOUR_H;
-    const ht=Math.max(18,((effectiveEm-sm)/60)*HOUR_H);
-    if (top>=(END_H-START_H)*HOUR_H||top+ht<=0) return null;
+// ── Data loading ──
+async function loadEvents() {
+  const rows = await sbFetch('calendar_events?order=date.asc,start_time.asc');
+  if (rows !== null) events = rows;
+  renderGrid();
+}
 
-    const color=ev.color||COLORS[0].v;
-    const blk=document.createElement('div');
-    blk.className='cal-event';
-    blk.dataset.eid=ev.id;
-    blk.style.cssText=`top:${top}px;height:${ht}px;background:${color}20;border-left-color:${color};color:${color};`;
-    const timeLabel=overnight?`${fmt12(ev.start_time)} – ${fmt12(ev.end_time)} +1`:`${fmt12(ev.start_time)} – ${fmt12(ev.end_time)}`;
-    blk.innerHTML=`<div class="cal-event-title">${esc(ev.title)}</div>`+
-      (ht>28?`<div class="cal-event-time">${timeLabel}</div>`:'');
-
-    blk.addEventListener('click', e=>{ e.stopPropagation(); openDetail(ev); });
-    blk.draggable=true;
-    blk.addEventListener('dragstart', e=>{
-      dragId=ev.id;
-      const rect=blk.getBoundingClientRect();
-      dragOffMin=Math.round(((e.clientY-rect.top)/HOUR_H)*60/15)*15;
-      blk.classList.add('dragging');
-      e.dataTransfer.effectAllowed='move';
-      e.dataTransfer.setData('text/plain',ev.id);
-    });
-    blk.addEventListener('dragend', ()=>blk.classList.remove('dragging'));
-    return blk;
+async function loadTasks() {
+  const today = vanDate();
+  const rows = await sbFetch(`goals?day_key=eq.${encodeURIComponent(today)}&select=goals_json&limit=1`);
+  const body = document.getElementById('tasksBody');
+  const count = document.getElementById('tasksCount');
+  let tasks = [];
+  if (rows && rows.length) {
+    try { tasks = JSON.parse(rows[0].goals_json) || []; } catch {}
   }
-
-  function buildContinuationBlock(ev) {
-    const em=tMin(ev.end_time);
-    if (em<=0) return null;
-    const ht=Math.max(18,(em/60)*HOUR_H);
-    const color=ev.color||COLORS[0].v;
-    const blk=document.createElement('div');
-    blk.className='cal-event';
-    blk.dataset.eid=ev.id;
-    blk.style.cssText=`top:0px;height:${ht}px;background:${color}20;border-left-color:${color};color:${color};`;
-    blk.innerHTML=`<div class="cal-event-title">${esc(ev.title)}</div>`+
-      (ht>28?`<div class="cal-event-time">until ${fmt12(ev.end_time)}</div>`:'');
-    blk.addEventListener('click',e=>{ e.stopPropagation(); openDetail(ev); });
-    return blk;
+  const pending = tasks.filter(t => !t.done).length;
+  count.textContent = pending ? pending + ' pending' : tasks.length ? 'all done' : '';
+  if (!tasks.length) {
+    body.innerHTML = '<div class="task-item" style="color:var(--text-tertiary)">No tasks today</div>';
+    return;
   }
+  body.innerHTML = tasks.map(t =>
+    `<div class="task-item${t.done ? ' done' : ''}"><div class="task-dot"></div><span>${esc(t.text || '')}</span></div>`
+  ).join('');
+}
 
-  function drawTimeLine(col) {
-    const {h,m}=vanNow();
-    if (h<START_H||h>=END_H) return;
-    const ln=document.createElement('div');
-    ln.className='current-time-line';
-    ln.style.top=((h-START_H)+m/60)*HOUR_H+'px';
-    col.appendChild(ln);
-  }
+// ── Add event ──
+function openAddModal() {
+  document.getElementById('evTitle').value = '';
+  document.getElementById('evDate').value = vanDate();
+  document.getElementById('evStart').value = '09:00';
+  document.getElementById('evEnd').value = '10:00';
+  selColor = COLORS[0].v;
+  selRepeat = 'none';
+  buildSwatches();
+  buildRepeatPills();
+  document.getElementById('addModal').classList.add('open');
+  setTimeout(() => document.getElementById('evTitle').focus(), 80);
+}
+function closeAddModal() { document.getElementById('addModal').classList.remove('open'); }
 
-  function onSlotTap(slot) {
-    openCreate(slot.dataset.date, +slot.dataset.hour, +slot.dataset.min);
-  }
+function buildSwatches() {
+  document.getElementById('swatchRow').innerHTML = COLORS.map(c =>
+    `<div class="swatch${selColor === c.v ? ' sel' : ''}" data-c="${c.v}" style="background:${c.v}" title="${c.l}"></div>`
+  ).join('');
+  document.querySelectorAll('.swatch').forEach(el => el.addEventListener('click', () => { selColor = el.dataset.c; buildSwatches(); }));
+}
+function buildRepeatPills() {
+  document.getElementById('repeatRow').innerHTML = REPEATS.map(r =>
+    `<button class="pill${selRepeat === r.v ? ' sel' : ''}" data-r="${r.v}">${r.l}</button>`
+  ).join('');
+  document.querySelectorAll('.pill').forEach(el => el.addEventListener('click', () => { selRepeat = el.dataset.r; buildRepeatPills(); }));
+}
 
-  async function onDrop(e, ds, col) {
-    if (!dragId) return;
-    const rect=col.getBoundingClientRect();
-    const scroll=document.getElementById('calScroll').scrollTop;
-    const yInCol=(e.clientY-rect.top)+scroll;
-    const mins=START_H*60+(yInCol/HOUR_H)*60-dragOffMin;
-    const snapped=Math.round(mins/15)*15;
-    const ev=events.find(x=>x.id===dragId);
-    dragId=null;
-    if (!ev) return;
-    const dur=tMin(ev.end_time)-tMin(ev.start_time);
-    const ns=minToT(Math.max(START_H*60, Math.min((END_H-1)*60,snapped)));
-    const ne=minToT(tMin(ns)+dur);
-    await evUpdate(ev.id,{date:ds,start_time:ns,end_time:ne});
-    buildGrid();
-  }
+async function saveEvent() {
+  const title = document.getElementById('evTitle').value.trim();
+  const date  = document.getElementById('evDate').value;
+  const start_time = document.getElementById('evStart').value;
+  const end_time   = document.getElementById('evEnd').value;
+  if (!title || !date || !start_time || !end_time) return;
+  const data = { title, date, start_time, end_time, color: selColor, repeat_type: selRepeat };
+  const rows = await sbFetch('calendar_events', { method: 'POST', body: JSON.stringify(data) });
+  if (rows && rows[0]) events.push(rows[0]);
+  closeAddModal();
+  renderGrid();
+}
 
-  // ── Modals ──
-  function openModal(id) {
-    const el=document.getElementById(id);
-    el.classList.add('open');
-    function onBg(e) { if(e.target===el){ closeModal(id); el.removeEventListener('click',onBg); } }
-    el.addEventListener('click',onBg);
-  }
-  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+// ── Event detail ──
+function openDetail(ev) {
+  activeEv = ev;
+  document.getElementById('detailTitle').textContent = ev.title || '';
+  document.getElementById('detailMeta').textContent = ev.date + '  ·  ' + fmt12(ev.start_time) + ' – ' + fmt12(ev.end_time);
+  const rt = ev.repeat_type || 'none';
+  document.getElementById('detailSub').textContent = rt !== 'none' ? 'Repeats ' + rt : '';
+  document.getElementById('detailModal').classList.add('open');
+}
+function closeDetail() { document.getElementById('detailModal').classList.remove('open'); activeEv = null; }
 
-  function buildColors(cur) {
-    selColor=cur||COLORS[0].v;
-    const p=document.getElementById('colorPicker');
-    p.innerHTML='';
-    COLORS.forEach(c=>{
-      const sw=document.createElement('div');
-      sw.className='color-swatch'+(c.v===selColor?' selected':'');
-      sw.style.background=c.v; sw.title=c.l;
-      sw.addEventListener('click',()=>{ selColor=c.v; p.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('selected')); sw.classList.add('selected'); });
-      p.appendChild(sw);
-    });
-  }
+async function deleteEvent() {
+  if (!activeEv) return;
+  await sbFetch(`calendar_events?id=eq.${activeEv.id}`, { method: 'DELETE' });
+  events = events.filter(e => e.id !== activeEv.id);
+  closeDetail();
+  renderGrid();
+}
 
-  function buildRepeat(cur) {
-    selRepeat=cur||'none';
-    const c=document.getElementById('repeatPills');
-    c.innerHTML='';
-    REPEAT_OPTS.forEach(o=>{
-      const btn=document.createElement('button');
-      btn.type='button'; btn.className='repeat-pill'+(o.v===selRepeat?' selected':''); btn.textContent=o.l;
-      btn.addEventListener('click',()=>{
-        selRepeat=o.v;
-        c.querySelectorAll('.repeat-pill').forEach(p=>p.classList.remove('selected'));
-        btn.classList.add('selected');
-        document.getElementById('customDaysRow').style.display=selRepeat==='custom'?'flex':'none';
-      });
-      c.appendChild(btn);
-    });
-    document.getElementById('customDaysRow').style.display=cur==='custom'?'flex':'none';
-  }
+// ── Real-time sync ──
+function setupRealtime() {
+  try {
+    window.supabase.createClient(SUPA_URL, SUPA_KEY)
+      .channel('calendar-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_events' }, () => loadEvents())
+      .subscribe();
+  } catch (e) { console.warn('Realtime not available:', e.message); }
+}
 
-  function buildCustomDays(cur) {
-    selCustomDays=cur||[];
-    const r=document.getElementById('customDaysRow');
-    r.innerHTML='';
-    DAY_SHORT.forEach((day,i)=>{
-      const btn=document.createElement('button');
-      btn.type='button'; btn.className='day-pill'+(selCustomDays.includes(DAY_VALS[i])?' selected':'');
-      btn.textContent=day[0]; btn.title=day;
-      btn.addEventListener('click',()=>{
-        const v=DAY_VALS[i];
-        if (selCustomDays.includes(v)) { selCustomDays=selCustomDays.filter(x=>x!==v); btn.classList.remove('selected'); }
-        else { selCustomDays.push(v); btn.classList.add('selected'); }
-      });
-      r.appendChild(btn);
-    });
-  }
+// ── Init ──
+function init() {
+  weekMon = mondayOf(vanDate());
 
-  function openCreate(ds, hr, mn) {
-    editEv=null;
-    document.getElementById('eventModalTitle').textContent='New Event';
-    document.getElementById('editingEventId').value='';
-    document.getElementById('editingParentId').value='';
-    document.getElementById('editingFuture').value='';
-    document.getElementById('evTitle').value='';
-    document.getElementById('evDesc').value='';
-    document.getElementById('evDate').value=ds||curDate;
-    const st=`${String(hr||9).padStart(2,'0')}:${String(mn||0).padStart(2,'0')}`;
-    document.getElementById('evStart').value=st;
-    document.getElementById('evEnd').value=addMin(st,60);
-    document.getElementById('deleteEventBtn').style.display='none';
-    document.getElementById('evImageInput').value='';
-    setImageUI(null);
-    buildColors(); buildRepeat('none'); buildCustomDays([]);
-    openModal('eventModal');
-    setTimeout(()=>document.getElementById('evTitle').focus(),280);
-  }
+  document.getElementById('prevBtn').addEventListener('click', () => {
+    weekMon = new Date(weekMon.getFullYear(), weekMon.getMonth(), weekMon.getDate() - 7);
+    renderGrid();
+  });
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    weekMon = new Date(weekMon.getFullYear(), weekMon.getMonth(), weekMon.getDate() + 7);
+    renderGrid();
+  });
+  document.getElementById('todayBtn').addEventListener('click', () => {
+    weekMon = mondayOf(vanDate());
+    scrolledOnce = false;
+    renderGrid();
+  });
+  document.getElementById('addBtn').addEventListener('click', openAddModal);
+  document.getElementById('addCancel').addEventListener('click', closeAddModal);
+  document.getElementById('addSave').addEventListener('click', saveEvent);
+  document.getElementById('detailClose').addEventListener('click', closeDetail);
+  document.getElementById('detailDelete').addEventListener('click', deleteEvent);
+  document.getElementById('tasksToggle').addEventListener('click', () => {
+    document.getElementById('tasksBody').classList.toggle('open');
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeAddModal(); closeDetail(); }
+  });
 
-  function openEdit(ev, editFuture) {
-    editEv=ev;
-    document.getElementById('eventModalTitle').textContent='Edit Event';
-    document.getElementById('editingEventId').value=ev.id;
-    document.getElementById('editingParentId').value=ev.parent_id||'';
-    document.getElementById('editingFuture').value=editFuture?'1':'';
-    document.getElementById('evTitle').value=ev.title;
-    document.getElementById('evDesc').value=ev.description||'';
-    document.getElementById('evDate').value=ev.date;
-    document.getElementById('evStart').value=ev.start_time;
-    document.getElementById('evEnd').value=ev.end_time;
-    document.getElementById('deleteEventBtn').style.display='';
-    document.getElementById('evImageInput').value='';
-    setImageUI(ev.image||null);
-    buildColors(ev.color); buildRepeat(ev.repeat_type||'none'); buildCustomDays(ev.repeat_days||[]);
-    openModal('eventModal');
-  }
+  loadEvents();
+  loadTasks();
+  setupRealtime();
 
-  function openDetail(ev) {
-    detailEv=ev;
-    document.getElementById('detailTitle').innerHTML=`<span class="event-detail-dot" style="background:${ev.color||COLORS[0].v}"></span>${esc(ev.title)}`;
-    document.getElementById('detailTime').textContent=`${fmt12(ev.start_time)} – ${fmt12(ev.end_time)}`;
-    const rl=REPEAT_OPTS.find(r=>r.v===ev.repeat_type);
-    document.getElementById('detailRepeat').textContent=(ev.repeat_type&&ev.repeat_type!=='none')?`Repeats ${rl?.l||ev.repeat_type}`:'';
-    const descEl=document.getElementById('detailDesc');
-    if (ev.description) { descEl.textContent=ev.description; descEl.style.display=''; }
-    else { descEl.textContent=''; descEl.style.display='none'; }
-    const imgEl=document.getElementById('detailImage');
-    if (ev.image) { imgEl.src=ev.image; imgEl.style.display=''; }
-    else { imgEl.src=''; imgEl.style.display='none'; }
+  // Refresh time indicator every minute
+  setInterval(() => { renderGrid(); }, 60000);
+}
 
-    document.getElementById('detailEditBtn').onclick=()=>{
-      closeModal('detailModal');
-      if (ev.parent_id||(ev.repeat_type&&ev.repeat_type!=='none')) showRecurChoice('edit',ev);
-      else openEdit(ev,false);
-    };
-    const delBtn=document.getElementById('detailDeleteBtn');
-    delBtn.textContent='Delete';
-    delBtn.style.background='';
-    let delConfirming=false, delTimer=null;
-    delBtn.onclick=()=>{
-      if (delConfirming) {
-        clearTimeout(delTimer);
-        closeModal('detailModal');
-        if (ev.parent_id||(ev.repeat_type&&ev.repeat_type!=='none')) showRecurChoice('delete',ev);
-        else evDelete(ev.id).then(()=>buildGrid());
-      } else {
-        delConfirming=true;
-        delBtn.textContent='Are you sure? Tap again to delete';
-        delBtn.style.background='rgba(255,107,107,0.25)';
-        delTimer=setTimeout(()=>{
-          delConfirming=false;
-          delBtn.textContent='Delete';
-          delBtn.style.background='';
-        }, 3000);
-      }
-    };
-    openModal('detailModal');
-  }
-
-  function showRecurChoice(action, ev) {
-    document.getElementById('recurModalTitle').textContent=action==='delete'?'Delete recurring event':'Edit recurring event';
-
-    document.getElementById('recurThisBtn').onclick=async()=>{
-      closeModal('recurModal');
-      if (action==='delete') {
-        const occDate=(ev.date||'').slice(0,10);
-        if (ev.parent_id && !ev._virtual) {
-          // Real stored child row — delete it directly
-          await evDelete(ev.id);
-        } else {
-          // Virtual occurrence OR parent on its own origin date — insert an exception row
-          // so this specific date is skipped without removing the parent or future occurrences
-          await evCreate({
-            title:ev.title, date:occDate, parent_id:ev.id,
-            repeat_type:'exception',
-            start_time:ev.start_time, end_time:ev.end_time,
-            color:ev.color, repeat_days:null, description:null, image:null,
-          });
-        }
-        buildGrid();
-      } else {
-        openEdit(ev,false);
-      }
-    };
-
-    document.getElementById('recurFutureBtn').onclick=async()=>{
-      closeModal('recurModal');
-      if (action==='delete') {
-        const pid=ev.parent_id||ev.id;
-        const fromDate=(ev.date||'').slice(0,10);
-        const parentRow=events.find(e=>e.id===pid);
-        const parentOrigin=(parentRow?.date||'').slice(0,10);
-        // Delete all child rows and exception rows from this date onward
-        await sbFetch(`calendar_events?parent_id=eq.${pid}&date=gte.${fromDate}`,{method:'DELETE'});
-        events=events.filter(e=>!(e.parent_id===pid&&(e.date||'').slice(0,10)>=fromDate));
-        if (!parentOrigin||fromDate<=parentOrigin) {
-          // fromDate is at or before origin — delete the entire series
-          await evDelete(pid);
-        } else {
-          // Set end_date on parent one day before fromDate to stop virtual occurrences
-          const [fy,fm,fd]=fromDate.split('-').map(Number);
-          const prev=new Date(fy,fm-1,fd-1);
-          const endDate=`${prev.getFullYear()}-${String(prev.getMonth()+1).padStart(2,'0')}-${String(prev.getDate()).padStart(2,'0')}`;
-          await evUpdate(pid,{end_date:endDate});
-        }
-        lsSave();
-        buildGrid();
-      } else {
-        const pid=ev.parent_id||ev.id;
-        openEdit({...ev,_editFuture:true,_pid:pid},true);
-      }
-    };
-
-    openModal('recurModal');
-  }
-
-  function doDelete(ev) {
-    if (!confirm(`Delete "${ev.title}"?`)) return;
-    evDelete(ev.id).then(()=>buildGrid());
-  }
-
-  async function saveEvent() {
-    const id=document.getElementById('editingEventId').value;
-    const isFuture=document.getElementById('editingFuture').value==='1';
-    const parentId=document.getElementById('editingParentId').value;
-    const title=document.getElementById('evTitle').value.trim();
-    const date=document.getElementById('evDate').value;
-    const start_time=document.getElementById('evStart').value;
-    const end_time=document.getElementById('evEnd').value;
-    const description=document.getElementById('evDesc').value.trim();
-    const color=selColor;
-    const repeat_type=selRepeat;
-    const repeat_days=repeat_type==='custom'?[...selCustomDays]:null;
-
-    if (!title) { document.getElementById('evTitle').focus(); return; }
-    if (!date||!start_time||!end_time) return;
-
-    closeModal('eventModal');
-    const data={title,description,date,start_time,end_time,color,repeat_type,repeat_days,image:selImage};
-
-    if (id) {
-      if (isFuture&&parentId) {
-        await evDeleteFuture(parentId,editEv?._editFuture?editEv.date:date);
-        await evCreate({...data,parent_id:parentId});
-      } else {
-        await evUpdate(id,data);
-      }
-    } else {
-      await evCreate(data);
-    }
-    buildGrid();
-  }
-
-  function deleteFromModal() {
-    const id=document.getElementById('editingEventId').value;
-    const ev=events.find(e=>e.id===id);
-    if (!ev) return;
-    closeModal('eventModal');
-    if (ev.parent_id||(ev.repeat_type&&ev.repeat_type!=='none')) showRecurChoice('delete',ev);
-    else doDelete(ev);
-  }
-
-  // ── Task panel ──
-  async function loadTasks() {
-    const today=taskDayKey();
-    let todayGoals=[];
-    let weeklyTodos=[];
-
-    // Fetch today's goals from Supabase first (same source as index.html)
-    const READ_H={'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY};
-    try {
-      const r=await fetch(`${SUPA_URL}/rest/v1/goals?day_key=eq.${encodeURIComponent(today)}&select=goals_json&limit=1`,{headers:READ_H});
-      if (r.ok) {
-        const rows=await r.json();
-        if (rows.length>0) {
-          try { todayGoals=JSON.parse(rows[0].goals_json)||[]; } catch {}
-          try { localStorage.setItem('goals:'+today, JSON.stringify(todayGoals)); } catch {}
-        } else {
-          try { todayGoals=JSON.parse(localStorage.getItem('goals:'+today))||[]; } catch {}
-        }
-      } else {
-        try { todayGoals=JSON.parse(localStorage.getItem('goals:'+today))||[]; } catch {}
-      }
-    } catch {
-      try { todayGoals=JSON.parse(localStorage.getItem('goals:'+today))||[]; } catch {}
-    }
-
-    try { weeklyTodos=JSON.parse(localStorage.getItem('weeklyTodos'))||[]; } catch {}
-
-    renderTaskList(document.getElementById('todayTaskList'), todayGoals, 'td_');
-    renderTaskList(document.getElementById('weeklyTaskList'), weeklyTodos, 'wk_');
-    const pending=todayGoals.filter(g=>!g.done).length+weeklyTodos.filter(g=>!g.done).length;
-    document.getElementById('taskCount').textContent=pending?pending+' pending':'';
-  }
-
-  function renderTaskList(container, tasks, prefix) {
-    container.innerHTML='';
-    if (!tasks.length) {
-      const m=document.createElement('div');
-      m.className='task-empty-msg';
-      m.textContent='No tasks';
-      container.appendChild(m);
-      return;
-    }
-    tasks.forEach((task,idx)=>{
-      const row=document.createElement('div');
-      row.className='task-item';
-
-      const chk=document.createElement('div');
-      chk.className='task-item-check'+(task.done?' done':'');
-      chk.style.cursor='pointer';
-      chk.addEventListener('click',()=>{
-        const newDone=!task.done;
-        task.done=newDone;
-        chk.classList.toggle('done',newDone);
-        txt.classList.toggle('done',newDone);
-        if (prefix==='td_') toggleTodayGoal(idx, newDone);
-        else toggleWeeklyTodo(task.id, newDone);
-      });
-
-      const txt=document.createElement('div');
-      txt.className='task-item-text'+(task.done?' done':'');
-      txt.textContent=task.text;
-
-      const btn=document.createElement('button');
-      btn.className='task-add-cal-btn';
-      btn.textContent='+ Cal';
-      btn.addEventListener('click',()=>openTaskCal({...task,_tid:prefix+(task.id||idx)}));
-
-      row.appendChild(chk); row.appendChild(txt); row.appendChild(btn);
-      container.appendChild(row);
-    });
-  }
-
-  async function toggleTodayGoal(idx, newDone) {
-    const today=taskDayKey();
-    const key='goals:'+today;
-    let goals=[];
-    try { goals=JSON.parse(localStorage.getItem(key))||[]; } catch {}
-    if (goals[idx]) { goals[idx].done=newDone; }
-    try { localStorage.setItem(key, JSON.stringify(goals)); } catch {}
-    console.log('GOAL COMPLETION KEY:', key, goals);
-    // Match index.html sbUpsertGoals exactly: check-then-PATCH/POST, goals_json is JSON.stringify(goals)
-    const READ_H={'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY};
-    const WRITE_H={'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY};
-    try {
-      const checkRes=await fetch(
-        `${SUPA_URL}/rest/v1/goals?day_key=eq.${encodeURIComponent(today)}&select=id&limit=1`,
-        {headers:READ_H}
-      );
-      if (checkRes.ok) {
-        const existing=await checkRes.json();
-        const payload=JSON.stringify({day_key:today, goals_json:JSON.stringify(goals), updated_at:new Date().toISOString()});
-        if (existing.length>0) {
-          await fetch(`${SUPA_URL}/rest/v1/goals?day_key=eq.${encodeURIComponent(today)}`,
-            {method:'PATCH',headers:WRITE_H,body:payload});
-        } else {
-          await fetch(`${SUPA_URL}/rest/v1/goals`,
-            {method:'POST',headers:WRITE_H,body:payload});
-        }
-      }
-    } catch(e) { console.error('Goal sync error:',e); }
-  }
-
-  function toggleWeeklyTodo(id, newDone) {
-    let todos=[];
-    try { todos=JSON.parse(localStorage.getItem('weeklyTodos'))||[]; } catch {}
-    const t=todos.find(x=>x.id===id);
-    if (t) t.done=newDone;
-    try { localStorage.setItem('weeklyTodos', JSON.stringify(todos)); } catch {}
-  }
-
-  function openTaskCal(task) {
-    taskForCal=task;
-    document.getElementById('taskCalTitle').textContent=task.text;
-    document.getElementById('taskCalDate').value=vanDate();
-    const {h,m}=vanNow();
-    const rm=Math.ceil(m/30)*30;
-    document.getElementById('taskCalStart').value=`${String(rm>=60?h+1:h).padStart(2,'0')}:${String(rm>=60?0:rm).padStart(2,'0')}`;
-    selDuration=60;
-
-    const dp=document.getElementById('durationPills');
-    dp.innerHTML='';
-    DUR_OPTS.forEach(opt=>{
-      const btn=document.createElement('button');
-      btn.type='button';
-      btn.className='repeat-pill'+(opt.m===60?' selected':'');
-      btn.textContent=opt.l;
-      if (opt.m===0) {
-        btn.addEventListener('click',()=>{
-          dp.querySelectorAll('.repeat-pill').forEach(p=>p.classList.remove('selected'));
-          btn.classList.add('selected');
-          let ci=dp.querySelector('.cdur');
-          if (!ci) {
-            ci=document.createElement('input');
-            ci.type='number'; ci.className='modal-input cdur';
-            ci.placeholder='min'; ci.min='5'; ci.max='480';
-            ci.style.cssText='width:72px;padding:4px 8px;font-size:13px;margin-left:6px;display:inline-block;';
-            ci.addEventListener('input',()=>{ selDuration=parseInt(ci.value)||60; });
-            dp.appendChild(ci); ci.focus();
-          }
-        });
-      } else {
-        btn.addEventListener('click',()=>{
-          selDuration=opt.m;
-          dp.querySelectorAll('.repeat-pill').forEach(p=>p.classList.remove('selected'));
-          btn.classList.add('selected');
-          const ci=dp.querySelector('.cdur'); if(ci) ci.remove();
-        });
-      }
-      dp.appendChild(btn);
-    });
-    document.getElementById('taskCalDesc').value=task.text;
-    openModal('taskCalModal');
-  }
-
-  async function saveTaskCal() {
-    if (!taskForCal) return;
-    const date=document.getElementById('taskCalDate').value;
-    const st=document.getElementById('taskCalStart').value;
-    const description=document.getElementById('taskCalDesc').value.trim();
-    if (!date||!st) return;
-    closeModal('taskCalModal');
-    const et=addMin(st,selDuration||60);
-    const nev=await evCreate({title:taskForCal.text,description,date,start_time:st,end_time:et,color:COLORS[0].v,repeat_type:'none',repeat_days:null,task_id:taskForCal._tid||null});
-    if (nev) buildGrid();
-  }
-
-  // ── Init ──
-  async function render() {
-    document.getElementById('dateNavLabel').textContent=dateLabel(curDate,view);
-    await loadEvents();
-    buildGrid();
-    const banner = document.getElementById('debug-banner');
-    if (banner) banner.textContent = 'Loaded OK - events: ' + events.length + ' (today: ' + eventsOnDate(vanDate()).length + ')';
-  }
-
-  function setView(v) {
-    view=v;
-    document.getElementById('dayBtn').classList.toggle('active',v==='day');
-    document.getElementById('weekBtn').classList.toggle('active',v==='week');
-    render();
-  }
-
-  function init() {
-    if (window.lucide) lucide.createIcons();
-
-    document.getElementById('dayBtn').addEventListener('click',()=>setView('day'));
-    document.getElementById('weekBtn').addEventListener('click',()=>setView('week'));
-    document.getElementById('prevBtn').addEventListener('click',()=>{ shiftDate(view==='week'?-7:-1); render(); });
-    document.getElementById('nextBtn').addEventListener('click',()=>{ shiftDate(view==='week'?7:1); render(); });
-    document.getElementById('todayJump').addEventListener('click',()=>{ curDate=vanDate(); render(); });
-    document.getElementById('saveEventBtn').addEventListener('click',saveEvent);
-    document.getElementById('deleteEventBtn').addEventListener('click',deleteFromModal);
-    document.getElementById('taskCalSaveBtn').addEventListener('click',saveTaskCal);
-
-    document.getElementById('evImageBtn').addEventListener('click',()=>document.getElementById('evImageInput').click());
-    document.getElementById('evImageInput').addEventListener('change',e=>{
-      const file=e.target.files?.[0];
-      if (!file) return;
-      compressImage(file, b64=>setImageUI(b64));
-    });
-    document.getElementById('evImageRemove').addEventListener('click',()=>{
-      document.getElementById('evImageInput').value='';
-      setImageUI(null);
-    });
-
-    const toggle=document.getElementById('taskPanelToggle');
-    const content=document.getElementById('taskPanelContent');
-    toggle.addEventListener('click',()=>{
-      const open=content.classList.toggle('open');
-      toggle.classList.toggle('open',open);
-    });
-    if (window.innerWidth>=700) content.classList.add('open');
-
-    document.addEventListener('keydown',e=>{
-      if (e.key==='Escape') ['eventModal','detailModal','recurModal','taskCalModal'].forEach(id=>closeModal(id));
-    });
-
-    // Default view: day on mobile, week on desktop
-    view=window.innerWidth>=700?'week':'day';
-    document.getElementById('dayBtn').classList.toggle('active',view==='day');
-    document.getElementById('weekBtn').classList.toggle('active',view==='week');
-
-    loadTasks();
-    render();
-
-    try {
-      window.supabase.createClient(SUPA_URL, SUPA_KEY)
-        .channel('calendar-sync')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_events' }, () => { render(); })
-        .subscribe();
-    } catch(e) {}
-
-    // Refresh time line every minute
-    setInterval(()=>{
-      document.querySelectorAll('.current-time-line').forEach(el=>el.remove());
-      const td=vanDate();
-      document.querySelectorAll('.day-col').forEach(col=>{ if(col.dataset.date===td) drawTimeLine(col); });
-    }, 60000);
-
-  }
-
-  function _runInit() {
-    try { init(); } catch(e) {
-      console.error('[calendar] init failed:', e);
-      const msg = document.createElement('div');
-      msg.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#c00;color:#fff;padding:12px;font:14px monospace;z-index:9999;white-space:pre-wrap;';
-      msg.textContent = 'Calendar error: ' + (e && e.message ? e.message : String(e));
-      document.body.appendChild(msg);
-    }
-  }
-
-  let _calStartTries = 0;
-  function startCalendar() {
-    if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
-      _runInit();
-    } else if (_calStartTries < 30) {
-      _calStartTries++;
-      setTimeout(startCalendar, 100);
-    } else {
-      _runInit(); // supabase CDN never loaded — init anyway without real-time
-    }
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startCalendar);
-  else startCalendar();
-
-  return { closeModal };
-})();
+// Wait for Supabase CDN, then init
+let _t = 0;
+function start() {
+  if (typeof window.supabase !== 'undefined') { init(); }
+  else if (_t < 30) { _t++; setTimeout(start, 100); }
+  else { init(); }
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+else start();
 </script>
 </body>
 </html>
