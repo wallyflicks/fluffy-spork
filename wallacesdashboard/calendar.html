@@ -967,12 +967,19 @@ const CAL = (function () {
       const r = await fetch(`${SUPA_URL}/rest/v1/${path}`, { headers: SB_H, ...opts });
       if (!r.ok) {
         const body = await r.text().catch(()=>'');
+        const b = document.getElementById('debug-banner');
+        if (b) b.textContent = 'Supabase HTTP ' + r.status + ': ' + body.slice(0, 120);
         console.error('Supabase error:', r.status, path, body);
         return null;
       }
       const t = await r.text();
       return t ? JSON.parse(t) : [];
-    } catch (e) { console.error('Supabase fetch failed:', e); return null; }
+    } catch (e) {
+      const b = document.getElementById('debug-banner');
+      if (b) b.textContent = 'Fetch FAILED (' + (e.name||'') + '): ' + (e.message||String(e)).slice(0, 200);
+      console.error('Supabase fetch failed:', e);
+      return null;
+    }
   }
 
   function lsSave() { try { localStorage.setItem(LS_KEY, JSON.stringify(events)); } catch {} }
