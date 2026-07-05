@@ -736,68 +736,6 @@
       text-align: right;
       margin: 0;
     }
-    .score-metric-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
-      margin: 0 0 16px;
-    }
-    .score-metric-card {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 18px;
-      padding: 14px;
-      min-height: 96px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      gap: 10px;
-    }
-    .score-metric-head {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 11px;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--text-tertiary);
-    }
-    .score-metric-dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      background: rgba(255,255,255,0.16);
-    }
-    .score-metric-dot.good { background: #6BE3A4; }
-    .score-metric-dot.warn { background: #F2C063; }
-    .score-metric-dot.neutral { background: rgba(255,255,255,0.18); }
-    .score-metric-value {
-      font-size: 24px;
-      font-weight: 800;
-      line-height: 1;
-    }
-    .score-metric-label { color: var(--text-tertiary); font-size: 12px; }
-    .score-streak-row {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-    .score-streak-day {
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.10);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 9px;
-      color: rgba(255,255,255,0.85);
-    }
-    .score-streak-day.complete { background: #6BE3A4; border-color: rgba(70,189,120,0.8); }
-    .score-streak-day.today { background: #5B8BFF; border-color: rgba(80,110,255,0.9); }
     .score-insight {
       color: var(--text-secondary);
       font-size: 13px;
@@ -883,10 +821,6 @@
       .score-ring-panel { max-width: 150px; }
       .score-summary { width: 100%; text-align: center; }
       .score-verdict { text-align: center; }
-      /* 2+1 centred layout for stat cards */
-      .score-metric-grid { grid-template-columns: repeat(4, 1fr); }
-      .score-metric-card { grid-column: span 2; }
-      .score-metric-card:last-child { grid-column: 2 / 4; }
       button, input, select { min-height: 44px; }
     }
 
@@ -957,13 +891,8 @@
         <div class="score-quote-label">Today's Quote</div>
         <p class="score-quote-text" id="scoreQuoteText"></p>
         <p class="score-quote-author" id="scoreQuoteAuthor"></p>
+        <p class="score-quote-author" id="scoreDateWeather" style="margin-top:4px;text-align:left"></p>
       </div>
-      <div class="score-metric-grid">
-        <div class="score-metric-card"><div class="score-metric-head"><span class="score-metric-dot" id="goalDot"></span><span>Goals</span></div><div class="score-metric-value" id="goalMetric">0</div><div class="score-metric-label" id="goalMetricLabel">done</div></div>
-        <div class="score-metric-card"><div class="score-metric-head"><span class="score-metric-dot" id="waterDot"></span><span>Water</span></div><div class="score-metric-value" id="waterMetric">0</div><div class="score-metric-label" id="waterMetricLabel">bottles</div></div>
-        <div class="score-metric-card"><div class="score-metric-head"><span class="score-metric-dot" id="workoutDot"></span><span>Workout</span></div><div class="score-metric-value" id="workoutMetric">0</div><div class="score-metric-label" id="workoutMetricLabel">sets</div></div>
-      </div>
-      <div class="score-streak-row" id="scoreStreakRow"></div>
       <div class="score-insight" id="dailyInsight">Checking your daily rhythm…</div>
     </section>
 
@@ -1777,9 +1706,6 @@
       if (!data.workout.isRestDay && data.workout.done === 0 && new Date().getHours() >= 12) {
         return 'No workout sets yet — get a session in.';
       }
-      if (data.water.done < Math.ceil(data.water.target * 0.5)) {
-        return `Only ${data.water.done} of ${data.water.target} servings — stay hydrated.`;
-      }
       if (data.goals.total > 0 && data.goals.done < data.goals.total) {
         const left = data.goals.total - data.goals.done;
         return `${left} goal${left !== 1 ? 's' : ''} left — knock ${left === 1 ? 'it' : 'one'} out.`;
@@ -1789,49 +1715,7 @@
 
     function renderDailyScoreCard() {
       const data = getDailyScoreData();
-      // Score ring + progress bars removed — only update stat cards, insight, streak
-      document.getElementById('goalMetric').textContent = data.goals.done;
-      document.getElementById('waterMetric').textContent = data.water.done;
-      document.getElementById('workoutMetric').textContent = data.workout.isRestDay ? '✓' : data.workout.done;
-      document.getElementById('workoutMetricLabel').textContent = data.workout.isRestDay ? 'rest day' : 'sets';
       document.getElementById('dailyInsight').textContent = getDailyInsight(data);
-      updateDailyStreak(data);
-      setMetricDot('goalDot', data.progress.goalPct);
-      setMetricDot('waterDot', data.progress.waterPct);
-      setMetricDot('workoutDot', data.progress.workoutPct);
-    }
-
-    function setMetricDot(id, pct) {
-      const dot = document.getElementById(id);
-      if (!dot) return;
-      dot.className = 'score-metric-dot ' + (pct >= 0.75 ? 'good' : pct >= 0.4 ? 'warn' : 'neutral');
-    }
-
-    function updateDailyStreak(data) {
-      // Use Vancouver timezone so the week aligns with Vancouver "today"
-      const van = vanNow();
-      const weekday = (van.getDay() + 6) % 7;
-      const monday = new Date(van);
-      monday.setDate(van.getDate() - weekday);
-      const row = document.getElementById('scoreStreakRow');
-      row.innerHTML = '';
-      const todayVan = getActiveDateString();
-      for (let i = 0; i < 7; i++) {
-        const day = new Date(monday);
-        day.setDate(monday.getDate() + i);
-        // Get the Vancouver date string for this day
-        const dk = day.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
-        const dayGoals = getGoalsFor('goals:' + dk);
-        const dayWorkout = parseJsonLocalStorage('po_coach_v1') || parseJsonLocalStorage('gym_logs');
-        const allGoalsDone = dayGoals.length > 0 && dayGoals.filter(g => g && g.done).length === dayGoals.length;
-        const hadWorkout = countSetsForDate(dayWorkout, dk) > 0;
-        const complete = allGoalsDone && hadWorkout;
-        const dot = document.createElement('div');
-        dot.className = 'score-streak-day' + (complete ? ' complete' : '') + (dk === todayVan ? ' today' : '');
-        dot.title = ['SUN','MON','TUE','WED','THU','FRI','SAT'][day.getDay()];
-        dot.textContent = ['M','T','W','T','F','S','S'][i];
-        row.appendChild(dot);
-      }
     }
 
     function countSetsForDate(raw, dateKey) {
@@ -1955,6 +1839,37 @@
       renderQuote(FALLBACK_QUOTE.quote, FALLBACK_QUOTE.author);
     }
 
+    const WX_CODE_MAP = {
+      0:'Sunny', 1:'Mostly Sunny', 2:'Partly Cloudy', 3:'Cloudy',
+      45:'Foggy', 48:'Foggy',
+      51:'Light Drizzle', 53:'Drizzle', 55:'Heavy Drizzle',
+      61:'Light Rain', 63:'Rainy', 65:'Heavy Rain',
+      71:'Light Snow', 73:'Snowy', 75:'Heavy Snow', 77:'Snowy',
+      80:'Rain Showers', 81:'Rain Showers', 82:'Heavy Showers',
+      85:'Snow Showers', 86:'Heavy Snow Showers',
+      95:'Thunderstorm', 96:'Thunderstorm', 99:'Thunderstorm',
+    };
+
+    async function loadDateWeather() {
+      const el = document.getElementById('scoreDateWeather');
+      if (!el) return;
+      const van = vanNow();
+      const dateStr = van.toLocaleDateString('en-US', {
+        weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Vancouver'
+      });
+      el.textContent = dateStr;
+      try {
+        const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=49.2827&longitude=-123.1207&current_weather=true');
+        if (res.ok) {
+          const json = await res.json();
+          const cw = json.current_weather;
+          const temp = Math.round(cw.temperature);
+          const condition = WX_CODE_MAP[cw.weathercode] || 'Clear';
+          el.textContent = `${dateStr}  ·  ${temp}°C  ${condition}`;
+        }
+      } catch {}
+    }
+
     async function init() {
       setSyncState('syncing', 'connecting…');
       await loadFromSupabase();
@@ -1980,7 +1895,8 @@
       window.addEventListener('storage', updateDailyScoreCard);
       window.addEventListener('focus', updateDailyScoreCard);
       setInterval(updateDailyScoreCard, 30000);
-      loadDailyQuote(); // non-blocking
+      loadDailyQuote();   // non-blocking
+      loadDateWeather(); // non-blocking
     }
 
     init();
