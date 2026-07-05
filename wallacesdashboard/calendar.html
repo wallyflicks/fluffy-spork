@@ -1648,6 +1648,8 @@ const CAL = (function () {
     document.getElementById('dateNavLabel').textContent=dateLabel(curDate,view);
     await loadEvents();
     buildGrid();
+    const banner = document.getElementById('debug-banner');
+    if (banner) banner.textContent = 'Loaded OK - events: ' + events.length + ' (today: ' + eventsOnDate(vanDate()).length + ')';
   }
 
   function setView(v) {
@@ -1714,7 +1716,6 @@ const CAL = (function () {
       document.querySelectorAll('.day-col').forEach(col=>{ if(col.dataset.date===td) drawTimeLine(col); });
     }, 60000);
 
-    document.getElementById('debug-banner').textContent = 'Loaded OK - events: ' + (window.__calEvents ? window.__calEvents.length : 'unknown');
   }
 
   function _runInit() {
