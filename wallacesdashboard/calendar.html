@@ -447,23 +447,18 @@
     }
     .modal-overlay.open .modal-sheet { transform: translateY(0); }
     #detailModal .modal-sheet {
-      max-height: 85vh;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      padding-bottom: 0;
-    }
-    .detail-scroll {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      max-width: 100%;
+      max-height: 85dvh;
       overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-      flex: 1;
-      min-height: 0;
+      border-radius: 20px 20px 0 0;
+      transform: translateY(100%);
     }
-    .detail-footer {
-      flex-shrink: 0;
-      padding: 14px 0 calc(10px + env(safe-area-inset-bottom, 0px));
-      border-top: 1px solid rgba(255,255,255,0.06);
-      margin-top: 4px;
+    #detailModal.open .modal-sheet {
+      transform: translateY(0);
     }
     .modal-handle {
       width: 34px; height: 4px;
@@ -743,20 +738,16 @@
 <div class="modal-overlay" id="detailModal">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="detail-scroll">
-      <div class="event-detail-title" id="detailTitle"></div>
-      <div class="event-detail-time" id="detailTime"></div>
-      <div class="event-detail-repeat" id="detailRepeat"></div>
-      <div id="detailDesc" style="font-size:13px;color:var(--text-secondary);line-height:1.5;white-space:pre-wrap;margin-bottom:14px;display:none"></div>
-      <img id="detailImage" class="detail-image" alt="" style="display:none">
+    <div class="event-detail-title" id="detailTitle"></div>
+    <div class="event-detail-time" id="detailTime"></div>
+    <div class="event-detail-repeat" id="detailRepeat"></div>
+    <div id="detailDesc" style="font-size:13px;color:var(--text-secondary);line-height:1.5;white-space:pre-wrap;margin-bottom:14px;display:none"></div>
+    <img id="detailImage" class="detail-image" alt="" style="display:none">
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="CAL.closeModal('detailModal')">Close</button>
+      <button class="modal-btn" id="detailEditBtn">Edit</button>
     </div>
-    <div class="detail-footer">
-      <div class="modal-actions" style="margin-top:0">
-        <button class="modal-btn" onclick="CAL.closeModal('detailModal')">Close</button>
-        <button class="modal-btn" id="detailEditBtn">Edit</button>
-      </div>
-      <button class="modal-btn danger modal-btn-full" id="detailDeleteBtn" style="margin-top:8px">Delete</button>
-    </div>
+    <button class="modal-btn danger modal-btn-full" id="detailDeleteBtn" style="margin-top:8px">Delete</button>
   </div>
 </div>
 
@@ -1074,6 +1065,10 @@ const CAL = (function () {
     weekHeader.innerHTML='';
 
     const today=vanDate();
+    const debugDates = view==='day' ? [curDate] : weekDates(curDate);
+    console.log('[CAL] events loaded:', events.length, events);
+    console.log('[CAL] week dates:', debugDates);
+    console.log('[CAL] recurring parents:', events.filter(e=>!e.parent_id&&e.repeat_type&&e.repeat_type!=='none'));
     const totalH=(END_H-START_H)*HOUR_H;
     calGrid.style.height=totalH+'px';
 
@@ -1147,19 +1142,22 @@ const CAL = (function () {
         if (block) col.appendChild(block);
       });
 
-      // Events starting on this day (real stored events)
-      const realEvents = events.filter(e=>e.date===ds);
+      // Real stored events for this exact date
+      const realEvents = events.filter(e => e.date === ds);
 
-      // Virtual occurrences: compute from parent recurring events whose pre-baked
-      // child for this date may not exist (e.g. beyond the 60-day pre-bake window
-      // or if generateRecurring failed). Skip parents that already have a real child here.
-      const childParentIds = new Set(events.filter(e=>e.parent_id&&e.date===ds).map(e=>e.parent_id));
-      const virtualEvents = events
-        .filter(e => !e.parent_id && occursOnDate(e, ds) && !childParentIds.has(e.id))
-        .map(e => ({...e, date: ds}));
+      // Virtual occurrences: loop ALL events, find any with a repeat rule that
+      // fires on this date, and skip ones that already have a real stored entry here.
+      const alreadyShown = new Set(realEvents.map(e => e.parent_id || e.id));
+      const virtualEvents = [];
+      for (const e of events) {
+        if (alreadyShown.has(e.id)) continue;          // already showing this event directly
+        if (e.parent_id && alreadyShown.has(e.parent_id)) continue; // real child already covers it
+        if (!occursOnDate(e, ds)) continue;
+        virtualEvents.push({ ...e, date: ds });
+      }
 
-      [...realEvents, ...virtualEvents].forEach(ev=>{
-        const block=buildBlock(ev);
+      [...realEvents, ...virtualEvents].forEach(ev => {
+        const block = buildBlock(ev);
         if (block) col.appendChild(block);
       });
 
