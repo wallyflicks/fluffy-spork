@@ -1709,15 +1709,25 @@ const CAL = (function () {
     }, 60000);
   }
 
+  function _runInit() {
+    try { init(); } catch(e) {
+      console.error('[calendar] init failed:', e);
+      const msg = document.createElement('div');
+      msg.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#c00;color:#fff;padding:12px;font:14px monospace;z-index:9999;white-space:pre-wrap;';
+      msg.textContent = 'Calendar error: ' + (e && e.message ? e.message : String(e));
+      document.body.appendChild(msg);
+    }
+  }
+
   let _calStartTries = 0;
   function startCalendar() {
     if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
-      init();
+      _runInit();
     } else if (_calStartTries < 30) {
       _calStartTries++;
       setTimeout(startCalendar, 100);
     } else {
-      init(); // supabase CDN never loaded — init anyway without real-time
+      _runInit(); // supabase CDN never loaded — init anyway without real-time
     }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startCalendar);
