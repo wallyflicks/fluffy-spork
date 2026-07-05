@@ -1009,51 +1009,6 @@ const CAL = (function () {
     lsSave();
   }
 
-  async function generateRecurring(base) {
-    const {id:pid,repeat_type:rt,repeat_days:rd,date,start_time,end_time,title,color,task_id}=base;
-    if (!rt||rt==='none') return;
-    const [by,bm,bd]=date.split('-').map(Number);
-    const origin=new Date(by,bm-1,bd);
-    const baseDow=origin.getDay();
-    const batch=[];
-    for (let i=1;i<=60;i++) {
-      const d=new Date(origin); d.setDate(origin.getDate()+i);
-      const dow=d.getDay();
-      let ok=false;
-      if (rt==='daily') ok=true;
-      else if (rt==='weekdays') ok=dow>=1&&dow<=5;
-      else if (rt==='weekly') ok=dow===baseDow;
-      else if (rt==='biweekly') { const wks=Math.round((d-origin)/(7*864e5)); ok=wks%2===0&&dow===baseDow; }
-      else if (rt==='custom'&&rd?.length) ok=rd.includes(DAY_VALS[dow]);
-      if (ok) batch.push({title,date:vanDate(d),start_time,end_time,color:color||COLORS[0].v,repeat_type:rt,repeat_days:rd||null,parent_id:pid,task_id:task_id||null});
-    }
-    if (!batch.length) return;
-    const rows=await sbFetch('calendar_events',{method:'POST',body:JSON.stringify(batch)});
-    if (rows) { events.push(...rows); lsSave(); }
-  }
-
-  function occursOnDate(ev, ds) {
-    const rt = ev.repeat_type;
-    if (!rt || rt === 'none') return false;
-    const evDate = (ev.date || '').slice(0, 10);
-    if (evDate >= ds) return false; // hasn't started yet, or is the origin date itself
-    const [y,mo,d] = ds.split('-').map(Number);
-    const dt = new Date(y, mo-1, d);
-    const dow = dt.getDay();
-    const [oy,om,od] = evDate.split('-').map(Number);
-    const origin = new Date(oy, om-1, od);
-    const baseDow = origin.getDay();
-    if (rt === 'daily') return true;
-    if (rt === 'weekdays') return dow >= 1 && dow <= 5;
-    if (rt === 'weekly') return dow === baseDow;
-    if (rt === 'biweekly') {
-      const diffWeeks = Math.round((dt - origin) / (7 * 86400000));
-      return dow === baseDow && diffWeeks % 2 === 0;
-    }
-    if (rt === 'custom' && ev.repeat_days?.length) return ev.repeat_days.includes(DAY_VALS[dow]);
-    return false;
-  }
-
   // ── Render ──
   function buildGrid() {
     const timeLabels=document.getElementById('timeLabels');
@@ -1143,25 +1098,42 @@ const CAL = (function () {
         if (block) col.appendChild(block);
       });
 
-      // Real stored events for this exact date (normalize to YYYY-MM-DD before comparing)
-      const realEvents = events.filter(e => (e.date || '').slice(0, 10) === ds);
-
-      // Virtual occurrences: loop ALL parent events, find any whose repeat rule
-      // fires on this date, skip ones already covered by a real stored entry.
-      const directIds = new Set(realEvents.map(e => e.id));
-      const coveredParentIds = new Set(realEvents.filter(e => e.parent_id).map(e => e.parent_id));
-      const virtualEvents = [];
-      for (const e of events) {
-        if (directIds.has(e.id)) continue;          // already showing this event directly
-        if (coveredParentIds.has(e.id)) continue;   // a real child already covers this parent
-        if (!occursOnDate(e, ds)) continue;
-        virtualEvents.push({ ...e, date: ds });
+      // Render events for this column.
+      // Skip pre-baked children (parent_id set) — the parent's repeat rule covers them.
+      const seen = new Set();
+      for (const ev of events) {
+        if (ev.parent_id) continue;
+        const evDate = (ev.date || '').slice(0, 10);
+        const rt = ev.repeat_type || 'none';
+        let show = false;
+        if (rt === 'none') {
+          show = evDate === ds;
+        } else if (evDate <= ds) {
+          const [cy, cm, cd] = ds.split('-').map(Number);
+          const dt = new Date(cy, cm - 1, cd);
+          const dow = dt.getDay();
+          if (rt === 'daily') {
+            show = true;
+          } else if (rt === 'weekdays') {
+            show = dow >= 1 && dow <= 5;
+          } else if (rt === 'weekly') {
+            const [oy, om, od] = evDate.split('-').map(Number);
+            show = dow === new Date(oy, om - 1, od).getDay();
+          } else if (rt === 'biweekly') {
+            const [oy, om, od] = evDate.split('-').map(Number);
+            const origin = new Date(oy, om - 1, od);
+            const diffWeeks = Math.round((dt - origin) / (7 * 86400000));
+            show = dow === origin.getDay() && diffWeeks % 2 === 0;
+          } else if (rt === 'custom' && ev.repeat_days?.length) {
+            show = ev.repeat_days.includes(DAY_VALS[dow]);
+          }
+        }
+        if (show && !seen.has(ev.id)) {
+          seen.add(ev.id);
+          const block = buildBlock({ ...ev, date: ds });
+          if (block) col.appendChild(block);
+        }
       }
-
-      [...realEvents, ...virtualEvents].forEach(ev => {
-        const block = buildBlock(ev);
-        if (block) col.appendChild(block);
-      });
 
       // Current time
       if (ds===today) drawTimeLine(col);
@@ -1431,14 +1403,12 @@ const CAL = (function () {
     if (id) {
       if (isFuture&&parentId) {
         await evDeleteFuture(parentId,editEv?._editFuture?editEv.date:date);
-        const nev=await evCreate({...data,parent_id:parentId});
-        if (nev&&repeat_type!=='none') await generateRecurring(nev);
+        await evCreate({...data,parent_id:parentId});
       } else {
         await evUpdate(id,data);
       }
     } else {
-      const nev=await evCreate(data);
-      if (nev&&repeat_type!=='none') await generateRecurring(nev);
+      await evCreate(data);
     }
     buildGrid();
   }
