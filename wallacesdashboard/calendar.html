@@ -973,17 +973,12 @@ const CAL = (function () {
 
   async function loadEvents() {
     const rows = await sbFetch('calendar_events?order=date.asc,start_time.asc');
-    console.log('[CAL] loadEvents: rows from Supabase =', rows?.length ?? 'null (using localStorage)');
     if (rows !== null) {
       events = rows;
       lsSave();
     } else {
       events = lsLoad();
     }
-    console.log('[CAL] events summary:');
-    events.forEach(ev => {
-      console.log(`  id=${ev.id?.slice(0,8)} parent_id=${ev.parent_id?.slice(0,8)??'null'} repeat_type=${ev.repeat_type??'null'} date=${(ev.date||'').slice(0,10)} title="${ev.title}"`);
-    });
   }
 
   async function evCreate(data) {
@@ -1025,10 +1020,6 @@ const CAL = (function () {
     weekHeader.innerHTML='';
 
     const today=vanDate();
-    const debugDates = view==='day' ? [curDate] : weekDates(curDate);
-    console.log('[CAL] events loaded:', events.length, events);
-    console.log('[CAL] week dates:', debugDates);
-    console.log('[CAL] recurring parents:', events.filter(e=>!e.parent_id&&e.repeat_type&&e.repeat_type!=='none'));
     const totalH=(END_H-START_H)*HOUR_H;
     calGrid.style.height=totalH+'px';
 
@@ -1093,73 +1084,60 @@ const CAL = (function () {
       col.addEventListener('dragleave', ()=>col.classList.remove('drag-over'));
       col.addEventListener('drop', e=>{ col.classList.remove('drag-over'); onDrop(e, ds, col); });
 
-      // Continuation blocks for overnight events that started the previous day
-      const [y,mo,d]=ds.split('-').map(Number);
-      const prevD=new Date(y,mo-1,d-1);
-      const prevDs=[prevD.getFullYear(),String(prevD.getMonth()+1).padStart(2,'0'),String(prevD.getDate()).padStart(2,'0')].join('-');
-      events.filter(e=>(e.date||'').slice(0,10)===prevDs&&tMin(e.end_time)<=tMin(e.start_time)).forEach(ev=>{
-        const block=buildContinuationBlock(ev);
-        if (block) col.appendChild(block);
-      });
-
       // Render events for this date column.
-      //
-      // Two-pass approach so old pre-baked children AND new parent-only data both work:
-      //   Pass 1 — collect events explicitly stored on this exact date (parent origin days
-      //             AND old pre-baked child rows). Note which parent IDs are already covered.
-      //   Pass 2 — for repeating parents whose repeat rule fires on ds but no child exists
-      //             for ds, generate a virtual occurrence.
+      // Pass 1: events explicitly stored on this date (parent origin days, pre-baked children).
+      //         Exception rows (repeat_type='exception') suppress a specific virtual occurrence.
+      // Pass 2: repeating parents generate virtual occurrences for dates without a real child row.
       const explicitOnDate = events.filter(ev => (ev.date || '').slice(0, 10) === ds);
-      const childCoveredParentIds = new Set(
-        explicitOnDate.filter(ev => ev.parent_id).map(ev => ev.parent_id)
+      const exceptionParentIds = new Set(
+        explicitOnDate.filter(ev => ev.repeat_type === 'exception').map(ev => ev.parent_id).filter(Boolean)
       );
-      const toRender = [...explicitOnDate];
-
-      console.log(`[CAL] col ${ds}: explicit=${explicitOnDate.map(e=>e.id?.slice(0,6)).join(',')||'none'} coveredParents=${[...childCoveredParentIds].map(id=>id?.slice(0,6)).join(',')||'none'}`);
+      const childCoveredParentIds = new Set(
+        explicitOnDate.filter(ev => ev.parent_id && ev.repeat_type !== 'exception').map(ev => ev.parent_id)
+      );
+      // Exclude exception rows from rendering; also exclude any event suppressed by an exception.
+      const toRender = explicitOnDate.filter(ev =>
+        ev.repeat_type !== 'exception' &&
+        !exceptionParentIds.has(ev.id) &&
+        !exceptionParentIds.has(ev.parent_id)
+      );
 
       for (const ev of events) {
-        if (ev.parent_id) continue;                      // only parents generate virtual occurrences
-        if (childCoveredParentIds.has(ev.id)) continue;  // child already covers this parent on ds
+        if (ev.parent_id) continue;
+        if (childCoveredParentIds.has(ev.id) || exceptionParentIds.has(ev.id)) continue;
         const evDate = (ev.date || '').slice(0, 10);
-        if (evDate === ds) continue;                     // already in explicitOnDate (origin day)
+        if (evDate === ds) continue;
         const rt = ev.repeat_type || 'none';
-        if (rt === 'none') continue;                     // non-repeating shows only on its exact date
-        if (evDate > ds) continue;                       // event starts in the future
+        if (rt === 'none' || rt === 'exception') continue;
+        if (evDate > ds) continue;
+        if (ev.end_date && ds > ev.end_date) continue;
 
         const [cy, cm, cd] = ds.split('-').map(Number);
         const dt = new Date(cy, cm - 1, cd);
         const dow = dt.getDay();
         let show = false;
-        let reason = '';
 
         if (rt === 'daily') {
-          show = true; reason = 'daily';
+          show = true;
         } else if (rt === 'weekdays') {
-          show = dow >= 1 && dow <= 5; reason = `weekdays dow=${dow}`;
+          show = dow >= 1 && dow <= 5;
         } else if (rt === 'weekly') {
           const [oy, om, od] = evDate.split('-').map(Number);
-          const odow = new Date(oy, om - 1, od).getDay();
-          show = dow === odow; reason = `weekly dow=${dow} odow=${odow}`;
+          show = dow === new Date(oy, om - 1, od).getDay();
         } else if (rt === 'biweekly') {
           const [oy, om, od] = evDate.split('-').map(Number);
           const origin = new Date(oy, om - 1, od);
           const diffW = Math.round((dt - origin) / (7 * 86400000));
           show = dow === origin.getDay() && diffW % 2 === 0;
-          reason = `biweekly dow=${dow} odow=${origin.getDay()} diffW=${diffW}`;
         } else if (rt === 'custom' && ev.repeat_days?.length) {
           show = ev.repeat_days.includes(DAY_VALS[dow]);
-          reason = `custom day=${DAY_VALS[dow]} in [${ev.repeat_days}]`;
-        } else {
-          reason = `unknown rt="${rt}"`;
         }
 
-        console.log(`  [virt] id=${ev.id?.slice(0,6)} rt=${rt} evDate=${evDate} ds=${ds} show=${show} (${reason})`);
-        if (show) toRender.push({ ...ev, date: ds });
+        if (show) toRender.push({ ...ev, date: ds, _virtual: true });
       }
 
       for (const ev of toRender) {
         const block = buildBlock(ev);
-        console.log(`  [render] "${ev.title}" id=${ev.id?.slice(0,6)} parent=${ev.parent_id?.slice(0,6)||'none'} start=${ev.start_time} block=${block?'OK':'NULL'}`);
         if (block) col.appendChild(block);
       }
 
@@ -1203,21 +1181,6 @@ const CAL = (function () {
       e.dataTransfer.setData('text/plain',ev.id);
     });
     blk.addEventListener('dragend', ()=>blk.classList.remove('dragging'));
-    return blk;
-  }
-
-  function buildContinuationBlock(ev) {
-    const em=tMin(ev.end_time);
-    if (em<=0) return null;
-    const ht=Math.max(18,(em/60)*HOUR_H);
-    const color=ev.color||COLORS[0].v;
-    const blk=document.createElement('div');
-    blk.className='cal-event';
-    blk.dataset.eid=ev.id;
-    blk.style.cssText=`top:0px;height:${ht}px;background:${color}14;border-left-color:${color};color:${color};opacity:0.85;`;
-    blk.innerHTML=`<div class="cal-event-title">${esc(ev.title)}</div>`+
-      (ht>28?`<div class="cal-event-time">until ${fmt12(ev.end_time)}</div>`:'');
-    blk.addEventListener('click', e=>{ e.stopPropagation(); openDetail(ev); });
     return blk;
   }
 
@@ -1390,17 +1353,58 @@ const CAL = (function () {
 
   function showRecurChoice(action, ev) {
     document.getElementById('recurModalTitle').textContent=action==='delete'?'Delete recurring event':'Edit recurring event';
+
     document.getElementById('recurThisBtn').onclick=async()=>{
       closeModal('recurModal');
-      if (action==='delete') { await evDelete(ev.id); buildGrid(); }
-      else openEdit(ev,false);
+      if (action==='delete') {
+        const occDate=(ev.date||'').slice(0,10);
+        if (ev.parent_id && !ev._virtual) {
+          // Real stored child row — delete it directly
+          await evDelete(ev.id);
+        } else {
+          // Virtual occurrence OR parent on its own origin date — insert an exception row
+          // so this specific date is skipped without removing the parent or future occurrences
+          await evCreate({
+            title:ev.title, date:occDate, parent_id:ev.id,
+            repeat_type:'exception',
+            start_time:ev.start_time, end_time:ev.end_time,
+            color:ev.color, repeat_days:null, description:null, image:null,
+          });
+        }
+        buildGrid();
+      } else {
+        openEdit(ev,false);
+      }
     };
+
     document.getElementById('recurFutureBtn').onclick=async()=>{
       closeModal('recurModal');
-      const pid=ev.parent_id||ev.id;
-      if (action==='delete') { await evDeleteFuture(pid,ev.date); buildGrid(); }
-      else openEdit({...ev,_editFuture:true,_pid:pid},true);
+      if (action==='delete') {
+        const pid=ev.parent_id||ev.id;
+        const fromDate=(ev.date||'').slice(0,10);
+        const parentRow=events.find(e=>e.id===pid);
+        const parentOrigin=(parentRow?.date||'').slice(0,10);
+        // Delete all child rows and exception rows from this date onward
+        await sbFetch(`calendar_events?parent_id=eq.${pid}&date=gte.${fromDate}`,{method:'DELETE'});
+        events=events.filter(e=>!(e.parent_id===pid&&(e.date||'').slice(0,10)>=fromDate));
+        if (!parentOrigin||fromDate<=parentOrigin) {
+          // fromDate is at or before origin — delete the entire series
+          await evDelete(pid);
+        } else {
+          // Set end_date on parent one day before fromDate to stop virtual occurrences
+          const [fy,fm,fd]=fromDate.split('-').map(Number);
+          const prev=new Date(fy,fm-1,fd-1);
+          const endDate=`${prev.getFullYear()}-${String(prev.getMonth()+1).padStart(2,'0')}-${String(prev.getDate()).padStart(2,'0')}`;
+          await evUpdate(pid,{end_date:endDate});
+        }
+        lsSave();
+        buildGrid();
+      } else {
+        const pid=ev.parent_id||ev.id;
+        openEdit({...ev,_editFuture:true,_pid:pid},true);
+      }
     };
+
     openModal('recurModal');
   }
 
