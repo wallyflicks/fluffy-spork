@@ -816,6 +816,7 @@
   </div>
 </nav>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script>
 const CAL = (function () {
@@ -824,6 +825,7 @@ const CAL = (function () {
   const SUPA_URL = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
   const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
   const SB_H = { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+  const supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
   const LS_KEY = 'calendarEvents';
   const HOUR_H = 64;
   const START_H = 0;
@@ -1692,6 +1694,12 @@ const CAL = (function () {
 
     loadTasks();
     render();
+
+    supabase.channel('calendar-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_events' }, () => {
+        render();
+      })
+      .subscribe();
 
     // Refresh time line every minute
     setInterval(()=>{
