@@ -1499,7 +1499,9 @@
       const goals = getGoalsFor(todayKey);
       const total = goals.length;
       const doneCount = goals.filter(g => g.done).length;
-      todayLabelEl.textContent = `Today — ${formatDateString(todayKey.slice(6))}`;
+      const van = vanNow();
+      const realDateStr = van.getFullYear() + '-' + String(van.getMonth()+1).padStart(2,'0') + '-' + String(van.getDate()).padStart(2,'0');
+      todayLabelEl.textContent = `Today — ${formatDateString(realDateStr)}`;
       gmProgressNum.textContent = `${doneCount}`;
       gmProgressTotal.textContent = `/ ${total}`;
       if (total === 0) gmProgressLabel.textContent = 'no goals yet';
