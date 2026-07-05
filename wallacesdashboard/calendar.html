@@ -9,196 +9,102 @@
   <title>Calendar — Wallace's Dashboard</title>
   <link rel="manifest" href="/manifest.json">
   <script src="/notifications.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     :root {
       color-scheme: dark;
-      --bg: #050506;
+      --bg: #0a0a0b;
       --text-primary: #FAFAFA;
-      --text-secondary: #B8B6B0;
-      --text-tertiary: #76746E;
-      --success: #6BE3A4;
-      --card: rgba(255,255,255,0.04);
       --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      --hour-h: 64;
-      --time-w: 44px;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; background: var(--bg); color: var(--text-primary); font-family: var(--sans); overflow: hidden; }
     body { display: flex; flex-direction: column; }
 
+    /* ── Header ── */
+    .page-header {
+      display: flex;
+      align-items: center;
+      padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 10px;
+      flex-shrink: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .page-title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(180deg, #FFFFFF 0%, #C7C4BC 120%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* ── Calendar iframe ── */
+    .cal-wrap {
+      flex: 1;
+      overflow: hidden;
+      padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px));
+    }
+    .cal-wrap iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
     /* ── Tabbar ── */
-    .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 999; display: flex; justify-content: center; padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px)); background: rgba(10,10,11,0.95); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border-top: 1px solid rgba(255,255,255,0.06); }
-    .tabbar-inner { width: 100%; max-width: 520px; display: flex; align-items: center; padding: 5px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; gap: 3px; }
-    .tabbar-link { flex: 1; display: flex; align-items: center; justify-content: center; height: 40px; color: rgba(255,255,255,0.38); text-decoration: none; border-radius: 999px; transition: color 0.15s; -webkit-tap-highlight-color: transparent; }
+    .tabbar {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      z-index: 999;
+      display: flex;
+      justify-content: center;
+      padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
+      background: rgba(10,10,11,0.95);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .tabbar-inner {
+      width: 100%;
+      max-width: 520px;
+      display: flex;
+      align-items: center;
+      padding: 5px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 999px;
+      gap: 3px;
+    }
+    .tabbar-link {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 40px;
+      color: rgba(255,255,255,0.38);
+      text-decoration: none;
+      border-radius: 999px;
+      transition: color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
     .tabbar-link svg { width: 19px; height: 19px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .tabbar-link.active { background: #ffffff; color: #0a0a0a; }
-
-    /* ── Header ── */
-    .cal-header { display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top, 0px) + 10px) 12px 8px; flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.06); gap: 8px; }
-    .cal-header-top { display: flex; align-items: center; }
-    .cal-title { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; background: linear-gradient(180deg,#FFF 0%,#C7C4BC 120%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; flex: 1; }
-    .cal-header-nav { display: flex; align-items: center; gap: 6px; }
-    .icon-btn { width: 32px; height: 32px; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(255,255,255,0.04); color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; transition: background 0.15s; flex-shrink: 0; }
-    .icon-btn:hover { background: rgba(255,255,255,0.08); }
-    .icon-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-    .week-label { flex: 1; font-size: 13px; font-weight: 600; color: var(--text-primary); text-align: center; }
-    .today-btn { padding: 5px 10px; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.55); font-size: 11px; font-weight: 600; font-family: var(--sans); cursor: pointer; -webkit-tap-highlight-color: transparent; flex-shrink: 0; }
-    .add-btn { padding: 6px 14px; border: none; border-radius: 8px; background: var(--success); color: #000; font-size: 12px; font-weight: 700; font-family: var(--sans); cursor: pointer; -webkit-tap-highlight-color: transparent; flex-shrink: 0; }
-
-    /* ── Tasks strip ── */
-    .tasks-strip { flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    .tasks-toggle { display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none; }
-    .tasks-toggle-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary); }
-    .tasks-toggle-count { font-size: 11px; color: var(--text-tertiary); }
-    .tasks-body { display: none; padding: 0 12px 8px; flex-direction: column; gap: 5px; max-height: 140px; overflow-y: auto; }
-    .tasks-body.open { display: flex; }
-    .task-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
-    .task-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--success); flex-shrink: 0; }
-    .task-item.done { color: var(--text-tertiary); text-decoration: line-through; }
-    .task-item.done .task-dot { background: var(--text-tertiary); }
-
-    /* ── Week day header ── */
-    .week-header { display: flex; flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    .week-header-spacer { width: var(--time-w); flex-shrink: 0; }
-    .week-header-days { flex: 1; display: grid; grid-template-columns: repeat(7, minmax(44px, 1fr)); overflow: hidden; }
-    .day-head { padding: 6px 4px; text-align: center; }
-    .day-name { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-tertiary); }
-    .day-num { font-size: 15px; font-weight: 700; color: var(--text-secondary); line-height: 1.2; margin-top: 1px; }
-    .day-head.today .day-name { color: var(--success); }
-    .day-head.today .day-num { color: var(--success); }
-
-    /* ── Calendar body ── */
-    .cal-body { flex: 1; overflow-y: auto; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
-    .cal-grid { display: flex; min-height: 100%; }
-    .time-col { width: var(--time-w); flex-shrink: 0; position: sticky; left: 0; z-index: 10; background: var(--bg); }
-    .time-label { position: absolute; right: 5px; font-size: 10px; color: var(--text-tertiary); transform: translateY(-50%); white-space: nowrap; pointer-events: none; }
-    .days-area { flex: 1; display: grid; grid-template-columns: repeat(7, minmax(44px, 1fr)); position: relative; }
-    .day-col { position: relative; border-left: 1px solid rgba(255,255,255,0.05); }
-    .hour-line { position: absolute; left: 0; right: 0; border-top: 1px solid rgba(255,255,255,0.05); pointer-events: none; }
-    .hour-line.half { border-top-color: rgba(255,255,255,0.025); }
-    .cal-event { position: absolute; left: 2px; right: 2px; border-radius: 5px; border-left: 3px solid; padding: 3px 5px; cursor: pointer; overflow: hidden; -webkit-tap-highlight-color: transparent; }
-    .cal-event:active { opacity: 0.7; }
-    .ev-title { font-size: 10px; font-weight: 600; line-height: 1.2; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-    .ev-time { font-size: 9px; opacity: 0.75; margin-top: 1px; white-space: nowrap; }
-    .time-now-line { position: absolute; left: 0; right: 0; pointer-events: none; z-index: 5; }
-    .time-now-line::before { content: ''; position: absolute; left: 0; top: -4px; width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
-    .time-now-line::after { content: ''; position: absolute; left: 6px; right: 0; top: -1px; height: 2px; background: var(--success); }
-
-    /* ── Modals ── */
-    .backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 1000; align-items: flex-end; justify-content: center; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
-    .backdrop.open { display: flex; }
-    .modal { background: #111112; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px 20px 0 0; width: 100%; max-width: 540px; padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px)); max-height: 88vh; overflow-y: auto; }
-    .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
-    .field { margin-bottom: 13px; }
-    .field-label { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 6px; }
-    .field-input { width: 100%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 12px; color: var(--text-primary); font-family: var(--sans); font-size: 14px; outline: none; -webkit-appearance: none; appearance: none; }
-    .field-input:focus { border-color: rgba(255,255,255,0.25); }
-    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .swatch-row { display: flex; gap: 10px; }
-    .swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.1s; flex-shrink: 0; }
-    .swatch.sel { border-color: #fff; transform: scale(1.2); }
-    .pill-row { display: flex; gap: 6px; flex-wrap: wrap; }
-    .pill { padding: 5px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--sans); -webkit-tap-highlight-color: transparent; }
-    .pill.sel { background: rgba(255,255,255,0.14); color: #fff; border-color: rgba(255,255,255,0.28); }
-    .modal-actions { display: flex; gap: 8px; margin-top: 18px; }
-    .btn { flex: 1; padding: 12px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; font-family: var(--sans); cursor: pointer; -webkit-tap-highlight-color: transparent; }
-    .btn-green { background: var(--success); color: #000; }
-    .btn-grey { background: rgba(255,255,255,0.08); color: var(--text-secondary); }
-    .btn-red { background: rgba(255,70,70,0.12); color: #ff6b6b; border: 1px solid rgba(255,70,70,0.2); }
-    .detail-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
-    .detail-meta { font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
-    .detail-sub { font-size: 12px; color: var(--text-tertiary); margin-bottom: 18px; }
   </style>
 </head>
 <body>
 
-<div class="cal-header">
-  <div class="cal-header-top">
-    <span class="cal-title">Calendar</span>
-    <button class="add-btn" id="addBtn">+ Add Event</button>
-  </div>
-  <div class="cal-header-nav">
-    <button class="icon-btn" id="prevBtn">
-      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-    </button>
-    <span class="week-label" id="weekLabel"></span>
-    <button class="icon-btn" id="nextBtn">
-      <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-    </button>
-    <button class="today-btn" id="todayBtn">Today</button>
-  </div>
+<div class="page-header">
+  <span class="page-title">Calendar</span>
 </div>
 
-<div class="tasks-strip">
-  <div class="tasks-toggle" id="tasksToggle">
-    <span class="tasks-toggle-label">Tasks</span>
-    <span class="tasks-toggle-count" id="tasksCount"></span>
-  </div>
-  <div class="tasks-body" id="tasksBody"></div>
-</div>
-
-<div class="week-header">
-  <div class="week-header-spacer"></div>
-  <div class="week-header-days" id="weekHeaderDays"></div>
-</div>
-
-<div class="cal-body" id="calBody">
-  <div class="cal-grid" id="calGrid">
-    <div class="time-col" id="timeCol"></div>
-    <div class="days-area" id="daysArea"></div>
-  </div>
-</div>
-
-<!-- Add event modal -->
-<div class="backdrop" id="addModal">
-  <div class="modal">
-    <div class="modal-title">New Event</div>
-    <div class="field">
-      <label class="field-label">Title</label>
-      <input class="field-input" id="evTitle" type="text" placeholder="Event name" autocomplete="off">
-    </div>
-    <div class="field">
-      <label class="field-label">Date</label>
-      <input class="field-input" id="evDate" type="date">
-    </div>
-    <div class="field field-row">
-      <div>
-        <label class="field-label">Start time</label>
-        <input class="field-input" id="evStart" type="time">
-      </div>
-      <div>
-        <label class="field-label">End time</label>
-        <input class="field-input" id="evEnd" type="time">
-      </div>
-    </div>
-    <div class="field">
-      <label class="field-label">Color</label>
-      <div class="swatch-row" id="swatchRow"></div>
-    </div>
-    <div class="field">
-      <label class="field-label">Repeat</label>
-      <div class="pill-row" id="repeatRow"></div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-grey" id="addCancel">Cancel</button>
-      <button class="btn btn-green" id="addSave">Save Event</button>
-    </div>
-  </div>
-</div>
-
-<!-- Detail modal -->
-<div class="backdrop" id="detailModal">
-  <div class="modal">
-    <div class="detail-title" id="detailTitle"></div>
-    <div class="detail-meta" id="detailMeta"></div>
-    <div class="detail-sub" id="detailSub"></div>
-    <div class="modal-actions">
-      <button class="btn btn-grey" id="detailClose">Close</button>
-      <button class="btn btn-red" id="detailDelete">Delete</button>
-    </div>
-  </div>
+<div class="cal-wrap">
+  <iframe
+    src="https://calendar.google.com/calendar/embed?src=YOUR_CALENDAR_ID&ctz=America%2FVancouver&mode=WEEK&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=0&showCalendars=0&bgcolor=%230a0a0b&color=%2322c55e"
+    frameborder="0"
+    scrolling="no"
+    allowfullscreen>
+  </iframe>
 </div>
 
 <nav class="tabbar">
@@ -214,339 +120,5 @@
   </div>
 </nav>
 
-<script>
-const SUPA_URL = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
-const SB_H = { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
-const HOUR_H = 64;
-const DAY_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const COLORS = [
-  { v: '#4ade80', l: 'Green' },
-  { v: '#60a5fa', l: 'Blue' },
-  { v: '#a78bfa', l: 'Purple' },
-  { v: '#fb923c', l: 'Orange' },
-  { v: '#f472b6', l: 'Pink' },
-];
-const REPEATS = [
-  { v: 'none',     l: 'None' },
-  { v: 'daily',    l: 'Daily' },
-  { v: 'weekdays', l: 'Weekdays' },
-  { v: 'weekly',   l: 'Weekly' },
-];
-
-let events = [];
-let weekMon = null;  // Monday of displayed week (Date)
-let selColor = COLORS[0].v;
-let selRepeat = 'none';
-let activeEv = null;
-let scrolledOnce = false;
-
-// ── Utilities ──
-function vanDate() {
-  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
-}
-function vanNow() {
-  const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Vancouver', hour: 'numeric', minute: 'numeric', hour12: false }).formatToParts(new Date());
-  const h = parseInt(p.find(x => x.type === 'hour').value);
-  const m = parseInt(p.find(x => x.type === 'minute').value);
-  return { h: h === 24 ? 0 : h, m };
-}
-function toDateStr(date) {
-  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
-}
-function mondayOf(ds) {
-  const [y, m, d] = ds.split('-').map(Number);
-  const dt = new Date(y, m - 1, d);
-  const offset = dt.getDay() === 0 ? -6 : 1 - dt.getDay();
-  return new Date(y, m - 1, d + offset);
-}
-function fmt12(t) {
-  if (!t) return '';
-  const [h, m] = t.split(':').map(Number);
-  return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${h < 12 ? 'AM' : 'PM'}`;
-}
-function tMin(t) {
-  if (!t) return 0;
-  const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
-}
-function esc(s) {
-  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-// ── Supabase REST (via Vercel proxy — avoids iOS CORS issues) ──
-async function sbFetch(path, opts = {}) {
-  try {
-    const r = await fetch('/supabase-rest/' + path, { headers: SB_H, ...opts });
-    if (!r.ok) { console.error('sbFetch', r.status, path); return null; }
-    const t = await r.text();
-    return t ? JSON.parse(t) : [];
-  } catch (e) { console.error('sbFetch error:', e.message); return null; }
-}
-
-// ── Repeat logic ──
-function shouldShow(ev, ds) {
-  const rt = ev.repeat_type || 'none';
-  const origin = (ev.date || '').slice(0, 10);
-  if (rt === 'none' || !['daily','weekdays','weekly'].includes(rt)) return origin === ds;
-  if (origin > ds) return false;
-  const [y, m, d] = ds.split('-').map(Number);
-  const dow = new Date(y, m - 1, d).getDay();
-  if (rt === 'daily') return true;
-  if (rt === 'weekdays') return dow >= 1 && dow <= 5;
-  if (rt === 'weekly') {
-    const [oy, om, od] = origin.split('-').map(Number);
-    return new Date(oy, om - 1, od).getDay() === dow;
-  }
-  return false;
-}
-
-// ── Render ──
-function renderGrid() {
-  const today = vanDate();
-  const mon = weekMon;
-
-  // Week label
-  const sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6);
-  const mf = d => new Intl.DateTimeFormat('en-US', { month: 'short' }).format(d);
-  document.getElementById('weekLabel').textContent = `${mf(mon)} ${mon.getDate()} – ${mf(sun)} ${sun.getDate()}`;
-
-  // 7 date strings Mon–Sun
-  const dates = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i);
-    return toDateStr(d);
-  });
-
-  // Week header (day names + numbers)
-  const headerDays = document.getElementById('weekHeaderDays');
-  headerDays.innerHTML = dates.map(ds => {
-    const dt = new Date(ds + 'T12:00:00');
-    const isToday = ds === today;
-    return `<div class="day-head${isToday ? ' today' : ''}">
-      <div class="day-name">${DAY_SHORT[dt.getDay()]}</div>
-      <div class="day-num">${dt.getDate()}</div>
-    </div>`;
-  }).join('');
-
-  // Time column
-  const timeCol = document.getElementById('timeCol');
-  const totalH = 24 * HOUR_H;
-  timeCol.style.position = 'relative';
-  timeCol.style.height = totalH + 'px';
-  timeCol.innerHTML = '';
-  for (let h = 0; h <= 24; h++) {
-    const el = document.createElement('div');
-    el.className = 'time-label';
-    el.style.top = (h * HOUR_H) + 'px';
-    el.textContent = h === 0 || h === 24 ? '12 AM' : h === 12 ? '12 PM' : h < 12 ? h + ' AM' : (h - 12) + ' PM';
-    timeCol.appendChild(el);
-  }
-
-  // Day columns
-  const daysArea = document.getElementById('daysArea');
-  daysArea.innerHTML = '';
-  daysArea.style.height = totalH + 'px';
-
-  const { h: nowH, m: nowM } = vanNow();
-
-  dates.forEach(ds => {
-    const col = document.createElement('div');
-    col.className = 'day-col';
-    col.style.height = totalH + 'px';
-    col.style.position = 'relative';
-
-    // Hour lines
-    for (let h = 0; h < 24; h++) {
-      const line = document.createElement('div');
-      line.className = 'hour-line';
-      line.style.top = (h * HOUR_H) + 'px';
-      col.appendChild(line);
-      const half = document.createElement('div');
-      half.className = 'hour-line half';
-      half.style.top = (h * HOUR_H + HOUR_H / 2) + 'px';
-      col.appendChild(half);
-    }
-
-    // Events
-    events.forEach(ev => {
-      if (!shouldShow(ev, ds)) return;
-      const sm = tMin(ev.start_time);
-      const em = tMin(ev.end_time);
-      if (isNaN(sm)) return;
-      const top = (sm / 60) * HOUR_H;
-      const dur = em > sm ? em - sm : Math.max(30, (em + 1440) - sm);
-      const ht = Math.max(22, (dur / 60) * HOUR_H);
-      const color = ev.color || '#4ade80';
-      const blk = document.createElement('div');
-      blk.className = 'cal-event';
-      blk.style.cssText = `top:${top}px;height:${ht}px;background:${color}1a;border-left-color:${color};color:${color};`;
-      blk.innerHTML = `<div class="ev-title">${esc(ev.title)}</div>${ht > 32 ? `<div class="ev-time">${fmt12(ev.start_time)}–${fmt12(ev.end_time)}</div>` : ''}`;
-      blk.addEventListener('click', e => { e.stopPropagation(); openDetail(ev); });
-      col.appendChild(blk);
-    });
-
-    // Current time indicator
-    if (ds === today) {
-      const line = document.createElement('div');
-      line.className = 'time-now-line';
-      line.style.top = ((nowH + nowM / 60) * HOUR_H) + 'px';
-      col.appendChild(line);
-    }
-
-    daysArea.appendChild(col);
-  });
-
-  // Auto-scroll to current time on first render only
-  if (!scrolledOnce) {
-    scrolledOnce = true;
-    const { h, m } = vanNow();
-    document.getElementById('calBody').scrollTop = Math.max(0, (h + m / 60) * HOUR_H - 120);
-  }
-}
-
-// ── Data loading ──
-async function loadEvents() {
-  const rows = await sbFetch('calendar_events?order=date.asc,start_time.asc');
-  if (rows !== null) events = rows;
-  renderGrid();
-}
-
-async function loadTasks() {
-  const today = vanDate();
-  const rows = await sbFetch(`goals?day_key=eq.${encodeURIComponent(today)}&select=goals_json&limit=1`);
-  const body = document.getElementById('tasksBody');
-  const count = document.getElementById('tasksCount');
-  let tasks = [];
-  if (rows && rows.length) {
-    try { tasks = JSON.parse(rows[0].goals_json) || []; } catch {}
-  }
-  const pending = tasks.filter(t => !t.done).length;
-  count.textContent = pending ? pending + ' pending' : tasks.length ? 'all done' : '';
-  if (!tasks.length) {
-    body.innerHTML = '<div class="task-item" style="color:var(--text-tertiary)">No tasks today</div>';
-    return;
-  }
-  body.innerHTML = tasks.map(t =>
-    `<div class="task-item${t.done ? ' done' : ''}"><div class="task-dot"></div><span>${esc(t.text || '')}</span></div>`
-  ).join('');
-}
-
-// ── Add event ──
-function openAddModal() {
-  document.getElementById('evTitle').value = '';
-  document.getElementById('evDate').value = vanDate();
-  document.getElementById('evStart').value = '09:00';
-  document.getElementById('evEnd').value = '10:00';
-  selColor = COLORS[0].v;
-  selRepeat = 'none';
-  buildSwatches();
-  buildRepeatPills();
-  document.getElementById('addModal').classList.add('open');
-  setTimeout(() => document.getElementById('evTitle').focus(), 80);
-}
-function closeAddModal() { document.getElementById('addModal').classList.remove('open'); }
-
-function buildSwatches() {
-  document.getElementById('swatchRow').innerHTML = COLORS.map(c =>
-    `<div class="swatch${selColor === c.v ? ' sel' : ''}" data-c="${c.v}" style="background:${c.v}" title="${c.l}"></div>`
-  ).join('');
-  document.querySelectorAll('.swatch').forEach(el => el.addEventListener('click', () => { selColor = el.dataset.c; buildSwatches(); }));
-}
-function buildRepeatPills() {
-  document.getElementById('repeatRow').innerHTML = REPEATS.map(r =>
-    `<button class="pill${selRepeat === r.v ? ' sel' : ''}" data-r="${r.v}">${r.l}</button>`
-  ).join('');
-  document.querySelectorAll('.pill').forEach(el => el.addEventListener('click', () => { selRepeat = el.dataset.r; buildRepeatPills(); }));
-}
-
-async function saveEvent() {
-  const title = document.getElementById('evTitle').value.trim();
-  const date  = document.getElementById('evDate').value;
-  const start_time = document.getElementById('evStart').value;
-  const end_time   = document.getElementById('evEnd').value;
-  if (!title || !date || !start_time || !end_time) return;
-  const data = { title, date, start_time, end_time, color: selColor, repeat_type: selRepeat };
-  const rows = await sbFetch('calendar_events', { method: 'POST', body: JSON.stringify(data) });
-  if (rows && rows[0]) events.push(rows[0]);
-  closeAddModal();
-  renderGrid();
-}
-
-// ── Event detail ──
-function openDetail(ev) {
-  activeEv = ev;
-  document.getElementById('detailTitle').textContent = ev.title || '';
-  document.getElementById('detailMeta').textContent = ev.date + '  ·  ' + fmt12(ev.start_time) + ' – ' + fmt12(ev.end_time);
-  const rt = ev.repeat_type || 'none';
-  document.getElementById('detailSub').textContent = rt !== 'none' ? 'Repeats ' + rt : '';
-  document.getElementById('detailModal').classList.add('open');
-}
-function closeDetail() { document.getElementById('detailModal').classList.remove('open'); activeEv = null; }
-
-async function deleteEvent() {
-  if (!activeEv) return;
-  await sbFetch(`calendar_events?id=eq.${activeEv.id}`, { method: 'DELETE' });
-  events = events.filter(e => e.id !== activeEv.id);
-  closeDetail();
-  renderGrid();
-}
-
-// ── Real-time sync ──
-function setupRealtime() {
-  try {
-    window.supabase.createClient(SUPA_URL, SUPA_KEY)
-      .channel('calendar-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_events' }, () => loadEvents())
-      .subscribe();
-  } catch (e) { console.warn('Realtime not available:', e.message); }
-}
-
-// ── Init ──
-function init() {
-  weekMon = mondayOf(vanDate());
-
-  document.getElementById('prevBtn').addEventListener('click', () => {
-    weekMon = new Date(weekMon.getFullYear(), weekMon.getMonth(), weekMon.getDate() - 7);
-    renderGrid();
-  });
-  document.getElementById('nextBtn').addEventListener('click', () => {
-    weekMon = new Date(weekMon.getFullYear(), weekMon.getMonth(), weekMon.getDate() + 7);
-    renderGrid();
-  });
-  document.getElementById('todayBtn').addEventListener('click', () => {
-    weekMon = mondayOf(vanDate());
-    scrolledOnce = false;
-    renderGrid();
-  });
-  document.getElementById('addBtn').addEventListener('click', openAddModal);
-  document.getElementById('addCancel').addEventListener('click', closeAddModal);
-  document.getElementById('addSave').addEventListener('click', saveEvent);
-  document.getElementById('detailClose').addEventListener('click', closeDetail);
-  document.getElementById('detailDelete').addEventListener('click', deleteEvent);
-  document.getElementById('tasksToggle').addEventListener('click', () => {
-    document.getElementById('tasksBody').classList.toggle('open');
-  });
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeAddModal(); closeDetail(); }
-  });
-
-  loadEvents();
-  loadTasks();
-  setupRealtime();
-
-  // Refresh time indicator every minute
-  setInterval(() => { renderGrid(); }, 60000);
-}
-
-// Wait for Supabase CDN, then init
-let _t = 0;
-function start() {
-  if (typeof window.supabase !== 'undefined') { init(); }
-  else if (_t < 30) { _t++; setTimeout(start, 100); }
-  else { init(); }
-}
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
-else start();
-</script>
 </body>
 </html>
