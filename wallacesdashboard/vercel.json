@@ -17,6 +17,10 @@
   ],
   "rewrites": [
     {
+      "source": "/supabase-rest/:path*",
+      "destination": "https://qznrmfrqbbkkbvvrxteu.supabase.co/rest/v1/:path*"
+    },
+    {
       "source": "/yahoo-proxy/:ticker",
       "destination": "https://query1.finance.yahoo.com/v8/finance/chart/:ticker?interval=1d&range=1d"
     },

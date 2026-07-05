@@ -964,7 +964,7 @@ const CAL = (function () {
   // ── Supabase ──
   async function sbFetch(path, opts) {
     try {
-      const r = await fetch(`${SUPA_URL}/rest/v1/${path}`, { headers: SB_H, ...opts });
+      const r = await fetch(`/supabase-rest/${path}`, { headers: SB_H, ...opts });
       if (!r.ok) {
         const body = await r.text().catch(()=>'');
         const b = document.getElementById('debug-banner');
