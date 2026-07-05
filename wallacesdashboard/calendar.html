@@ -1008,6 +1008,50 @@ const CAL = (function () {
     lsSave();
   }
 
+  // ── Render helpers ──
+
+  // Returns all events that should render on targetDs — real rows + virtual occurrences,
+  // with exception suppression and end_date cutoff applied.
+  function eventsOnDate(targetDs) {
+    const explicit=events.filter(ev=>(ev.date||'').slice(0,10)===targetDs);
+    const excParentIds=new Set(
+      explicit.filter(ev=>ev.repeat_type==='exception').map(ev=>ev.parent_id).filter(Boolean)
+    );
+    const childCovered=new Set(
+      explicit.filter(ev=>ev.parent_id&&ev.repeat_type!=='exception').map(ev=>ev.parent_id)
+    );
+    const result=explicit.filter(ev=>
+      ev.repeat_type!=='exception'&&
+      !excParentIds.has(ev.id)&&
+      !excParentIds.has(ev.parent_id)
+    );
+    for (const ev of events) {
+      if (ev.parent_id) continue;
+      if (childCovered.has(ev.id)||excParentIds.has(ev.id)) continue;
+      const evDate=(ev.date||'').slice(0,10);
+      if (evDate===targetDs) continue;
+      const rt=ev.repeat_type||'none';
+      if (rt==='none'||rt==='exception') continue;
+      if (evDate>targetDs) continue;
+      if (ev.end_date&&targetDs>ev.end_date) continue;
+      const [cy,cm,cd]=targetDs.split('-').map(Number);
+      const dt=new Date(cy,cm-1,cd);
+      const dow=dt.getDay();
+      let show=false;
+      if (rt==='daily') show=true;
+      else if (rt==='weekdays') show=dow>=1&&dow<=5;
+      else if (rt==='weekly') { const [oy,om,od]=evDate.split('-').map(Number); show=dow===new Date(oy,om-1,od).getDay(); }
+      else if (rt==='biweekly') {
+        const [oy,om,od]=evDate.split('-').map(Number);
+        const origin=new Date(oy,om-1,od);
+        const diffW=Math.round((dt-origin)/(7*86400000));
+        show=dow===origin.getDay()&&diffW%2===0;
+      } else if (rt==='custom'&&ev.repeat_days?.length) show=ev.repeat_days.includes(DAY_VALS[dow]);
+      if (show) result.push({...ev,date:targetDs,_virtual:true});
+    }
+    return result;
+  }
+
   // ── Render ──
   function buildGrid() {
     const timeLabels=document.getElementById('timeLabels');
@@ -1084,62 +1128,19 @@ const CAL = (function () {
       col.addEventListener('dragleave', ()=>col.classList.remove('drag-over'));
       col.addEventListener('drop', e=>{ col.classList.remove('drag-over'); onDrop(e, ds, col); });
 
-      // Render events for this date column.
-      // Pass 1: events explicitly stored on this date (parent origin days, pre-baked children).
-      //         Exception rows (repeat_type='exception') suppress a specific virtual occurrence.
-      // Pass 2: repeating parents generate virtual occurrences for dates without a real child row.
-      const explicitOnDate = events.filter(ev => (ev.date || '').slice(0, 10) === ds);
-      const exceptionParentIds = new Set(
-        explicitOnDate.filter(ev => ev.repeat_type === 'exception').map(ev => ev.parent_id).filter(Boolean)
-      );
-      const childCoveredParentIds = new Set(
-        explicitOnDate.filter(ev => ev.parent_id && ev.repeat_type !== 'exception').map(ev => ev.parent_id)
-      );
-      // Exclude exception rows from rendering; also exclude any event suppressed by an exception.
-      const toRender = explicitOnDate.filter(ev =>
-        ev.repeat_type !== 'exception' &&
-        !exceptionParentIds.has(ev.id) &&
-        !exceptionParentIds.has(ev.parent_id)
-      );
+      // Continuation blocks — overnight events that started in the previous column
+      const [y,mo,d]=ds.split('-').map(Number);
+      const prevD=new Date(y,mo-1,d-1);
+      const prevDs=`${prevD.getFullYear()}-${String(prevD.getMonth()+1).padStart(2,'0')}-${String(prevD.getDate()).padStart(2,'0')}`;
+      eventsOnDate(prevDs)
+        .filter(ev=>{ const em=tMin(ev.end_time); return em>0&&em<tMin(ev.start_time); })
+        .forEach(ev=>{ const b=buildContinuationBlock(ev); if(b) col.appendChild(b); });
 
-      for (const ev of events) {
-        if (ev.parent_id) continue;
-        if (childCoveredParentIds.has(ev.id) || exceptionParentIds.has(ev.id)) continue;
-        const evDate = (ev.date || '').slice(0, 10);
-        if (evDate === ds) continue;
-        const rt = ev.repeat_type || 'none';
-        if (rt === 'none' || rt === 'exception') continue;
-        if (evDate > ds) continue;
-        if (ev.end_date && ds > ev.end_date) continue;
-
-        const [cy, cm, cd] = ds.split('-').map(Number);
-        const dt = new Date(cy, cm - 1, cd);
-        const dow = dt.getDay();
-        let show = false;
-
-        if (rt === 'daily') {
-          show = true;
-        } else if (rt === 'weekdays') {
-          show = dow >= 1 && dow <= 5;
-        } else if (rt === 'weekly') {
-          const [oy, om, od] = evDate.split('-').map(Number);
-          show = dow === new Date(oy, om - 1, od).getDay();
-        } else if (rt === 'biweekly') {
-          const [oy, om, od] = evDate.split('-').map(Number);
-          const origin = new Date(oy, om - 1, od);
-          const diffW = Math.round((dt - origin) / (7 * 86400000));
-          show = dow === origin.getDay() && diffW % 2 === 0;
-        } else if (rt === 'custom' && ev.repeat_days?.length) {
-          show = ev.repeat_days.includes(DAY_VALS[dow]);
-        }
-
-        if (show) toRender.push({ ...ev, date: ds, _virtual: true });
-      }
-
-      for (const ev of toRender) {
-        const block = buildBlock(ev);
+      // Main events for this column
+      eventsOnDate(ds).forEach(ev=>{
+        const block=buildBlock(ev);
         if (block) col.appendChild(block);
-      }
+      });
 
       // Current time
       if (ds===today) drawTimeLine(col);
@@ -1181,6 +1182,21 @@ const CAL = (function () {
       e.dataTransfer.setData('text/plain',ev.id);
     });
     blk.addEventListener('dragend', ()=>blk.classList.remove('dragging'));
+    return blk;
+  }
+
+  function buildContinuationBlock(ev) {
+    const em=tMin(ev.end_time);
+    if (em<=0) return null;
+    const ht=Math.max(18,(em/60)*HOUR_H);
+    const color=ev.color||COLORS[0].v;
+    const blk=document.createElement('div');
+    blk.className='cal-event';
+    blk.dataset.eid=ev.id;
+    blk.style.cssText=`top:0px;height:${ht}px;background:${color}20;border-left-color:${color};color:${color};`;
+    blk.innerHTML=`<div class="cal-event-title">${esc(ev.title)}</div>`+
+      (ht>28?`<div class="cal-event-time">until ${fmt12(ev.end_time)}</div>`:'');
+    blk.addEventListener('click',e=>{ e.stopPropagation(); openDetail(ev); });
     return blk;
   }
 
