@@ -709,9 +709,7 @@
     }
     /* Quote section */
     .score-quote {
-      border-top: 1px solid rgba(255,255,255,0.05);
-      padding-top: 16px;
-      margin-top: 4px;
+      margin-top: 0;
     }
     .score-quote-label {
       font-size: 9px;
@@ -736,16 +734,6 @@
       text-align: right;
       margin: 0;
     }
-    .score-insight {
-      color: var(--text-secondary);
-      font-size: 13px;
-      padding: 10px 14px;
-      border-radius: 15px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.07);
-      margin-top: 10px;
-    }
-
     .hidden { display: none !important; }
 
     .tabbar {
@@ -887,13 +875,12 @@
     </div>
 
     <section class="gm-card score-card" id="dailyScoreCard">
+      <p class="score-quote-author" id="scoreDateWeather" style="text-align:left;margin:0 0 10px"></p>
       <div class="score-quote" id="scoreQuote" style="display:none">
         <div class="score-quote-label">Today's Quote</div>
         <p class="score-quote-text" id="scoreQuoteText"></p>
         <p class="score-quote-author" id="scoreQuoteAuthor"></p>
-        <p class="score-quote-author" id="scoreDateWeather" style="margin-top:4px;text-align:left"></p>
       </div>
-      <div class="score-insight" id="dailyInsight">Checking your daily rhythm…</div>
     </section>
 
     <div class="section">
@@ -1673,80 +1660,6 @@
       return getActiveDateString();
     }
 
-    function getDailyScoreData() {
-      const goals = getGoalsFor(getTodayKey());
-      const goalDone = goals.filter(g => g && g.done).length;
-      const goalTotal = goals.length;
-      const water = getWaterProgress();
-      const workout = getWorkoutProgress();
-      const goalPct    = goalTotal ? goalDone / goalTotal : 0;
-      const waterPct   = Math.min(water.done / water.target, 1);
-      const workoutPct = Math.min(workout.done / workout.target, 1);
-      // Goals 40% · Water 30% · Workout 30%
-      const score = Math.round(goalPct * 40 + waterPct * 30 + workoutPct * 30);
-      return {
-        score, verdict: getVerdict(score),
-        goals: { done: goalDone, total: goalTotal },
-        water, workout,
-        progress: { goalPct, waterPct, workoutPct }
-      };
-    }
-
-    function getVerdict(score) {
-      if (score >= 90) return 'Crushing it today';
-      if (score >= 70) return 'Solid day so far';
-      if (score >= 45) return 'Still time to push';
-      return 'Need a few more wins today';
-    }
-
-    function getDailyInsight(data) {
-      if (data.goals.done >= data.goals.total && data.water.done >= data.water.target && data.workout.done >= data.workout.target) {
-        return 'Day fully locked in — solid work.';
-      }
-      if (!data.workout.isRestDay && data.workout.done === 0 && new Date().getHours() >= 12) {
-        return 'No workout sets yet — get a session in.';
-      }
-      if (data.goals.total > 0 && data.goals.done < data.goals.total) {
-        const left = data.goals.total - data.goals.done;
-        return `${left} goal${left !== 1 ? 's' : ''} left — knock ${left === 1 ? 'it' : 'one'} out.`;
-      }
-      return 'Good momentum — stay steady.';
-    }
-
-    function renderDailyScoreCard() {
-      const data = getDailyScoreData();
-      document.getElementById('dailyInsight').textContent = getDailyInsight(data);
-    }
-
-    function countSetsForDate(raw, dateKey) {
-      // dateKey is now a Vancouver date string — gym logs store UTC ISO dates, so convert
-      let count = 0;
-      if (raw && typeof raw === 'object') {
-        if (raw.logs && typeof raw.logs === 'object') {
-          Object.values(raw.logs).forEach(arr => {
-            if (!Array.isArray(arr)) return;
-            count += arr.filter(item => {
-              if (!item || !item.date) return false;
-              return new Date(item.date).toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' }) === dateKey;
-            }).length;
-          });
-        } else {
-          Object.values(raw).forEach(item => {
-            if (!item) return;
-            const d = item.date || item.day || '';
-            if (d && new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' }) === dateKey) count += 1;
-          });
-        }
-      }
-      return count;
-    }
-
-    function updateDailyScoreCard() {
-      const card = document.getElementById('dailyScoreCard');
-      if (!card) return;
-      renderDailyScoreCard();
-    }
-
     // ─── POLISH ───────────────────────────────────────────────────────────────
     function showTransientMessage(el, message, isError = false) {
       el.textContent = message;
@@ -1881,7 +1794,6 @@
       makeAddHandlers(goalInput, goalAddBtn, getTodayKey(), loadLists);
       makeAddHandlers(tomorrowInput, tomorrowAddBtn, getTomorrowKey(), loadLists);
       loadLists();
-      updateDailyScoreCard();
 
       // Clear completed button — removes all done tasks from today's list
       const clearBtn = document.getElementById('clearCompletedBtn');
@@ -1892,9 +1804,6 @@
           loadLists();
         });
       }
-      window.addEventListener('storage', updateDailyScoreCard);
-      window.addEventListener('focus', updateDailyScoreCard);
-      setInterval(updateDailyScoreCard, 30000);
       loadDailyQuote();   // non-blocking
       loadDateWeather(); // non-blocking
     }
