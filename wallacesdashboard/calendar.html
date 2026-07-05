@@ -1709,8 +1709,19 @@ const CAL = (function () {
     }, 60000);
   }
 
-  if (document.readyState==='loading') document.addEventListener('DOMContentLoaded',init);
-  else init();
+  let _calStartTries = 0;
+  function startCalendar() {
+    if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+      init();
+    } else if (_calStartTries < 30) {
+      _calStartTries++;
+      setTimeout(startCalendar, 100);
+    } else {
+      init(); // supabase CDN never loaded — init anyway without real-time
+    }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startCalendar);
+  else startCalendar();
 
   return { closeModal };
 })();
