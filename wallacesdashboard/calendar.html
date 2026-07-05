@@ -36,15 +36,16 @@
     .tabbar-link.active { background: #ffffff; color: #0a0a0a; }
 
     /* ── Header ── */
-    .cal-header { display: flex; align-items: center; gap: 6px; padding: calc(env(safe-area-inset-top, 0px) + 10px) 12px 8px; flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    .cal-title { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; background: linear-gradient(180deg,#FFF 0%,#C7C4BC 120%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-    .spacer { flex: 1; }
+    .cal-header { display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top, 0px) + 10px) 12px 8px; flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.06); gap: 8px; }
+    .cal-header-top { display: flex; align-items: center; }
+    .cal-title { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; background: linear-gradient(180deg,#FFF 0%,#C7C4BC 120%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; flex: 1; }
+    .cal-header-nav { display: flex; align-items: center; gap: 6px; }
     .icon-btn { width: 32px; height: 32px; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(255,255,255,0.04); color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; transition: background 0.15s; flex-shrink: 0; }
     .icon-btn:hover { background: rgba(255,255,255,0.08); }
     .icon-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-    .week-label { font-size: 13px; font-weight: 600; color: var(--text-primary); min-width: 110px; text-align: center; }
-    .today-btn { padding: 5px 10px; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.55); font-size: 11px; font-weight: 600; font-family: var(--sans); cursor: pointer; -webkit-tap-highlight-color: transparent; }
-    .add-btn { padding: 6px 13px; border: none; border-radius: 8px; background: var(--success); color: #000; font-size: 12px; font-weight: 700; font-family: var(--sans); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .week-label { flex: 1; font-size: 13px; font-weight: 600; color: var(--text-primary); text-align: center; }
+    .today-btn { padding: 5px 10px; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.55); font-size: 11px; font-weight: 600; font-family: var(--sans); cursor: pointer; -webkit-tap-highlight-color: transparent; flex-shrink: 0; }
+    .add-btn { padding: 6px 14px; border: none; border-radius: 8px; background: var(--success); color: #000; font-size: 12px; font-weight: 700; font-family: var(--sans); cursor: pointer; -webkit-tap-highlight-color: transparent; flex-shrink: 0; }
 
     /* ── Tasks strip ── */
     .tasks-strip { flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
@@ -86,7 +87,7 @@
     .time-now-line::after { content: ''; position: absolute; left: 6px; right: 0; top: -1px; height: 2px; background: var(--success); }
 
     /* ── Modals ── */
-    .backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 200; align-items: flex-end; justify-content: center; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+    .backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 1000; align-items: flex-end; justify-content: center; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
     .backdrop.open { display: flex; }
     .modal { background: #111112; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px 20px 0 0; width: 100%; max-width: 540px; padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px)); max-height: 88vh; overflow-y: auto; }
     .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
@@ -114,17 +115,20 @@
 <body>
 
 <div class="cal-header">
-  <span class="cal-title">Calendar</span>
-  <div class="spacer"></div>
-  <button class="icon-btn" id="prevBtn">
-    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-  </button>
-  <span class="week-label" id="weekLabel"></span>
-  <button class="icon-btn" id="nextBtn">
-    <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-  </button>
-  <button class="today-btn" id="todayBtn">Today</button>
-  <button class="add-btn" id="addBtn">+ Add</button>
+  <div class="cal-header-top">
+    <span class="cal-title">Calendar</span>
+    <button class="add-btn" id="addBtn">+ Add Event</button>
+  </div>
+  <div class="cal-header-nav">
+    <button class="icon-btn" id="prevBtn">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <span class="week-label" id="weekLabel"></span>
+    <button class="icon-btn" id="nextBtn">
+      <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+    <button class="today-btn" id="todayBtn">Today</button>
+  </div>
 </div>
 
 <div class="tasks-strip">
