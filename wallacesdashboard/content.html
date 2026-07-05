@@ -118,20 +118,6 @@ select.c-input option { background: #1a1a1c; }
 .payment-item-amount { font-size: 14px; font-weight: 600; color: var(--good); font-variant-numeric: tabular-nums; }
 .payment-item-date { font-size: 11px; color: var(--text-3); margin-top: 2px; }
 
-.pipeline-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-@media (max-width: 540px) { .pipeline-grid { grid-template-columns: 1fr; } }
-.pipeline-col { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
-.pipeline-col-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.pipeline-col-title { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; color: var(--text-3); text-transform: uppercase; }
-.pipeline-col-count { font-size: 10px; color: var(--text-4); background: rgba(255,255,255,0.04); border-radius: 99px; padding: 2px 7px; }
-.pipeline-items { display: flex; flex-direction: column; gap: 6px; min-height: 32px; }
-.pipeline-item { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 9px; padding: 9px 10px; }
-.pipeline-item-title { font-size: 12px; font-weight: 600; color: var(--text-1); line-height: 1.3; }
-.pipeline-item-meta { font-size: 10px; color: var(--text-3); margin-top: 3px; }
-.pipeline-item-actions { display: flex; gap: 4px; margin-top: 7px; flex-wrap: wrap; }
-.pipeline-add-form { display: none; margin-top: 8px; gap: 6px; flex-direction: column; }
-.pipeline-add-form.open { display: flex; }
-.pipeline-empty { font-size: 11px; color: var(--text-4); text-align: center; padding: 8px 0; }
 
 .summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 @media (max-width: 360px) { .summary-grid { grid-template-columns: 1fr; } }
@@ -283,74 +269,7 @@ select.c-input option { background: #1a1a1c; }
     </div>
   </div>
 
-  <!-- SECTION 3 — CONTENT PIPELINE -->
-  <div>
-    <div class="sec-divider"><span>WallyFlicks Pipeline</span></div>
-    <div class="pipeline-grid">
-
-      <div class="pipeline-col">
-        <div class="pipeline-col-hdr">
-          <span class="pipeline-col-title">Ideas</span>
-          <span class="pipeline-col-count" id="countIdea">0</span>
-        </div>
-        <div class="pipeline-items" id="itemsIdea"></div>
-        <div class="pipeline-add-form" id="formIdea">
-          <input class="c-input" type="text" id="inputIdea" placeholder="Video idea…">
-          <div style="display:flex;gap:6px">
-            <button class="c-btn sm primary" style="flex:1" onclick="saveNewItem('idea')">Add</button>
-            <button class="c-btn sm" onclick="closeAddForm('idea')">Cancel</button>
-          </div>
-        </div>
-        <button class="c-btn sm full" style="margin-top:8px;opacity:0.7" onclick="openAddForm('idea')">+ Idea</button>
-      </div>
-
-      <div class="pipeline-col">
-        <div class="pipeline-col-hdr">
-          <span class="pipeline-col-title">In Progress</span>
-          <span class="pipeline-col-count" id="countInProgress">0</span>
-        </div>
-        <div class="pipeline-items" id="itemsInProgress"></div>
-        <div class="pipeline-add-form" id="formInProgress">
-          <input class="c-input" type="text" id="inputInProgress" placeholder="Title…">
-          <select class="c-input" id="formatInProgress">
-            <option value="Reel">Reel</option>
-            <option value="Vlog">Vlog</option>
-            <option value="Story">Story</option>
-          </select>
-          <div style="display:flex;gap:6px">
-            <button class="c-btn sm primary" style="flex:1" onclick="saveNewItem('in_progress')">Add</button>
-            <button class="c-btn sm" onclick="closeAddForm('in_progress')">Cancel</button>
-          </div>
-        </div>
-        <button class="c-btn sm full" style="margin-top:8px;opacity:0.7" onclick="openAddForm('in_progress')">+ Add</button>
-      </div>
-
-      <div class="pipeline-col">
-        <div class="pipeline-col-hdr">
-          <span class="pipeline-col-title">Posted</span>
-          <span class="pipeline-col-count" id="countPosted">0</span>
-        </div>
-        <div class="pipeline-items" id="itemsPosted"></div>
-        <div class="pipeline-add-form" id="formPosted">
-          <input class="c-input" type="text" id="inputPosted" placeholder="Title…">
-          <select class="c-input" id="platformPosted">
-            <option value="IG">IG</option>
-            <option value="TikTok">TikTok</option>
-            <option value="YouTube">YouTube</option>
-          </select>
-          <input class="c-input" type="date" id="datePosted">
-          <div style="display:flex;gap:6px">
-            <button class="c-btn sm primary" style="flex:1" onclick="saveNewItem('posted')">Add</button>
-            <button class="c-btn sm" onclick="closeAddForm('posted')">Cancel</button>
-          </div>
-        </div>
-        <button class="c-btn sm full" style="margin-top:8px;opacity:0.7" onclick="openAddForm('posted')">+ Add</button>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- SECTION 4 — EARNINGS SUMMARY -->
+  <!-- SECTION 3 — EARNINGS SUMMARY -->
   <div>
     <div class="sec-divider"><span>Earnings Summary</span></div>
     <div class="c-card">
@@ -376,6 +295,16 @@ select.c-input option { background: #1a1a1c; }
         <div class="sec-label" style="margin-top:16px;margin-bottom:8px">Earnings by brand</div>
         <canvas id="brandChart" style="display:none"></canvas>
         <div class="empty-state" id="chartEmpty">Log payments to see earnings by brand.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 4b — EDITOR COSTS -->
+  <div>
+    <div class="sec-divider"><span>Editor Costs</span></div>
+    <div class="c-card">
+      <div id="editorCostContent">
+        <div class="empty-state">No editor costs logged this month.</div>
       </div>
     </div>
   </div>
@@ -449,33 +378,6 @@ select.c-input option { background: #1a1a1c; }
   </div>
 </div>
 
-<!-- MOVE-TO-POSTED MODAL -->
-<div class="modal-overlay" id="moveModal">
-  <div class="modal-sheet">
-    <div class="modal-hdr">
-      <div class="modal-title">Mark as Posted</div>
-      <button class="modal-close" onclick="closeMoveModal()">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="c-form cols-1">
-        <div class="c-field">
-          <label>Platform</label>
-          <select class="c-input" id="movePlatform">
-            <option value="IG">IG</option>
-            <option value="TikTok">TikTok</option>
-            <option value="YouTube">YouTube</option>
-          </select>
-        </div>
-        <div class="c-field">
-          <label>Date Posted</label>
-          <input class="c-input" type="date" id="moveDate">
-        </div>
-        <button class="c-btn primary full" onclick="confirmMove()">Mark as Posted</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- NAV -->
 <nav class="tabbar" aria-label="Bottom navigation">
   <div class="tabbar-inner">
@@ -507,7 +409,6 @@ const SB_RH = { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY };
 // ── localStorage keys ─────────────────────────────────────────────
 const LS_DEALS    = 'ugc_deals';
 const LS_PAYMENTS = 'ugc_payments';
-const LS_CONTENT  = 'wallyflicks_content';
 const LS_VIDEOS   = 'ugc_videos';
 
 const FIN_INC  = 'finance_income';
@@ -536,7 +437,7 @@ async function fetchFromCloud() {
   return (rows.length && rows[0].data) ? rows[0].data : null;
 }
 async function pushToCloud() {
-  const bundle = { [LS_DEALS]: ls(LS_DEALS), [LS_PAYMENTS]: ls(LS_PAYMENTS), [LS_CONTENT]: ls(LS_CONTENT), [LS_VIDEOS]: ls(LS_VIDEOS) };
+  const bundle = { [LS_DEALS]: ls(LS_DEALS), [LS_PAYMENTS]: ls(LS_PAYMENTS), [LS_VIDEOS]: ls(LS_VIDEOS) };
   const res = await fetch(`${SUPA_URL}/rest/v1/app_state?on_conflict=key`, {
     method: 'POST', headers: SB_H,
     body: JSON.stringify({ key: CONTENT_KEY, data: bundle, updated_at: new Date().toISOString() })
@@ -566,18 +467,14 @@ async function pushToFinance(entry) {
 
 // ── State ─────────────────────────────────────────────────────────
 let _editingDealId = null;
-let _movingItemId  = null;
 let brandChart     = null;
 const _delConfirm  = {};
-const _delItemConf = {};
 const _vidDelConf  = {};
 let _ehTooltipTimer = null;
 
 // ── Init ──────────────────────────────────────────────────────────
 async function init() {
   document.getElementById('payDate').value    = todayVan();
-  document.getElementById('datePosted').value = todayVan();
-  document.getElementById('moveDate').value   = todayVan();
   syncState('syncing', 'syncing…');
 
   try {
@@ -585,11 +482,10 @@ async function init() {
     if (bundle) {
       if (Array.isArray(bundle[LS_DEALS]))    lsSet(LS_DEALS,    bundle[LS_DEALS]);
       if (Array.isArray(bundle[LS_PAYMENTS])) lsSet(LS_PAYMENTS, bundle[LS_PAYMENTS]);
-      if (Array.isArray(bundle[LS_CONTENT]))  lsSet(LS_CONTENT,  bundle[LS_CONTENT]);
       if (Array.isArray(bundle[LS_VIDEOS]))   lsSet(LS_VIDEOS,   bundle[LS_VIDEOS]);
     } else {
       // Nothing in cloud yet — push local data up so other devices see it
-      const hasLocal = ls(LS_DEALS).length || ls(LS_PAYMENTS).length || ls(LS_CONTENT).length || ls(LS_VIDEOS).length;
+      const hasLocal = ls(LS_DEALS).length || ls(LS_PAYMENTS).length || ls(LS_VIDEOS).length;
       if (hasLocal) pushToCloud().catch(() => {});
     }
     syncState('ok', 'synced');
@@ -603,8 +499,8 @@ async function init() {
 function render() {
   renderDeals();
   renderPayments();
-  renderPipeline();
   renderSummary();
+  renderEditorCosts();
   renderEarningsHistory();
 }
 
@@ -691,6 +587,16 @@ function renderDeals() {
           <div class="c-field">
             <label>Notes (optional)</label>
             <input class="c-input" type="text" id="vld-notes-${esc(d.id)}" placeholder="Campaign, deliverable…">
+          </div>
+          <div class="c-field c-form-span" style="padding:2px 0">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;font-size:12px;font-weight:500;letter-spacing:normal;text-transform:none;color:var(--text-2)">
+              <input type="checkbox" id="vld-editor-${esc(d.id)}" onchange="toggleEditorCost('${esc(d.id)}')">
+              Used editor for this video?
+            </label>
+          </div>
+          <div class="c-field" id="vld-editor-cost-wrap-${esc(d.id)}" style="display:none">
+            <label>Editor cost (CAD$)</label>
+            <input class="c-input" type="number" id="vld-editor-cost-${esc(d.id)}" value="3.00" min="0" step="0.01">
           </div>
           <div class="vlog-total-row c-form-span">
             Flat <b style="color:var(--text-1)">$${flat.toFixed(2)}</b>
@@ -798,6 +704,12 @@ function openVideoForm(dealId) {
   if (bonusEl) bonusEl.value = '';
   const notesEl = document.getElementById('vld-notes-' + dealId);
   if (notesEl) notesEl.value = '';
+  const editorEl = document.getElementById('vld-editor-' + dealId);
+  if (editorEl) editorEl.checked = false;
+  const editorCostWrap = document.getElementById('vld-editor-cost-wrap-' + dealId);
+  if (editorCostWrap) editorCostWrap.style.display = 'none';
+  const editorCostEl = document.getElementById('vld-editor-cost-' + dealId);
+  if (editorCostEl) editorCostEl.value = '3.00';
   calcVideoTotal(dealId);
   el.style.display = '';
   if (dateEl) dateEl.focus();
@@ -824,16 +736,19 @@ async function saveVideo(dealId) {
   const deal = ls(LS_DEALS).find(d => d.id === dealId);
   if (!deal) return;
 
-  const date     = document.getElementById('vld-date-' + dealId)?.value   || todayVan();
-  const status   = document.getElementById('vld-status-' + dealId)?.value || 'Approved';
-  const manBonus = parseFloat(document.getElementById('vld-bonus-' + dealId)?.value) || 0;
-  const notes    = document.getElementById('vld-notes-' + dealId)?.value.trim() || '';
-  const flat     = Number(deal.rate_per_video);
-  const total    = flat + manBonus;
+  const date       = document.getElementById('vld-date-' + dealId)?.value   || todayVan();
+  const status     = document.getElementById('vld-status-' + dealId)?.value || 'Approved';
+  const manBonus   = parseFloat(document.getElementById('vld-bonus-' + dealId)?.value) || 0;
+  const notes      = document.getElementById('vld-notes-' + dealId)?.value.trim() || '';
+  const usedEditor = document.getElementById('vld-editor-' + dealId)?.checked || false;
+  const editorCost = usedEditor ? (parseFloat(document.getElementById('vld-editor-cost-' + dealId)?.value) || 3.00) : null;
+  const flat       = Number(deal.rate_per_video);
+  const total      = flat + manBonus;
 
   const row = {
     id: uid(), deal_id: dealId, brand_name: deal.brand_name,
     date, status, flat_rate: flat, view_bonus: 0, views_earned: 0, bonus: manBonus, total, notes,
+    editor_cost: editorCost,
     created_at: new Date().toISOString()
   };
 
@@ -844,6 +759,7 @@ async function saveVideo(dealId) {
   closeVideoForm(dealId);
   renderDeals();
   renderSummary();
+  renderEditorCosts();
   renderEarningsHistory();
 
   syncState('syncing','syncing…');
@@ -888,6 +804,7 @@ async function deleteVideo(videoId, dealId) {
   lsSet(LS_VIDEOS, ls(LS_VIDEOS).filter(v => v.id !== videoId));
   renderDeals();
   renderSummary();
+  renderEditorCosts();
   renderEarningsHistory();
   try { await sbDelete('ugc_videos', videoId); syncState('ok','synced'); }
   catch { syncState('err','sync err'); }
@@ -1144,141 +1061,59 @@ function renderPayments() {
   `).join('');
 }
 
+function toggleEditorCost(dealId) {
+  const checked = document.getElementById('vld-editor-' + dealId)?.checked;
+  const wrap    = document.getElementById('vld-editor-cost-wrap-' + dealId);
+  if (wrap) wrap.style.display = checked ? '' : 'none';
+}
+
 // ══════════════════════════════════════════════════════════════════
-// SECTION 3 — PIPELINE
+// SECTION 3b — EDITOR COSTS SUMMARY
 // ══════════════════════════════════════════════════════════════════
-const STATUS_NEXT = { idea: 'in_progress', in_progress: 'posted' };
-const STATUS_DOM  = { idea: 'Idea', in_progress: 'InProgress', posted: 'Posted' };
-const STATUS_LIST = ['idea', 'in_progress', 'posted'];
+function renderEditorCosts() {
+  const el = document.getElementById('editorCostContent');
+  if (!el) return;
+  const thisMonth  = monthOf(todayVan());
+  const monthLabel = new Date(thisMonth + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-function openAddForm(status) {
-  const sid = STATUS_DOM[status];
-  document.getElementById('form' + sid).classList.add('open');
-  document.getElementById('input' + sid).focus();
-}
-function closeAddForm(status) {
-  const sid = STATUS_DOM[status];
-  document.getElementById('form' + sid).classList.remove('open');
-  document.getElementById('input' + sid).value = '';
-}
+  const videos = ls(LS_VIDEOS).filter(v => monthOf(v.date) === thisMonth && v.editor_cost != null && Number(v.editor_cost) > 0);
 
-async function saveNewItem(status) {
-  const sid   = STATUS_DOM[status];
-  const input = document.getElementById('input' + sid);
-  const title = input.value.trim();
-  if (!title) return;
-
-  let format = null, platform = null, date_posted = null;
-  if (status === 'in_progress') format = document.getElementById('formatInProgress').value;
-  if (status === 'posted') {
-    platform    = document.getElementById('platformPosted').value;
-    date_posted = document.getElementById('datePosted').value || todayVan();
+  if (!videos.length) {
+    el.innerHTML = '<div class="empty-state">No editor costs logged this month.</div>';
+    return;
   }
 
-  const row = { id: uid(), title, status, format, platform, date_posted, created_at: new Date().toISOString() };
-  const items = ls(LS_CONTENT);
-  items.push(row);
-  lsSet(LS_CONTENT, items);
-  closeAddForm(status);
-  renderPipeline();
-  syncState('syncing','syncing…');
-  try { await sbUpsert('wallyflicks_content', row); syncState('ok','synced'); }
-  catch { syncState('err','sync err'); }
-}
+  const total = videos.reduce((s, v) => s + Number(v.editor_cost), 0);
 
-function moveItem(id) {
-  const items = ls(LS_CONTENT);
-  const item  = items.find(i => i.id === id);
-  if (!item) return;
-  const next = STATUS_NEXT[item.status];
-  if (!next) return;
-  if (next === 'posted') {
-    _movingItemId = id;
-    document.getElementById('moveDate').value     = todayVan();
-    document.getElementById('movePlatform').value = 'IG';
-    document.getElementById('moveModal').classList.add('open');
-  } else {
-    item.status = next;
-    lsSet(LS_CONTENT, items);
-    renderPipeline();
-    syncState('syncing','syncing…');
-    sbUpsert('wallyflicks_content', item).then(() => syncState('ok','synced')).catch(() => syncState('err','sync err'));
-  }
-}
-
-function closeMoveModal() {
-  document.getElementById('moveModal').classList.remove('open');
-  _movingItemId = null;
-}
-
-async function confirmMove() {
-  const id = _movingItemId;
-  if (!id) return;
-  const items = ls(LS_CONTENT);
-  const item  = items.find(i => i.id === id);
-  if (!item) { closeMoveModal(); return; }
-  item.status      = 'posted';
-  item.platform    = document.getElementById('movePlatform').value;
-  item.date_posted = document.getElementById('moveDate').value || todayVan();
-  lsSet(LS_CONTENT, items);
-  closeMoveModal();
-  renderPipeline();
-  syncState('syncing','syncing…');
-  try { await sbUpsert('wallyflicks_content', item); syncState('ok','synced'); }
-  catch { syncState('err','sync err'); }
-}
-
-function confirmDeleteItem(id) {
-  const btn = document.getElementById('pdi-' + id);
-  if (!btn) return;
-  if (_delItemConf[id]) {
-    clearTimeout(_delItemConf[id]);
-    delete _delItemConf[id];
-    deleteItem(id);
-  } else {
-    btn.textContent = 'Sure?';
-    btn.classList.add('confirming');
-    _delItemConf[id] = setTimeout(() => {
-      if (btn) { btn.textContent = '✕'; btn.classList.remove('confirming'); }
-      delete _delItemConf[id];
-    }, 3000);
-  }
-}
-
-async function deleteItem(id) {
-  lsSet(LS_CONTENT, ls(LS_CONTENT).filter(i => i.id !== id));
-  renderPipeline();
-  try { await sbDelete('wallyflicks_content', id); } catch {}
-}
-
-function renderPipeline() {
-  const all = ls(LS_CONTENT);
-  STATUS_LIST.forEach(status => {
-    const sid   = STATUS_DOM[status];
-    const items = all.filter(i => i.status === status);
-    document.getElementById('count' + sid).textContent = items.length;
-    const listEl = document.getElementById('items' + sid);
-    if (!items.length) { listEl.innerHTML = '<div class="pipeline-empty">Empty</div>'; return; }
-    const nextLabel = { idea: '→ In Progress', in_progress: '→ Posted' };
-    listEl.innerHTML = items.map(item => {
-      let meta = '';
-      if (item.status === 'in_progress' && item.format) meta = item.format;
-      if (item.status === 'posted') meta = [item.platform, item.date_posted].filter(Boolean).join(' · ');
-      return `
-        <div class="pipeline-item" id="pi-${esc(item.id)}">
-          <div class="pipeline-item-title">${esc(item.title)}</div>
-          ${meta ? `<div class="pipeline-item-meta">${esc(meta)}</div>` : ''}
-          <div class="pipeline-item-actions">
-            ${STATUS_NEXT[item.status] ? `<button class="c-btn sm" style="font-size:10px;padding:4px 8px" onclick="moveItem('${esc(item.id)}')">${nextLabel[item.status]}</button>` : ''}
-            <button class="c-btn sm danger" id="pdi-${esc(item.id)}" style="font-size:10px;padding:4px 8px" onclick="confirmDeleteItem('${esc(item.id)}')">✕</button>
-          </div>
-        </div>`;
-    }).join('');
+  const byBrand = {};
+  videos.forEach(v => {
+    if (!byBrand[v.brand_name]) byBrand[v.brand_name] = { count: 0, cost: 0 };
+    byBrand[v.brand_name].count++;
+    byBrand[v.brand_name].cost += Number(v.editor_cost);
   });
+
+  const brandRows = Object.entries(byBrand).sort((a, b) => b[1].cost - a[1].cost).map(([brand, data]) => `
+    <div class="summary-stat" style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div class="summary-stat-label">${esc(brand)}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px">${data.count} video${data.count !== 1 ? 's' : ''} with editor</div>
+      </div>
+      <div style="font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--bad)">$${data.cost.toFixed(2)}</div>
+    </div>`).join('');
+
+  el.innerHTML = `
+    <div class="sec-label" style="margin-bottom:10px">EDITOR COSTS — ${esc(monthLabel)}</div>
+    <div class="summary-grid">
+      <div class="summary-stat" style="grid-column:1/-1">
+        <div class="summary-stat-label">Total spent this month</div>
+        <div class="summary-stat-value" style="color:var(--bad)">$${total.toFixed(2)}</div>
+      </div>
+      ${brandRows}
+    </div>`;
 }
 
 // ══════════════════════════════════════════════════════════════════
-// SECTION 4 — EARNINGS SUMMARY
+// SECTION 3 — EARNINGS SUMMARY
 // ══════════════════════════════════════════════════════════════════
 function renderSummary() {
   const payments   = ls(LS_PAYMENTS);
@@ -1443,15 +1278,9 @@ function showEHTooltip(cx, cy, month) {
 
 // ── Modal dismiss ─────────────────────────────────────────────────
 document.getElementById('dealModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeDealModal(); });
-document.getElementById('moveModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeMoveModal(); });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeDealModal(); closeMoveModal(); }
+  if (e.key === 'Escape') { closeDealModal(); }
 });
-
-// ── Enter in pipeline inputs ──────────────────────────────────────
-document.getElementById('inputIdea').addEventListener('keydown',       e => { if (e.key==='Enter') saveNewItem('idea'); });
-document.getElementById('inputInProgress').addEventListener('keydown', e => { if (e.key==='Enter') saveNewItem('in_progress'); });
-document.getElementById('inputPosted').addEventListener('keydown',     e => { if (e.key==='Enter') saveNewItem('posted'); });
 
 // ── Hide tooltip on scroll/tap outside ───────────────────────────
 document.addEventListener('scroll', () => {
