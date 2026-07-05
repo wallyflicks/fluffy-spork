@@ -973,13 +973,17 @@ const CAL = (function () {
 
   async function loadEvents() {
     const rows = await sbFetch('calendar_events?order=date.asc,start_time.asc');
-    console.log('CALENDAR LOADED:', rows?.length, 'events from Supabase', rows===null ? '— unreachable, using localStorage' : '');
+    console.log('[CAL] loadEvents: rows from Supabase =', rows?.length ?? 'null (using localStorage)');
     if (rows !== null) {
       events = rows;
       lsSave();
     } else {
       events = lsLoad();
     }
+    console.log('[CAL] events summary:');
+    events.forEach(ev => {
+      console.log(`  id=${ev.id?.slice(0,8)} parent_id=${ev.parent_id?.slice(0,8)??'null'} repeat_type=${ev.repeat_type??'null'} date=${(ev.date||'').slice(0,10)} title="${ev.title}"`);
+    });
   }
 
   async function evCreate(data) {
@@ -1101,36 +1105,54 @@ const CAL = (function () {
       // Render events for this column.
       // Skip pre-baked children (parent_id set) — the parent's repeat rule covers them.
       const seen = new Set();
+      console.log(`[CAL] building column ${ds} — checking ${events.length} events`);
       for (const ev of events) {
-        if (ev.parent_id) continue;
+        if (ev.parent_id) {
+          console.log(`  SKIP (has parent_id) id=${ev.id?.slice(0,8)} title="${ev.title}"`);
+          continue;
+        }
         const evDate = (ev.date || '').slice(0, 10);
         const rt = ev.repeat_type || 'none';
         let show = false;
+        let reason = '';
         if (rt === 'none') {
           show = evDate === ds;
+          reason = `none: evDate(${evDate}) === ds(${ds}) → ${show}`;
         } else if (evDate <= ds) {
           const [cy, cm, cd] = ds.split('-').map(Number);
           const dt = new Date(cy, cm - 1, cd);
           const dow = dt.getDay();
           if (rt === 'daily') {
             show = true;
+            reason = `daily: evDate(${evDate}) <= ds(${ds}) → show`;
           } else if (rt === 'weekdays') {
             show = dow >= 1 && dow <= 5;
+            reason = `weekdays: dow=${dow} → ${show}`;
           } else if (rt === 'weekly') {
             const [oy, om, od] = evDate.split('-').map(Number);
-            show = dow === new Date(oy, om - 1, od).getDay();
+            const originDow = new Date(oy, om - 1, od).getDay();
+            show = dow === originDow;
+            reason = `weekly: dow=${dow} originDow=${originDow} → ${show}`;
           } else if (rt === 'biweekly') {
             const [oy, om, od] = evDate.split('-').map(Number);
             const origin = new Date(oy, om - 1, od);
             const diffWeeks = Math.round((dt - origin) / (7 * 86400000));
             show = dow === origin.getDay() && diffWeeks % 2 === 0;
+            reason = `biweekly: dow=${dow} originDow=${origin.getDay()} diffWeeks=${diffWeeks} → ${show}`;
           } else if (rt === 'custom' && ev.repeat_days?.length) {
             show = ev.repeat_days.includes(DAY_VALS[dow]);
+            reason = `custom: DAY_VALS[${dow}]=${DAY_VALS[dow]} in [${ev.repeat_days}] → ${show}`;
+          } else {
+            reason = `unknown rt="${rt}" or custom with no repeat_days`;
           }
+        } else {
+          reason = `evDate(${evDate}) > ds(${ds}), not yet started`;
         }
+        console.log(`  id=${ev.id?.slice(0,8)} rt=${rt} evDate=${evDate} → show=${show} (${reason})`);
         if (show && !seen.has(ev.id)) {
           seen.add(ev.id);
           const block = buildBlock({ ...ev, date: ds });
+          console.log(`    buildBlock result: ${block ? 'OK' : 'NULL (bad times?)'} start=${ev.start_time} end=${ev.end_time}`);
           if (block) col.appendChild(block);
         }
       }
