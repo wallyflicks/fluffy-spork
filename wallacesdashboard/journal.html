@@ -382,6 +382,62 @@ textarea::placeholder { color: var(--text-4); }
   .rating-selector { gap: 3px; }
   .rating-btn { font-size: 11px; border-radius: 6px; }
 }
+
+/* Brain Dump */
+.brain-dump-wrap { position: relative; }
+.brain-dump-wrap textarea { padding-right: 46px; }
+.mic-btn {
+  position: absolute;
+  bottom: 9px; right: 9px;
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.05);
+  color: var(--text-3);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.mic-btn:hover { background: rgba(255,255,255,0.09); color: var(--text-1); }
+.mic-btn.recording { background: rgba(255,138,138,0.15); color: var(--bad); border-color: rgba(255,138,138,0.4); }
+.mic-btn svg { width: 13px; height: 13px; }
+.brain-dump-rec {
+  display: none;
+  font-size: 11px; color: var(--bad);
+  margin-top: 6px;
+  align-items: center; gap: 5px;
+}
+.brain-dump-rec.show { display: flex; }
+.rec-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--bad);
+  animation: rec-pulse 1s ease-in-out infinite; flex-shrink: 0;
+}
+@keyframes rec-pulse { 0%,100% { opacity:1; } 50% { opacity:0.25; } }
+.brain-dump-summarize {
+  margin-top: 9px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-1);
+  border-radius: 9px;
+  font-family: var(--font);
+  font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+.brain-dump-summarize:hover { background: rgba(255,255,255,0.08); }
+.brain-dump-summary-box {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-2);
+  white-space: pre-wrap;
+}
 </style>
 </head>
 <body>
@@ -415,6 +471,14 @@ textarea::placeholder { color: var(--text-4); }
     <div class="entry-read-label">→ Tomorrow's Focus</div>
     <div class="entry-read-value" id="readTomorrow"></div>
   </div>
+  <div class="entry-read-field" id="readBrainDumpField" style="display:none">
+    <div class="entry-read-label">Brain Dump</div>
+    <div class="entry-read-value" id="readBrainDump"></div>
+  </div>
+  <div class="entry-read-field" id="readBrainDumpSummaryField" style="display:none">
+    <div class="entry-read-label">Summary</div>
+    <div class="entry-read-value" id="readBrainDumpSummary"></div>
+  </div>
   <div class="entry-read-field" id="readPhotosField" style="display:none">
     <div class="entry-read-label">Photos</div>
     <div class="entry-photos" id="readPhotos"></div>
@@ -434,6 +498,19 @@ textarea::placeholder { color: var(--text-4); }
   <div class="entry-field">
     <div class="entry-field-label"><span class="field-icon">→</span>Tomorrow's focus</div>
     <textarea id="fTomorrow" rows="2" placeholder="One thing to focus on tomorrow"></textarea>
+  </div>
+  <div class="entry-field">
+    <div class="entry-field-label"><span class="field-icon">#</span>Brain Dump</div>
+    <div class="brain-dump-wrap">
+      <textarea id="fBrainDump" rows="5" placeholder="Yap about your day..."></textarea>
+      <button type="button" class="mic-btn" id="brainDumpMic" title="Dictate"><i data-lucide="mic"></i></button>
+    </div>
+    <div class="brain-dump-rec" id="brainDumpRec"><span class="rec-dot"></span>Recording...</div>
+    <button type="button" class="brain-dump-summarize" id="brainDumpSummarize">Summarize</button>
+    <div id="brainDumpSummaryWrap" style="display:none;margin-top:9px">
+      <div class="entry-field-label" style="margin-bottom:6px">Summary</div>
+      <div class="brain-dump-summary-box" id="fBrainDumpSummary"></div>
+    </div>
   </div>
   <div class="entry-field">
     <div class="entry-field-label">Day rating</div>
@@ -535,6 +612,8 @@ textarea::placeholder { color: var(--text-4); }
           wins: entry.wins || '',
           losses: entry.losses || '',
           tomorrow: entry.tomorrow || '',
+          brain_dump: entry.brain_dump || '',
+          brain_dump_summary: entry.brain_dump_summary || '',
           rating: entry.rating || null,
           photos: entry.photos || [],
           updated_at: new Date().toISOString(),
@@ -672,6 +751,88 @@ textarea::placeholder { color: var(--text-4); }
       const img = e.target.closest('[data-lightbox]');
       if (img) { openLightbox(img.dataset.lightbox); }
     });
+    wireBrainDump();
+  }
+
+  // ── Brain Dump ───────────────────────────────────────────────────
+  function wireBrainDump() {
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const micBtn = document.getElementById('brainDumpMic');
+    const recInd = document.getElementById('brainDumpRec');
+    let rec = null, recording = false;
+
+    if (!SpeechRec) {
+      micBtn.style.display = 'none';
+    } else {
+      micBtn.addEventListener('click', () => {
+        if (recording) { rec.stop(); return; }
+        rec = new SpeechRec();
+        rec.continuous = true;
+        rec.interimResults = false;
+        rec.lang = 'en-US';
+        rec.onstart = () => {
+          recording = true;
+          micBtn.classList.add('recording');
+          recInd.classList.add('show');
+        };
+        rec.onresult = e => {
+          const ta = document.getElementById('fBrainDump');
+          for (let i = e.resultIndex; i < e.results.length; i++) {
+            if (e.results[i].isFinal) {
+              const t = e.results[i][0].transcript.trim();
+              ta.value += (ta.value && !ta.value.endsWith(' ') ? ' ' : '') + t;
+            }
+          }
+        };
+        rec.onend = () => { recording = false; micBtn.classList.remove('recording'); recInd.classList.remove('show'); };
+        rec.onerror = () => { recording = false; micBtn.classList.remove('recording'); recInd.classList.remove('show'); };
+        rec.start();
+      });
+    }
+
+    document.getElementById('brainDumpSummarize').addEventListener('click', () => {
+      const text = document.getElementById('fBrainDump').value.trim();
+      if (!text) return;
+      const summary = extractiveSummarize(text);
+      document.getElementById('fBrainDumpSummary').textContent = summary;
+      document.getElementById('brainDumpSummaryWrap').style.display = '';
+    });
+  }
+
+  function extractiveSummarize(text) {
+    const STOP = new Set(['i','me','my','myself','we','our','you','your','he','him','his',
+      'she','her','it','its','they','them','their','a','an','the','and','but','or','nor',
+      'for','yet','so','at','by','in','of','on','to','up','as','is','was','are','were',
+      'be','been','being','have','has','had','do','does','did','will','would','shall',
+      'should','may','might','must','can','could','not','no','this','that','these','those',
+      'with','from','into','than','then','when','where','who','which','what','there','here',
+      'also','just','very','even','more','much','some','such','any','all','too','how',
+      'about','after','before','over','out','got','get','go','going','went','came','come',
+      'said','say','know','think','really','still','well','back','because','if','while',
+      'though','although','one','two','three','like','good','great','new','time','day']);
+
+    const sentences = (text.match(/[^.!?\n]+[.!?\n]*/g) || [text]).map(s => s.trim()).filter(Boolean);
+    if (sentences.length <= 2) return sentences.join(' ');
+
+    const freq = {};
+    sentences.forEach(s => {
+      s.toLowerCase().split(/\W+/).filter(w => w.length > 2 && !STOP.has(w)).forEach(w => {
+        freq[w] = (freq[w] || 0) + 1;
+      });
+    });
+
+    const n = sentences.length;
+    const scored = sentences.map((s, i) => {
+      const words = s.toLowerCase().split(/\W+/).filter(w => w.length > 2 && !STOP.has(w));
+      const score = words.reduce((sum, w) => sum + (freq[w] || 0), 0) / (words.length || 1);
+      const bonus = (i === 0 || i === n - 1) ? 0.5 : 0;
+      return { s, score: score + bonus, i };
+    });
+
+    const topN = n <= 5 ? 2 : 3;
+    const top = scored.sort((a, b) => b.score - a.score).slice(0, topN);
+    top.sort((a, b) => a.i - b.i);
+    return top.map(t => t.s.trim()).join(' ');
   }
 
   // ── Save ─────────────────────────────────────────────────────────
@@ -679,10 +840,14 @@ textarea::placeholder { color: var(--text-4); }
     const wins = document.getElementById('fWins').value.trim();
     const losses = document.getElementById('fLosses').value.trim();
     const tomorrow = document.getElementById('fTomorrow').value.trim();
+    const brainDump = document.getElementById('fBrainDump').value.trim();
+    const brainDumpSummary = document.getElementById('fBrainDumpSummary').textContent.trim();
     const existing = getEntry(TODAY);
     const entry = {
       date: TODAY,
       wins, losses, tomorrow,
+      brain_dump: brainDump,
+      brain_dump_summary: brainDumpSummary,
       rating: selectedRating,
       photos: photos.slice(),
       created_at: (existing && existing.created_at) || new Date().toISOString(),
@@ -733,6 +898,21 @@ textarea::placeholder { color: var(--text-4); }
     setText('readLosses',  entry.losses,  'Nothing logged.');
     setText('readTomorrow',entry.tomorrow,'Nothing set.');
 
+    const bdField    = document.getElementById('readBrainDumpField');
+    const bdSumField = document.getElementById('readBrainDumpSummaryField');
+    if (entry.brain_dump) {
+      setText('readBrainDump', entry.brain_dump, '');
+      bdField.style.display = '';
+    } else {
+      bdField.style.display = 'none';
+    }
+    if (entry.brain_dump_summary) {
+      setText('readBrainDumpSummary', entry.brain_dump_summary, '');
+      bdSumField.style.display = '';
+    } else {
+      bdSumField.style.display = 'none';
+    }
+
     const photosField = document.getElementById('readPhotosField');
     const photosWrap  = document.getElementById('readPhotos');
     if (entry.photos && entry.photos.length) {
@@ -766,12 +946,19 @@ textarea::placeholder { color: var(--text-4); }
       document.getElementById('fWins').value    = existing.wins    || '';
       document.getElementById('fLosses').value  = existing.losses  || '';
       document.getElementById('fTomorrow').value = existing.tomorrow || '';
+      document.getElementById('fBrainDump').value = existing.brain_dump || '';
+      const es = existing.brain_dump_summary || '';
+      document.getElementById('fBrainDumpSummary').textContent = es;
+      document.getElementById('brainDumpSummaryWrap').style.display = es ? '' : 'none';
       photos = (existing.photos || []).slice();
       if (existing.rating) setRating(existing.rating); else clearRating();
     } else {
       document.getElementById('fWins').value    = '';
       document.getElementById('fLosses').value  = '';
       document.getElementById('fTomorrow').value = '';
+      document.getElementById('fBrainDump').value = '';
+      document.getElementById('fBrainDumpSummary').textContent = '';
+      document.getElementById('brainDumpSummaryWrap').style.display = 'none';
       photos = [];
       clearRating();
     }
@@ -971,7 +1158,9 @@ textarea::placeholder { color: var(--text-4); }
           date:       row.date,
           wins:       row.wins      || '',
           losses:     row.losses    || '',
-          tomorrow:   row.tomorrow  || '',
+          tomorrow:           row.tomorrow           || '',
+          brain_dump:         row.brain_dump         || '',
+          brain_dump_summary: row.brain_dump_summary || '',
           rating:     row.rating    || null,
           photos:     row.photos    || [],
           created_at: row.created_at,
