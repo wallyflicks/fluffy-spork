@@ -11,6 +11,7 @@
 <script src="/notifications.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
 :root {
   --bg: #0a0a0b;
@@ -614,8 +615,13 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
   <div class="fin-card">
     <div class="fin-toggle-row">
       <div class="fin-section-title" style="margin:0">Add expense</div>
-      <button class="fin-btn sm" id="expAddToggle">+ Add</button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="fin-btn sm" id="expScanToggle">Scan Receipt</button>
+        <button class="fin-btn sm" id="expAddToggle">+ Add</button>
+      </div>
     </div>
+    <input type="file" id="expReceiptInput" accept="image/*" style="display:none">
+    <div id="expScanStatus" style="display:none;font-size:12px;color:var(--muted);padding:6px 0 2px"></div>
     <div class="fin-collapse-panel" id="expAddPanel">
       <div class="fin-form">
         <div class="fin-field fin-form-span">
@@ -1732,6 +1738,70 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
       document.getElementById('expAddToggle').textContent = '+ Add';
       renderExpenses(); renderCashFlow(); renderNetWorth();
     });
+
+    // ── Scan Receipt ──
+    document.getElementById('expScanToggle').addEventListener('click', () => {
+      document.getElementById('expReceiptInput').click();
+    });
+
+    document.getElementById('expReceiptInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+
+      const statusEl = document.getElementById('expScanStatus');
+      statusEl.textContent = 'Reading receipt...';
+      statusEl.style.display = 'block';
+
+      try {
+        const result = await Tesseract.recognize(file, 'eng');
+        const text = result.data.text;
+        const { amount, description } = parseReceiptText(text);
+
+        if (!amount && !description) {
+          statusEl.textContent = "Couldn't read that receipt, enter manually";
+        } else {
+          statusEl.style.display = 'none';
+          if (amount)      document.getElementById('expAmount').value = amount;
+          if (description) document.getElementById('expDesc').value   = description;
+          document.getElementById('expAddPanel').classList.add('open');
+          document.getElementById('expAddToggle').textContent = '× Close';
+          document.getElementById('expAmount').focus();
+        }
+      } catch (_) {
+        statusEl.textContent = "Couldn't read that receipt, enter manually";
+        document.getElementById('expAddPanel').classList.add('open');
+        document.getElementById('expAddToggle').textContent = '× Close';
+      }
+    });
+
+    function parseReceiptText(text) {
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+      // Find dollar amounts
+      const allMatches = [];
+      const totalLinePattern = /total|amount due|grand total|subtotal/i;
+      let totalLineAmount = null;
+
+      for (const line of lines) {
+        const amounts = [...line.matchAll(/\$?\d+\.\d{2}/g)].map(m => parseFloat(m[0].replace('$', '')));
+        if (amounts.length) {
+          const max = Math.max(...amounts);
+          if (totalLinePattern.test(line)) {
+            if (totalLineAmount === null || max > totalLineAmount) totalLineAmount = max;
+          }
+          allMatches.push(max);
+        }
+      }
+
+      const amount = totalLineAmount !== null
+        ? totalLineAmount
+        : allMatches.length ? Math.max(...allMatches) : null;
+
+      const description = lines[0] ? lines[0].substring(0, 60) : null;
+
+      return { amount, description };
+    }
 
     // ── Savings goal ──
     document.getElementById('goalSave').addEventListener('click', () => {
