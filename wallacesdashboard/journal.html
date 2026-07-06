@@ -809,30 +809,68 @@ textarea::placeholder { color: var(--text-4); }
       'also','just','very','even','more','much','some','such','any','all','too','how',
       'about','after','before','over','out','got','get','go','going','went','came','come',
       'said','say','know','think','really','still','well','back','because','if','while',
-      'though','although','one','two','three','like','good','great','new','time','day']);
+      'though','although','one','two','three','like','good','great','new','time','day',
+      'yeah','yep','nope','okay','ok','um','uh','actually','basically','literally',
+      'honestly','kind','kinda','gonna','wanna','gotta','right','thing','things']);
 
-    const sentences = (text.match(/[^.!?\n]+[.!?\n]*/g) || [text]).map(s => s.trim()).filter(Boolean);
-    if (sentences.length <= 2) return sentences.join(' ');
+    // Split on sentence-ending punctuation, commas, newlines, and clause-break conjunctions.
+    // Splitting on " and/but/so/because/like " catches the natural pauses in dictated speech.
+    const chunks = text
+      .split(/[.!?\n,]+|\s+(?:and|but|so|because|like)\s+/i)
+      .map(c => c.trim())
+      .filter(Boolean);
 
+    const origWordCount = text.split(/\s+/).filter(Boolean).length;
+
+    // Build keyword frequency across all chunks
     const freq = {};
-    sentences.forEach(s => {
-      s.toLowerCase().split(/\W+/).filter(w => w.length > 2 && !STOP.has(w)).forEach(w => {
-        freq[w] = (freq[w] || 0) + 1;
+    chunks.forEach(c => {
+      c.toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/).forEach(w => {
+        if (w.length > 2 && !STOP.has(w)) freq[w] = (freq[w] || 0) + 1;
       });
     });
 
-    const n = sentences.length;
-    const scored = sentences.map((s, i) => {
-      const words = s.toLowerCase().split(/\W+/).filter(w => w.length > 2 && !STOP.has(w));
-      const score = words.reduce((sum, w) => sum + (freq[w] || 0), 0) / (words.length || 1);
-      const bonus = (i === 0 || i === n - 1) ? 0.5 : 0;
-      return { s, score: score + bonus, i };
-    });
+    // Score each chunk; skip any with fewer than 3 total words
+    const scored = chunks.map((c, i) => {
+      const words = c.split(/\s+/).filter(Boolean);
+      if (words.length < 3) return null;
+      const keys = words.map(w => w.toLowerCase().replace(/[^a-z]/g, '')).filter(w => w.length > 2 && !STOP.has(w));
+      if (!keys.length) return null;
+      const score = keys.reduce((s, w) => s + (freq[w] || 0), 0) / keys.length;
+      return { c, score, i };
+    }).filter(Boolean);
 
-    const topN = n <= 5 ? 2 : 3;
-    const top = scored.sort((a, b) => b.score - a.score).slice(0, topN);
-    top.sort((a, b) => a.i - b.i);
-    return top.map(t => t.s.trim()).join(' ');
+    // Fallback for very short or conjunction-free text
+    if (!scored.length) {
+      const words = text.split(/\s+/).filter(Boolean);
+      return '• ' + words.slice(0, 20).join(' ') + (words.length > 20 ? '...' : '');
+    }
+
+    function trimTo15(c) {
+      const words = c.split(/\s+/).filter(Boolean);
+      return words.length <= 15 ? c : words.slice(0, 15).join(' ') + '...';
+    }
+
+    const byScore = [...scored].sort((a, b) => b.score - a.score);
+    const maxSummaryWords = Math.max(15, Math.floor(origWordCount * 0.5));
+
+    function pick(n) {
+      const top = byScore.slice(0, n).sort((a, b) => a.i - b.i);
+      const bullets = top.map(t => trimTo15(t.c));
+      const totalWords = bullets.reduce((s, b) => s + b.split(/\s+/).filter(Boolean).length, 0);
+      return { bullets, totalWords };
+    }
+
+    let topN = Math.min(byScore.length, 4);
+    let { bullets, totalWords } = pick(topN);
+
+    // Reduce until output is clearly shorter than the input
+    while (totalWords > maxSummaryWords && topN > 1) {
+      topN--;
+      ({ bullets, totalWords } = pick(topN));
+    }
+
+    return bullets.map(b => '• ' + b).join('\n');
   }
 
   // ── Save ─────────────────────────────────────────────────────────
