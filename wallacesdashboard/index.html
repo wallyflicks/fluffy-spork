@@ -736,6 +736,75 @@
     }
     .hidden { display: none !important; }
 
+    /* ── Habit Tracker ── */
+    .ht-today-label {
+      font-size: 10.5px; font-weight: 700; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--text-tertiary);
+      margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .ht-manage-btn {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 999px; color: var(--text-secondary); font-family: var(--sans);
+      font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+      padding: 4px 12px; cursor: pointer; min-height: unset;
+    }
+    .ht-manage-btn:hover { background: rgba(255,255,255,0.09); }
+    .ht-today-list { display: flex; flex-direction: column; gap: 6px; }
+    .ht-habit-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px; border-radius: 12px;
+      background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.06);
+      cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background 0.15s;
+    }
+    .ht-habit-row:hover { background: rgba(255,255,255,0.06); }
+    .ht-habit-row.done { background: rgba(107,227,164,0.06); border-color: rgba(107,227,164,0.14); }
+    .ht-habit-name { flex: 1; font-size: 13px; }
+    .ht-habit-row.done .ht-habit-name {
+      text-decoration: line-through; text-decoration-color: rgba(255,255,255,0.3);
+      color: var(--text-tertiary);
+    }
+    .ht-grid-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.16em;
+      color: var(--text-tertiary); text-transform: uppercase; margin: 16px 0 8px;
+    }
+    .ht-grid {
+      display: grid; gap: 5px 6px; overflow-x: auto;
+    }
+    .ht-grid-day-hdr {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--text-tertiary); text-align: center;
+    }
+    .ht-grid-day-hdr.is-today { color: var(--success); }
+    .ht-grid-habit-name {
+      font-size: 11px; color: var(--text-secondary); padding-right: 6px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      max-width: 110px; align-self: center;
+    }
+    .ht-cell {
+      width: 28px; height: 28px; border-radius: 7px;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+      justify-self: center; align-self: center;
+    }
+    .ht-cell.done {
+      background: var(--success); border-color: transparent;
+      box-shadow: 0 0 6px rgba(107,227,164,0.35);
+    }
+    .ht-cell.is-today { border-color: rgba(107,227,164,0.3); }
+    .ht-manage-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+    .ht-manage-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px; border-radius: 10px;
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+      font-size: 13px;
+    }
+    .ht-manage-row-name { flex: 1; }
+    .ht-manage-del {
+      background: transparent; border: none; color: var(--text-tertiary);
+      font-size: 18px; line-height: 1; cursor: pointer;
+      padding: 4px 8px; border-radius: 6px; min-height: unset;
+    }
+    .ht-manage-del:hover { color: var(--danger); }
+
     .tabbar {
       position: fixed;
       left: 0; right: 0; bottom: 0;
@@ -812,9 +881,6 @@
       button, input, select { min-height: 44px; }
     }
 
-    .dash-charts-row {
-      display: flex; flex-direction: column; gap: 14px; width: 100%;
-    }
     .dash-chart-card { padding: 16px 16px 12px; width: 100%; box-sizing: border-box; }
     .dash-chart-canvas-wrap {
       position: relative; width: 100%; height: 200px;
@@ -958,107 +1024,42 @@
       </section>
     </div>
 
-    <!-- ── Charts ── -->
-    <div class="dash-charts-row">
-      <div class="gm-card dash-chart-card">
-        <div class="dash-chart-label">GOAL COMPLETION — LAST 7 DAYS</div>
-        <div class="dash-chart-canvas-wrap">
-          <canvas id="goalCompletionChart"></canvas>
+    <!-- ── Habit Tracker ── -->
+    <div class="section">
+      <div class="section-title">Habit Tracker</div>
+
+      <section class="gm-card">
+        <div class="ht-today-label">
+          <span>Today</span>
+          <button type="button" class="ht-manage-btn" id="htManageToggle">Manage</button>
         </div>
-      </div>
-      <div class="gm-card dash-chart-card">
-        <div class="dash-chart-label">WEEKLY SCORE — GOALS + WATER + WORKOUT</div>
-        <div class="dash-chart-canvas-wrap">
-          <canvas id="weekSummaryChart"></canvas>
+        <div id="htTodayList" class="ht-today-list"></div>
+        <div id="htTodayEmpty" class="empty-state" style="display:none">No habits yet — open Manage to add one.</div>
+        <div id="htGridWrap">
+          <div class="ht-grid-label">Last 7 Days</div>
+          <div id="htGrid" class="ht-grid"></div>
         </div>
-      </div>
+        <div id="htManagePanel" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06)">
+          <div id="htManageList" class="ht-manage-list"></div>
+          <div class="goal-input-wrap" style="margin-top:4px">
+            <input id="htInput" type="text" placeholder="Add a habit to track…" autocomplete="off">
+            <button type="button" class="goal-add-btn" id="htAddBtn">+ Add</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="gm-card dash-chart-card">
+        <div class="dash-chart-label">HABIT COMPLETION — LAST 7 DAYS</div>
+        <div class="dash-chart-canvas-wrap">
+          <canvas id="habitChart"></canvas>
+        </div>
+      </section>
     </div>
 
   </main>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-  <script>
-  (function() {
-    function dateStr(d) {
-      return d.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
-    }
-    function shortDay(d) {
-      return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
-    }
-    function parseJ(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
-
-    const CHART_DEFAULTS = {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: { duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 700 },
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.parsed.y + '%' } } },
-      scales: {
-        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10 } } },
-        y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10 }, callback: v => v + '%' } }
-      }
-    };
-
-    function buildGoalChart() {
-      const ctx = document.getElementById('goalCompletionChart');
-      if (!ctx || !window.Chart) return;
-      const labels = [], data = [], colors = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(); d.setDate(d.getDate() - i);
-        const goals = parseJ('goals:' + dateStr(d)) || [];
-        const pct = goals.length ? Math.round(goals.filter(g => g && g.done).length / goals.length * 100) : 0;
-        labels.push(shortDay(d));
-        data.push(pct);
-        colors.push(pct >= 100 ? '#6ee7b7' : pct >= 60 ? '#fbbf24' : pct > 0 ? '#f87171' : 'rgba(255,255,255,0.08)');
-      }
-      new Chart(ctx, {
-        type: 'bar',
-        data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 5, borderSkipped: false }] },
-        options: CHART_DEFAULTS
-      });
-    }
-
-    function buildWeekSummaryChart() {
-      const ctx = document.getElementById('weekSummaryChart');
-      if (!ctx || !window.Chart) return;
-      const labels = [], data = [];
-      const water = parseJ('po_water_v1') || {};
-      const waterLogs = (water.logs) || {};
-      const waterTarget = (() => {
-        try {
-          const p = water.profile || { weightKg: 75 };
-          const wKg = p.weightKg || 75;
-          const bottleMl = water.bottleMl || 500;
-          return Math.max(1, Math.ceil(wKg * 35 / bottleMl));
-        } catch { return 8; }
-      })();
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(); d.setDate(d.getDate() - i);
-        const dk = dateStr(d);
-        const goals = parseJ('goals:' + dk) || [];
-        const goalPct = goals.length ? goals.filter(g => g && g.done).length / goals.length : 0;
-        const waterDone = waterLogs[dk] || 0;
-        const waterPct = Math.min(1, waterDone / waterTarget);
-        const score = Math.round((goalPct * 0.5 + waterPct * 0.5) * 100);
-        labels.push(shortDay(d));
-        data.push(score);
-      }
-      const opts = JSON.parse(JSON.stringify(CHART_DEFAULTS));
-      opts.plugins.tooltip.callbacks.label = ctx => ctx.parsed.y + ' score';
-      new Chart(ctx, {
-        type: 'bar',
-        data: { labels, datasets: [{ data, backgroundColor: data.map(v => v >= 70 ? '#6ee7b7' : v >= 40 ? '#fbbf24' : 'rgba(255,255,255,0.12)'), borderRadius: 5, borderSkipped: false }] },
-        options: opts
-      });
-    }
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => { buildGoalChart(); buildWeekSummaryChart(); }, { once: true });
-    } else {
-      buildGoalChart(); buildWeekSummaryChart();
-    }
-  })();
-  </script>
 
   <script>
     // ─── CONFIG ───────────────────────────────────────────────────────────────
@@ -1902,6 +1903,265 @@
       if (btn) btn.addEventListener('click', () => { addWeeklyTodo(input.value); input.value = ''; });
       if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addWeeklyTodo(input.value); input.value = ''; } });
     })();
+  </script>
+
+  <script>
+  (function () {
+    'use strict';
+
+    const HT_SUPA_URL = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
+    const HT_SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
+    const HT_SB_H = {
+      'Content-Type': 'application/json',
+      'apikey': HT_SUPA_KEY,
+      'Authorization': 'Bearer ' + HT_SUPA_KEY,
+      'Prefer': 'resolution=merge-duplicates',
+    };
+    const HT_LOCAL_KEY = 'ht_data';
+
+    // { habits: [{id, name}], logs: {'YYYY-MM-DD': {'habitId': true}} }
+    let htData = { habits: [], logs: {} };
+    let htSyncTimer = null;
+
+    function htUID() { return 'h_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+    function htToday() {
+      const van = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
+      if (van.getHours() < 6) van.setDate(van.getDate() - 1);
+      return van.getFullYear() + '-' + String(van.getMonth()+1).padStart(2,'0') + '-' + String(van.getDate()).padStart(2,'0');
+    }
+
+    function htLast7() {
+      const today = htToday();
+      const days = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today + 'T12:00:00');
+        d.setDate(d.getDate() - i);
+        days.push(d.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' }));
+      }
+      return days;
+    }
+
+    function htIsDone(habitId, dateStr) {
+      return !!(htData.logs[dateStr] && htData.logs[dateStr][habitId]);
+    }
+
+    function htSetDone(habitId, dateStr, done) {
+      if (!htData.logs[dateStr]) htData.logs[dateStr] = {};
+      if (done) htData.logs[dateStr][habitId] = true;
+      else {
+        delete htData.logs[dateStr][habitId];
+        if (!Object.keys(htData.logs[dateStr]).length) delete htData.logs[dateStr];
+      }
+      htSave();
+      htRender();
+    }
+
+    function htSave() {
+      try { localStorage.setItem(HT_LOCAL_KEY, JSON.stringify(htData)); } catch {}
+      clearTimeout(htSyncTimer);
+      htSyncTimer = setTimeout(async () => {
+        // Prune logs older than 30 days
+        const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
+        const cutoffStr = cutoff.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
+        Object.keys(htData.logs).forEach(d => { if (d < cutoffStr) delete htData.logs[d]; });
+        try {
+          await fetch(HT_SUPA_URL + '/rest/v1/app_state?on_conflict=key', {
+            method: 'POST', headers: HT_SB_H,
+            body: JSON.stringify({ key: 'habit_tracker', data: htData, updated_at: new Date().toISOString() })
+          });
+        } catch (e) { console.warn('[habits] sync failed:', e.message); }
+      }, 800);
+    }
+
+    async function htLoad() {
+      // Instant render from localStorage
+      try {
+        const local = JSON.parse(localStorage.getItem(HT_LOCAL_KEY));
+        if (local && Array.isArray(local.habits)) htData = local;
+      } catch {}
+      htRender();
+      // Then sync from Supabase
+      try {
+        const res = await fetch(HT_SUPA_URL + '/rest/v1/app_state?key=eq.habit_tracker&select=data', { headers: HT_SB_H });
+        if (res.ok) {
+          const rows = await res.json();
+          if (rows.length && rows[0].data && Array.isArray(rows[0].data.habits)) {
+            htData = rows[0].data;
+            try { localStorage.setItem(HT_LOCAL_KEY, JSON.stringify(htData)); } catch {}
+            htRender();
+          }
+        }
+      } catch (e) { console.warn('[habits] load failed:', e.message); }
+    }
+
+    // ── Render today checkboxes ──────────────────────────────────────────────
+    function htRenderToday() {
+      const list  = document.getElementById('htTodayList');
+      const empty = document.getElementById('htTodayEmpty');
+      if (!list || !empty) return;
+      if (!htData.habits.length) {
+        list.innerHTML = '';
+        empty.style.display = '';
+        return;
+      }
+      empty.style.display = 'none';
+      const today = htToday();
+      list.innerHTML = '';
+      htData.habits.forEach(habit => {
+        const done = htIsDone(habit.id, today);
+        const row = document.createElement('div');
+        row.className = 'ht-habit-row' + (done ? ' done' : '');
+        const cb = document.createElement('button');
+        cb.type = 'button';
+        cb.className = 'goal-check' + (done ? ' checked' : '');
+        cb.setAttribute('aria-label', done ? 'Mark undone' : 'Mark done');
+        const name = document.createElement('span');
+        name.className = 'ht-habit-name';
+        name.textContent = habit.name;
+        row.appendChild(cb);
+        row.appendChild(name);
+        row.addEventListener('click', () => htSetDone(habit.id, today, !htIsDone(habit.id, today)));
+        list.appendChild(row);
+      });
+    }
+
+    // ── Render 7-day heatmap grid ─────────────────────────────────────────────
+    function htRenderGrid() {
+      const gridEl   = document.getElementById('htGrid');
+      const gridWrap = document.getElementById('htGridWrap');
+      if (!gridEl) return;
+      if (!htData.habits.length) { gridWrap.style.display = 'none'; return; }
+      gridWrap.style.display = '';
+      const days  = htLast7();
+      const today = htToday();
+      gridEl.style.gridTemplateColumns = 'auto ' + days.map(() => '28px').join(' ');
+      gridEl.innerHTML = '';
+      const DOW = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+      // Header row: empty label + day names
+      const emptyHdr = document.createElement('div');
+      gridEl.appendChild(emptyHdr);
+      days.forEach(d => {
+        const hdr = document.createElement('div');
+        hdr.className = 'ht-grid-day-hdr' + (d === today ? ' is-today' : '');
+        hdr.textContent = DOW[new Date(d + 'T12:00:00').getDay()];
+        gridEl.appendChild(hdr);
+      });
+      // Habit rows
+      htData.habits.forEach(habit => {
+        const nameCell = document.createElement('div');
+        nameCell.className = 'ht-grid-habit-name';
+        nameCell.textContent = habit.name;
+        gridEl.appendChild(nameCell);
+        days.forEach(d => {
+          const cell = document.createElement('div');
+          cell.className = 'ht-cell'
+            + (htIsDone(habit.id, d) ? ' done' : '')
+            + (d === today ? ' is-today' : '');
+          gridEl.appendChild(cell);
+        });
+      });
+    }
+
+    // ── Render % completion chart ─────────────────────────────────────────────
+    let htChart = null;
+    function htRenderChart() {
+      const ctx = document.getElementById('habitChart');
+      if (!ctx || !window.Chart) return;
+      const days   = htLast7();
+      const today  = htToday();
+      const DOW    = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+      const labels = days.map(d => DOW[new Date(d + 'T12:00:00').getDay()]);
+      const total  = htData.habits.length;
+      const data   = days.map(d => {
+        if (!total) return 0;
+        return Math.round(htData.habits.filter(h => htIsDone(h.id, d)).length / total * 100);
+      });
+      const colors = data.map(v => v >= 100 ? '#6ee7b7' : v >= 60 ? '#fbbf24' : v > 0 ? 'rgba(107,227,164,0.45)' : 'rgba(255,255,255,0.07)');
+      if (htChart) {
+        htChart.data.labels = labels;
+        htChart.data.datasets[0].data = data;
+        htChart.data.datasets[0].backgroundColor = colors;
+        htChart.update(); return;
+      }
+      htChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 5, borderSkipped: false }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          animation: { duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 700 },
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y + '% done' } } },
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10 } } },
+            y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10 }, callback: v => v + '%' } }
+          }
+        }
+      });
+    }
+
+    // ── Render manage panel ───────────────────────────────────────────────────
+    function htRenderManage() {
+      const list = document.getElementById('htManageList');
+      if (!list) return;
+      list.innerHTML = '';
+      htData.habits.forEach(habit => {
+        const row = document.createElement('div');
+        row.className = 'ht-manage-row';
+        const name = document.createElement('span');
+        name.className = 'ht-manage-row-name';
+        name.textContent = habit.name;
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'ht-manage-del';
+        del.textContent = '×';
+        del.setAttribute('aria-label', 'Remove ' + habit.name);
+        del.addEventListener('click', () => {
+          htData.habits = htData.habits.filter(h => h.id !== habit.id);
+          htSave(); htRender();
+        });
+        row.appendChild(name);
+        row.appendChild(del);
+        list.appendChild(row);
+      });
+    }
+
+    function htRender() {
+      htRenderToday();
+      htRenderGrid();
+      htRenderChart();
+      htRenderManage();
+    }
+
+    // ── Wire up ───────────────────────────────────────────────────────────────
+    function htWire() {
+      const toggle = document.getElementById('htManageToggle');
+      const panel  = document.getElementById('htManagePanel');
+      if (toggle && panel) {
+        toggle.addEventListener('click', () => {
+          const opening = panel.style.display === 'none';
+          panel.style.display = opening ? '' : 'none';
+          toggle.textContent = opening ? 'Done' : 'Manage';
+        });
+      }
+      const input  = document.getElementById('htInput');
+      const addBtn = document.getElementById('htAddBtn');
+      const doAdd  = () => {
+        const name = (input.value || '').trim();
+        if (!name) return;
+        htData.habits.push({ id: htUID(), name });
+        input.value = '';
+        htSave(); htRender();
+      };
+      if (addBtn) addBtn.addEventListener('click', doAdd);
+      if (input)  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => { htWire(); htLoad(); }, { once: true });
+    } else {
+      htWire(); htLoad();
+    }
+  })();
   </script>
 
   <nav class="tabbar" aria-label="Bottom navigation">
