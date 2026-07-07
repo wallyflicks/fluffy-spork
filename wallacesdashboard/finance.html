@@ -260,7 +260,6 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
 .fin-wish-bar-track { height: 5px; border-radius: 99px; background: rgba(255,255,255,0.07); margin: 6px 0 2px; overflow: hidden; }
 .fin-wish-bar-fill  { height: 100%; border-radius: 99px; background: var(--info); transition: width 0.5s cubic-bezier(0.22,1,0.36,1); max-width: 100%; }
 .fin-wish-pct       { font-size: 10px; color: var(--text-3); font-variant-numeric: tabular-nums; }
-.fin-wish-link-hint { font-size: 11px; color: var(--text-3); min-height: 16px; }
 
 /* Tabbar */
 .tabbar {
@@ -717,11 +716,6 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
           <label>Item name</label>
           <input class="fin-input" type="text" id="wishName" placeholder="Sony WH-1000XM5, MacBook Pro…">
         </div>
-        <div class="fin-field fin-form-span">
-          <label>Product link (optional — paste to auto-fill price)</label>
-          <input class="fin-input" type="url" id="wishLink" placeholder="https://…">
-        </div>
-        <div id="wishLinkHint" class="fin-wish-link-hint fin-form-span"></div>
         <div class="fin-field">
           <label>Cost ($)</label>
           <input class="fin-input" type="number" id="wishCost" placeholder="299.99" min="0" step="0.01">
@@ -1930,52 +1924,14 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     // ── Wishlist ──
     wireToggle('wishAddToggle', 'wishAddPanel');
 
-    async function fetchWishlistPrice(url) {
-      const hintEl = document.getElementById('wishLinkHint');
-      if (!url) { hintEl.textContent = ''; return; }
-      hintEl.textContent = 'Looking up price…';
-      hintEl.style.color = 'var(--text-3)';
-      try {
-        const res = await fetch('/api/fetch-price?url=' + encodeURIComponent(url));
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        if (data.price) {
-          document.getElementById('wishCost').value = data.price;
-          hintEl.textContent = 'Price auto-filled from product page';
-          hintEl.style.color = 'var(--good)';
-        } else {
-          hintEl.textContent = "Couldn't detect price, enter manually";
-          hintEl.style.color = 'var(--text-3)';
-        }
-      } catch {
-        hintEl.textContent = "Couldn't detect price, enter manually";
-        hintEl.style.color = 'var(--text-3)';
-      }
-    }
-
-    let _wishLinkTimer = null;
-    const wishLinkEl = document.getElementById('wishLink');
-    wishLinkEl.addEventListener('paste', e => {
-      clearTimeout(_wishLinkTimer);
-      const pasted = (e.clipboardData || window.clipboardData).getData('text').trim();
-      if (pasted) _wishLinkTimer = setTimeout(() => fetchWishlistPrice(pasted), 80);
-    });
-    wishLinkEl.addEventListener('change', () => {
-      const url = wishLinkEl.value.trim();
-      if (url) fetchWishlistPrice(url);
-    });
-
     document.getElementById('wishSave').addEventListener('click', () => {
       const name = document.getElementById('wishName').value.trim();
       const cost = parseFloat(document.getElementById('wishCost').value);
-      const link = wishLinkEl.value.trim();
       if (!name || isNaN(cost) || cost < 0) return;
       const arr = load(K.WISH);
-      arr.push({ id: uid(), name, cost, link: link || null, addedAt: today() });
+      arr.push({ id: uid(), name, cost, link: null, addedAt: today() });
       save(K.WISH, arr);
       ['wishName', 'wishCost'].forEach(id => document.getElementById(id).value = '');
-      wishLinkEl.value = '';
-      document.getElementById('wishLinkHint').textContent = '';
       document.getElementById('wishAddPanel').classList.remove('open');
       document.getElementById('wishAddToggle').textContent = '+ Add';
       renderWishlist();
