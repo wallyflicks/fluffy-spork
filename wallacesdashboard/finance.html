@@ -256,6 +256,12 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
   .fin-goal-stats { flex-direction: column; gap: 4px; }
 }
 
+/* Wishlist */
+.fin-wish-bar-track { height: 5px; border-radius: 99px; background: rgba(255,255,255,0.07); margin: 6px 0 2px; overflow: hidden; }
+.fin-wish-bar-fill  { height: 100%; border-radius: 99px; background: var(--info); transition: width 0.5s cubic-bezier(0.22,1,0.36,1); max-width: 100%; }
+.fin-wish-pct       { font-size: 10px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.fin-wish-link-hint { font-size: 11px; color: var(--text-3); min-height: 16px; }
+
 /* Tabbar */
 .tabbar {
   position: fixed;
@@ -685,6 +691,49 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     </div>
   </div>
 
+  <!-- ══════════════════════════════════════════════════════════════════
+       SECTION 7 — WISHLIST
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="fin-divider"><span>Wishlist</span></div>
+
+  <!-- Running total card (hidden until items exist) -->
+  <div class="fin-card" id="wishTotalCard" style="display:none">
+    <div class="fin-section-title">Wishlist Total</div>
+    <div style="display:flex;align-items:baseline;gap:10px;margin:6px 0 0">
+      <div id="wishTotalVal" style="font-size:24px;font-weight:600;font-variant-numeric:tabular-nums"></div>
+      <div id="wishTotalPct" class="fin-wish-pct" style="font-size:13px"></div>
+    </div>
+    <div class="fin-wish-bar-track"><div id="wishTotalBar" class="fin-wish-bar-fill" style="width:0%"></div></div>
+  </div>
+
+  <div class="fin-card">
+    <div class="fin-toggle-row">
+      <div class="fin-section-title" style="margin:0">Add wishlist item</div>
+      <button class="fin-btn sm" id="wishAddToggle">+ Add</button>
+    </div>
+    <div class="fin-collapse-panel" id="wishAddPanel">
+      <div class="fin-form">
+        <div class="fin-field fin-form-span">
+          <label>Item name</label>
+          <input class="fin-input" type="text" id="wishName" placeholder="Sony WH-1000XM5, MacBook Pro…">
+        </div>
+        <div class="fin-field fin-form-span">
+          <label>Product link (optional — paste to auto-fill price)</label>
+          <input class="fin-input" type="url" id="wishLink" placeholder="https://…">
+        </div>
+        <div id="wishLinkHint" class="fin-wish-link-hint fin-form-span"></div>
+        <div class="fin-field">
+          <label>Cost ($)</label>
+          <input class="fin-input" type="number" id="wishCost" placeholder="299.99" min="0" step="0.01">
+        </div>
+        <div class="fin-form-span">
+          <button class="fin-btn primary full" id="wishSave">Add to wishlist</button>
+        </div>
+      </div>
+    </div>
+    <div id="wishList" class="fin-list" style="margin-top:10px"></div>
+  </div>
+
 </div><!-- end .fin-shell -->
 
 <nav class="tabbar" aria-label="Bottom navigation">
@@ -714,6 +763,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     SUB:   'finance_subscriptions',       // [{ id, name, costMonthly, billingCycle, notes }]
     EXP:   'finance_expenses',            // [{ id, desc, amount, date, tag }]
     GOALS: 'finance_savings_goals',       // [{ id, name, target, current, deadline }]
+    WISH:  'finance_wishlist',            // [{ id, name, cost, link, addedAt }]
   };
   const RATE_KEY     = 'usdCadRate';             // { rate: number, date: 'YYYY-MM-DD' }
   const SNAPSHOT_KEY = 'portfolioSnapshots';     // [{ date: 'YYYY-MM-DD', valueCAD: number }]
@@ -758,7 +808,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     if (!document.hidden) finLoadFromSupabase().then(() => {
       renderCash(); renderInvAccounts(); renderStocks();
       renderIncome(); renderSubs(); renderExpenses();
-      renderCashFlow(); renderNetWorth();
+      renderCashFlow(); renderNetWorth(); renderWishlist();
     });
   });
 
@@ -1634,6 +1684,66 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
   }
 
   // ═════════════════════════════════════════════════════════════════════════
+  // WISHLIST
+  // ═════════════════════════════════════════════════════════════════════════
+  function renderWishlist() {
+    const items      = load(K.WISH);
+    const nw         = calcNetWorth().total;
+    const totalCard  = document.getElementById('wishTotalCard');
+    const totalValEl = document.getElementById('wishTotalVal');
+    const totalPctEl = document.getElementById('wishTotalPct');
+    const totalBar   = document.getElementById('wishTotalBar');
+    const list       = document.getElementById('wishList');
+    if (!list) return;
+
+    const grandTotal = items.reduce((s, i) => s + (i.cost || 0), 0);
+
+    if (!items.length) {
+      totalCard.style.display = 'none';
+      list.innerHTML = '<div class="fin-empty">No wishlist items yet.</div>';
+      return;
+    }
+
+    totalCard.style.display = 'block';
+    totalValEl.textContent = fmt$(grandTotal, 2);
+    const totalPct = nw > 0 ? grandTotal / nw * 100 : 0;
+    totalPctEl.textContent = totalPct.toFixed(1) + '% of net worth';
+    totalBar.style.width = Math.min(100, totalPct) + '%';
+
+    list.innerHTML = '';
+    items.forEach(item => {
+      const pct = nw > 0 ? item.cost / nw * 100 : 0;
+      const el = document.createElement('div');
+      el.className = 'fin-item';
+      el.style.cssText = 'flex-direction:column;gap:4px';
+
+      const topRow = document.createElement('div');
+      topRow.style.cssText = 'display:flex;align-items:flex-start;gap:10px;width:100%';
+      topRow.innerHTML = `
+        <div class="fin-item-body">
+          <div class="fin-item-title">${item.name}</div>
+          ${item.link ? `<div class="fin-item-sub"><a href="${item.link}" target="_blank" rel="noopener noreferrer" style="color:var(--info);text-decoration:none">view product</a></div>` : ''}
+        </div>
+        <div class="fin-item-right" style="flex-shrink:0">
+          <div class="fin-item-value neutral">${fmt$(item.cost, 2)}</div>
+          <div class="fin-wish-pct">${pct.toFixed(1)}% of net worth</div>
+        </div>
+      `;
+      topRow.appendChild(makeDeleteBtn(() => {
+        save(K.WISH, load(K.WISH).filter(x => x.id !== item.id));
+        renderWishlist();
+      }));
+
+      const barRow = document.createElement('div');
+      barRow.innerHTML = `<div class="fin-wish-bar-track"><div class="fin-wish-bar-fill" style="width:${Math.min(100, pct)}%"></div></div>`;
+
+      el.appendChild(topRow);
+      el.appendChild(barRow);
+      list.appendChild(el);
+    });
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
   // EVENT WIRING
   // ═════════════════════════════════════════════════════════════════════════
   function wireAll() {
@@ -1817,6 +1927,60 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
       renderGoals();
     });
 
+    // ── Wishlist ──
+    wireToggle('wishAddToggle', 'wishAddPanel');
+
+    async function fetchWishlistPrice(url) {
+      const hintEl = document.getElementById('wishLinkHint');
+      if (!url) { hintEl.textContent = ''; return; }
+      hintEl.textContent = 'Looking up price…';
+      hintEl.style.color = 'var(--text-3)';
+      try {
+        const res = await fetch('/api/fetch-price?url=' + encodeURIComponent(url));
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        if (data.price) {
+          document.getElementById('wishCost').value = data.price;
+          hintEl.textContent = 'Price auto-filled from product page';
+          hintEl.style.color = 'var(--good)';
+        } else {
+          hintEl.textContent = "Couldn't detect price, enter manually";
+          hintEl.style.color = 'var(--text-3)';
+        }
+      } catch {
+        hintEl.textContent = "Couldn't detect price, enter manually";
+        hintEl.style.color = 'var(--text-3)';
+      }
+    }
+
+    let _wishLinkTimer = null;
+    const wishLinkEl = document.getElementById('wishLink');
+    wishLinkEl.addEventListener('paste', e => {
+      clearTimeout(_wishLinkTimer);
+      const pasted = (e.clipboardData || window.clipboardData).getData('text').trim();
+      if (pasted) _wishLinkTimer = setTimeout(() => fetchWishlistPrice(pasted), 80);
+    });
+    wishLinkEl.addEventListener('change', () => {
+      const url = wishLinkEl.value.trim();
+      if (url) fetchWishlistPrice(url);
+    });
+
+    document.getElementById('wishSave').addEventListener('click', () => {
+      const name = document.getElementById('wishName').value.trim();
+      const cost = parseFloat(document.getElementById('wishCost').value);
+      const link = wishLinkEl.value.trim();
+      if (!name || isNaN(cost) || cost < 0) return;
+      const arr = load(K.WISH);
+      arr.push({ id: uid(), name, cost, link: link || null, addedAt: today() });
+      save(K.WISH, arr);
+      ['wishName', 'wishCost'].forEach(id => document.getElementById(id).value = '');
+      wishLinkEl.value = '';
+      document.getElementById('wishLinkHint').textContent = '';
+      document.getElementById('wishAddPanel').classList.remove('open');
+      document.getElementById('wishAddToggle').textContent = '+ Add';
+      renderWishlist();
+    });
+
     // Enter key in any input triggers its panel's primary button
     document.querySelectorAll('.fin-input').forEach(el => {
       el.addEventListener('keydown', e => {
@@ -1843,6 +2007,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     renderSubs();
     renderExpenses();
     renderGoals();
+    renderWishlist();
     renderCashFlow();
     renderNetWorth();
 
