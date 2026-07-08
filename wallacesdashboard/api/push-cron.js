@@ -203,8 +203,15 @@ module.exports = async function handler(req, res) {
       const subs = (finRows[0]?.data?.finance_subscriptions) || [];
       subs.forEach(s => {
         if (!s.billingDate) return;
+        // Roll forward stale dates before computing diff
+        let bd = new Date(s.billingDate + 'T12:00:00');
+        const vanToday = new Date(vanDate + 'T12:00:00');
+        while (bd <= vanToday) {
+          s.billingCycle === 'yearly' ? bd.setFullYear(bd.getFullYear() + 1) : bd.setMonth(bd.getMonth() + 1);
+        }
+        const billingDate = bd.toISOString().slice(0, 10);
         const remindDays = s.remindDaysBefore ?? 3;
-        const diff = Math.round((new Date(s.billingDate + 'T00:00:00') - new Date(vanDate + 'T00:00:00')) / 86400000);
+        const diff = Math.round((new Date(billingDate + 'T00:00:00') - new Date(vanDate + 'T00:00:00')) / 86400000);
         if (diff === remindDays || (diff === 1 && remindDays !== 1)) {
           subRenewals.push({ name: s.name, days: diff, cost: s.costMonthly });
         }

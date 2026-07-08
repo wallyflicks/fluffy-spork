@@ -1504,6 +1504,29 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     return changed;
   }
 
+  function advanceDateToFuture(dateStr, cycle) {
+    let d = new Date(dateStr + 'T12:00:00');
+    const todayD = new Date(todayVan() + 'T12:00:00');
+    while (d <= todayD) {
+      cycle === 'yearly' ? d.setFullYear(d.getFullYear() + 1) : d.setMonth(d.getMonth() + 1);
+    }
+    return d.toISOString().slice(0, 10);
+  }
+
+  function normalizeSubDates() {
+    const todayD = new Date(todayVan() + 'T12:00:00');
+    const subs = load(K.SUB);
+    let changed = false;
+    subs.forEach(s => {
+      if (!s.billingDate) return;
+      if (new Date(s.billingDate + 'T12:00:00') <= todayD) {
+        s.billingDate = advanceDateToFuture(s.billingDate, s.billingCycle || 'monthly');
+        changed = true;
+      }
+    });
+    if (changed) save(K.SUB, subs);
+  }
+
   function renderSubs() {
     const subs = load(K.SUB);
     const todayStr = today();
@@ -1987,6 +2010,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     await finLoadFromSupabase();
     wireAll();
     processSubscriptionBilling(); // auto-log any subscriptions due today
+    normalizeSubDates(); // roll forward any past-dated subscriptions
     renderCash();
     renderInvAccounts();
     renderStocks();
