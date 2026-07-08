@@ -308,7 +308,13 @@ select.c-input option { background: #1a1a1c; }
           </div>
           <div class="c-field">
             <label>Amount</label>
-            <input class="c-input" type="number" id="payAmount" placeholder="0.00" min="0" step="0.01">
+            <div style="display:flex;gap:6px;align-items:center">
+              <input class="c-input" type="number" id="payAmount" placeholder="0.00" min="0" step="0.01" style="flex:1">
+              <div class="period-toggle" id="payCurrencyToggle" style="margin-bottom:0;flex-shrink:0;width:auto">
+                <button class="pt-btn" id="payCurUSD" onclick="setPayCurrency('USD')">USD</button>
+                <button class="pt-btn active" id="payCurCAD" onclick="setPayCurrency('CAD')">CAD</button>
+              </div>
+            </div>
           </div>
           <div class="c-field">
             <label>Date</label>
@@ -329,6 +335,7 @@ select.c-input option { background: #1a1a1c; }
     <!-- SECTION 3 — EARNINGS SUMMARY -->
     <div>
       <div class="sec-divider"><span>Earnings Summary</span></div>
+      <p style="font-size:11px;color:var(--text-3);margin:0 0 10px;">Estimated from logged videos — not yet received</p>
       <div class="c-card">
         <div class="summary-grid">
           <div class="summary-stat">
@@ -1137,11 +1144,20 @@ document.getElementById('payType').addEventListener('change', () => {
 });
 
 document.getElementById('payBrand').addEventListener('change', () => {
+  const _d = ls(LS_DEALS).find(d => d.id === document.getElementById('payBrand').value);
+  if (_d) setPayCurrency(_d.currency || 'CAD');
   if (document.getElementById('payType').value === 'flat') autoFillFlat();
   else recalcViews();
 });
 
 document.getElementById('payViews').addEventListener('input', recalcViews);
+
+let _payCurrency = 'CAD';
+function setPayCurrency(cur) {
+  _payCurrency = cur;
+  document.getElementById('payCurUSD').classList.toggle('active', cur === 'USD');
+  document.getElementById('payCurCAD').classList.toggle('active', cur === 'CAD');
+}
 
 function autoFillFlat() {
   const id   = document.getElementById('payBrand').value;
@@ -1170,7 +1186,7 @@ document.getElementById('logPaymentBtn').addEventListener('click', async () => {
   const payRow = {
     id: uid(), deal_id: dealId, brand_name: deal.brand_name,
     payment_type: type === 'flat' ? 'Flat rate' : 'View bonus',
-    amount, currency: deal.currency || 'CAD', date, notes,
+    amount, currency: _payCurrency, date, notes,
     created_at: new Date().toISOString()
   };
 
@@ -1181,7 +1197,7 @@ document.getElementById('logPaymentBtn').addEventListener('click', async () => {
   await pushToFinance({
     id: 'ugc_' + payRow.id,
     desc: 'UGC: ' + deal.brand_name + (notes ? ' — ' + notes : ''),
-    amount, date, tag: 'ugc'
+    amount, date, tag: 'ugc', currency: _payCurrency
   });
 
   document.getElementById('payBrand').value  = '';
@@ -1191,6 +1207,7 @@ document.getElementById('logPaymentBtn').addEventListener('click', async () => {
   document.getElementById('payDate').value   = todayVan();
   document.getElementById('payType').value   = 'flat';
   document.getElementById('viewsField').style.display = 'none';
+  setPayCurrency('CAD');
 
   renderPayments();
   renderSummary();

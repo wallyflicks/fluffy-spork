@@ -1606,7 +1606,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
           <div class="fin-item-sub">${e.date}${e.tag ? ' · <span class="fin-tag">'+e.tag+'</span>' : ''}</div>
         </div>
         <div class="fin-item-right">
-          <div class="fin-item-value neutral">${fmt$(e.amount,2)}</div>
+          <div class="fin-item-value neutral">${fmt$(e.amount,2)}${e.currency ? '<span class="fin-stock-currency">'+e.currency+'</span>' : ''}</div>
         </div>
       `;
       item.appendChild(makeDeleteBtn(() => { save(storageKey, load(storageKey).filter(x => x.id !== e.id)); refreshFn(); }));
