@@ -118,7 +118,6 @@ select.c-input option { background: #1a1a1c; }
 .payment-item-amount { font-size: 14px; font-weight: 600; color: var(--good); font-variant-numeric: tabular-nums; }
 .payment-item-date { font-size: 11px; color: var(--text-3); margin-top: 2px; }
 
-
 .summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 @media (max-width: 360px) { .summary-grid { grid-template-columns: 1fr; } }
 .summary-stat { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
@@ -142,6 +141,52 @@ select.c-input option { background: #1a1a1c; }
   box-shadow: 0 8px 24px rgba(0,0,0,0.5);
   white-space: nowrap;
 }
+
+/* Period toggle (Earnings History) */
+.period-toggle { display: flex; gap: 3px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; padding: 3px; margin-bottom: 14px; }
+.pt-btn { flex: 1; padding: 5px 0; border: none; background: transparent; color: var(--text-3); font-family: var(--font); font-size: 11px; font-weight: 600; border-radius: 6px; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background 0.15s, color 0.15s; }
+.pt-btn.active { background: rgba(255,255,255,0.1); color: var(--text-1); }
+
+/* View toggle (List / Calendar) */
+.view-toggle { display: flex; gap: 3px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; padding: 3px; }
+.view-toggle-btn { flex: 1; padding: 8px 0; border: none; background: transparent; color: var(--text-3); font-family: var(--font); font-size: 12px; font-weight: 600; border-radius: 8px; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background 0.15s, color 0.15s; }
+.view-toggle-btn.active { background: rgba(255,255,255,0.1); color: var(--text-1); }
+
+/* Calendar grid */
+.cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.cal-nav-title { font-size: 15px; font-weight: 700; }
+.cal-nav-btns { display: flex; gap: 5px; align-items: center; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-day-hdr { text-align: center; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; color: var(--text-4); padding: 4px 0 7px; text-transform: uppercase; }
+.cal-cell {
+  min-height: 60px; border-radius: 7px; padding: 4px 3px 3px;
+  border: 1px solid transparent; cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  background: rgba(255,255,255,0.02);
+  display: flex; flex-direction: column; gap: 2px;
+  overflow: hidden;
+}
+.cal-cell:hover { background: rgba(255,255,255,0.05); border-color: var(--border); }
+.cal-cell.other-month { opacity: 0.28; cursor: default; }
+.cal-cell.other-month:hover { background: rgba(255,255,255,0.02); border-color: transparent; }
+.cal-cell.today { border-color: rgba(110,231,183,0.35); background: rgba(110,231,183,0.04); }
+.cal-day-num { font-size: 10px; font-weight: 600; color: var(--text-3); line-height: 1; padding: 1px 2px; }
+.cal-cell.today .cal-day-num { color: var(--good); }
+
+/* Content video cards on calendar */
+.cv-card { border-radius: 4px; padding: 2px 4px; font-size: 9px; font-weight: 600; line-height: 1.35; cursor: pointer; display: flex; align-items: flex-start; gap: 3px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.07); overflow: hidden; -webkit-tap-highlight-color: transparent; }
+.cv-card:hover { background: rgba(255,255,255,0.09); }
+.cv-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+.cv-dot.not-started { background: #6b7280; }
+.cv-dot.filmed      { background: #60a5fa; }
+.cv-dot.editing     { background: #fbbf24; }
+.cv-dot.blocked     { background: #f87171; }
+.cv-dot.posted      { background: #6ee7b7; }
+.cv-card-label { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+
+/* CV modal status badge preview */
+.cv-status-row { display: flex; align-items: center; gap: 8px; }
+.cv-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
 .sync-bar { display: flex; align-items: center; gap: 6px; font-size: 10px; font-family: var(--mono); color: var(--text-4); letter-spacing: 0.06em; }
 .sync-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-4); flex-shrink: 0; }
@@ -213,110 +258,142 @@ select.c-input option { background: #1a1a1c; }
     </div>
   </div>
 
-  <!-- SECTION 1 — BRAND DEALS -->
-  <div>
-    <div class="sec-divider"><span>Brand Deals</span></div>
-    <div class="c-card">
-      <div class="row-between" style="margin-bottom:14px">
-        <div class="sec-label" style="margin:0">Active deals</div>
-        <button class="c-btn sm primary" id="addDealBtn">+ Add Deal</button>
-      </div>
-      <div id="dealList" class="deal-list">
-        <div class="empty-state">No deals yet — add your first brand deal.</div>
-      </div>
-    </div>
+  <!-- List / Calendar toggle -->
+  <div class="view-toggle">
+    <button class="view-toggle-btn active" data-view="list" onclick="setView('list')">List</button>
+    <button class="view-toggle-btn" data-view="calendar" onclick="setView('calendar')">Calendar</button>
   </div>
 
-  <!-- SECTION 2 — LOG A PAYMENT -->
-  <div>
-    <div class="sec-divider"><span>Log a Payment</span></div>
-    <div class="c-card">
-      <div class="c-form">
-        <div class="c-field c-form-span">
-          <label>Brand</label>
-          <select class="c-input" id="payBrand">
-            <option value="">Select brand…</option>
-          </select>
-        </div>
-        <div class="c-field">
-          <label>Payment Type</label>
-          <select class="c-input" id="payType">
-            <option value="flat">Flat Rate</option>
-            <option value="views">View Bonus</option>
-          </select>
-        </div>
-        <div class="c-field" id="viewsField" style="display:none">
-          <label>Views</label>
-          <input class="c-input" type="number" id="payViews" placeholder="125000" min="0">
-        </div>
-        <div class="c-field">
-          <label>Amount</label>
-          <input class="c-input" type="number" id="payAmount" placeholder="0.00" min="0" step="0.01">
-        </div>
-        <div class="c-field">
-          <label>Date</label>
-          <input class="c-input" type="date" id="payDate">
-        </div>
-        <div class="c-field c-form-span">
-          <label>Notes</label>
-          <input class="c-input" type="text" id="payNotes" placeholder="for May reel #2…">
-        </div>
-        <div class="c-form-span">
-          <button class="c-btn primary full" id="logPaymentBtn">Log Payment → Finance</button>
-        </div>
-      </div>
-      <div id="paymentList" class="payment-list"></div>
-    </div>
-  </div>
+  <!-- LIST VIEW -->
+  <div id="listView">
 
-  <!-- SECTION 3 — EARNINGS SUMMARY -->
-  <div>
-    <div class="sec-divider"><span>Earnings Summary</span></div>
-    <div class="c-card">
-      <div class="summary-grid">
-        <div class="summary-stat">
-          <div class="summary-stat-label">This Month</div>
-          <div class="summary-stat-value good" id="earningsMonth">$0.00</div>
+    <!-- SECTION 1 — BRAND DEALS -->
+    <div>
+      <div class="sec-divider"><span>Brand Deals</span></div>
+      <div class="c-card">
+        <div class="row-between" style="margin-bottom:14px">
+          <div class="sec-label" style="margin:0">Active deals</div>
+          <button class="c-btn sm primary" id="addDealBtn">+ Add Deal</button>
         </div>
-        <div class="summary-stat">
-          <div class="summary-stat-label">All Time</div>
-          <div class="summary-stat-value good" id="earningsAllTime">$0.00</div>
+        <div id="dealList" class="deal-list">
+          <div class="empty-state">No deals yet — add your first brand deal.</div>
         </div>
-        <div class="summary-stat">
-          <div class="summary-stat-label">Avg Per Video</div>
-          <div class="summary-stat-value" id="earningsAvg">$0.00</div>
-        </div>
-        <div class="summary-stat">
-          <div class="summary-stat-label">Income Logged</div>
-          <div class="summary-stat-value" id="earningsCount">0</div>
-        </div>
-      </div>
-      <div class="c-chart-wrap">
-        <div class="sec-label" style="margin-top:16px;margin-bottom:8px">Earnings by brand</div>
-        <canvas id="brandChart" style="display:none"></canvas>
-        <div class="empty-state" id="chartEmpty">Log payments to see earnings by brand.</div>
       </div>
     </div>
-  </div>
 
-  <!-- SECTION 4b — EDITOR COSTS -->
-  <div>
-    <div class="sec-divider"><span>Editor Costs</span></div>
-    <div class="c-card">
-      <div id="editorCostContent">
-        <div class="empty-state">No editor costs logged this month.</div>
+    <!-- SECTION 2 — LOG A PAYMENT -->
+    <div>
+      <div class="sec-divider"><span>Log a Payment</span></div>
+      <div class="c-card">
+        <div class="c-form">
+          <div class="c-field c-form-span">
+            <label>Brand</label>
+            <select class="c-input" id="payBrand">
+              <option value="">Select brand…</option>
+            </select>
+          </div>
+          <div class="c-field">
+            <label>Payment Type</label>
+            <select class="c-input" id="payType">
+              <option value="flat">Flat Rate</option>
+              <option value="views">View Bonus</option>
+            </select>
+          </div>
+          <div class="c-field" id="viewsField" style="display:none">
+            <label>Views</label>
+            <input class="c-input" type="number" id="payViews" placeholder="125000" min="0">
+          </div>
+          <div class="c-field">
+            <label>Amount</label>
+            <input class="c-input" type="number" id="payAmount" placeholder="0.00" min="0" step="0.01">
+          </div>
+          <div class="c-field">
+            <label>Date</label>
+            <input class="c-input" type="date" id="payDate">
+          </div>
+          <div class="c-field c-form-span">
+            <label>Notes</label>
+            <input class="c-input" type="text" id="payNotes" placeholder="for May reel #2…">
+          </div>
+          <div class="c-form-span">
+            <button class="c-btn primary full" id="logPaymentBtn">Log Payment → Finance</button>
+          </div>
+        </div>
+        <div id="paymentList" class="payment-list"></div>
       </div>
     </div>
-  </div>
 
-  <!-- SECTION 5 — EARNINGS HISTORY -->
-  <div>
-    <div class="sec-divider"><span>Earnings History</span></div>
-    <div class="c-card">
-      <div class="sec-label" style="margin-bottom:12px">Last 6 months — UGC total</div>
-      <div id="earningsHistoryChart" class="eh-wrap">
-        <div class="empty-state" id="ehEmpty">Log payments or videos to see history.</div>
+    <!-- SECTION 3 — EARNINGS SUMMARY -->
+    <div>
+      <div class="sec-divider"><span>Earnings Summary</span></div>
+      <div class="c-card">
+        <div class="summary-grid">
+          <div class="summary-stat">
+            <div class="summary-stat-label">This Month</div>
+            <div class="summary-stat-value good" id="earningsMonth">$0.00</div>
+          </div>
+          <div class="summary-stat">
+            <div class="summary-stat-label">All Time</div>
+            <div class="summary-stat-value good" id="earningsAllTime">$0.00</div>
+          </div>
+          <div class="summary-stat">
+            <div class="summary-stat-label">Avg Per Video</div>
+            <div class="summary-stat-value" id="earningsAvg">$0.00</div>
+          </div>
+          <div class="summary-stat">
+            <div class="summary-stat-label">Income Logged</div>
+            <div class="summary-stat-value" id="earningsCount">0</div>
+          </div>
+        </div>
+        <div class="c-chart-wrap">
+          <div class="sec-label" style="margin-top:16px;margin-bottom:8px">Earnings by brand</div>
+          <canvas id="brandChart" style="display:none"></canvas>
+          <div class="empty-state" id="chartEmpty">Log payments to see earnings by brand.</div>
+        </div>
       </div>
+    </div>
+
+    <!-- SECTION 4b — EDITOR COSTS -->
+    <div>
+      <div class="sec-divider"><span>Editor Costs</span></div>
+      <div class="c-card">
+        <div id="editorCostContent">
+          <div class="empty-state">No editor costs logged this month.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 5 — EARNINGS HISTORY -->
+    <div>
+      <div class="sec-divider"><span>Earnings History</span></div>
+      <div class="c-card">
+        <div class="sec-label" id="ehPeriodLabel" style="margin-bottom:8px">Last 6 months — UGC total</div>
+        <div class="period-toggle">
+          <button class="pt-btn" data-period="day"   onclick="setEHPeriod('day')">Day</button>
+          <button class="pt-btn" data-period="week"  onclick="setEHPeriod('week')">Week</button>
+          <button class="pt-btn active" data-period="month" onclick="setEHPeriod('month')">Month</button>
+          <button class="pt-btn" data-period="year"  onclick="setEHPeriod('year')">Year</button>
+        </div>
+        <div id="earningsHistoryChart" class="eh-wrap">
+          <div class="empty-state" id="ehEmpty">Log payments or videos to see history.</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /#listView -->
+
+  <!-- CALENDAR VIEW -->
+  <div id="calendarView" style="display:none">
+    <div class="c-card">
+      <div class="cal-nav">
+        <div class="cal-nav-title" id="calNavTitle"></div>
+        <div class="cal-nav-btns">
+          <button class="c-btn sm" onclick="calToday()">Today</button>
+          <button class="c-btn sm" onclick="calPrev()" aria-label="Previous month"><i data-lucide="chevron-left" style="width:14px;height:14px;pointer-events:none"></i></button>
+          <button class="c-btn sm" onclick="calNext()" aria-label="Next month"><i data-lucide="chevron-right" style="width:14px;height:14px;pointer-events:none"></i></button>
+        </div>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
     </div>
   </div>
 
@@ -378,6 +455,56 @@ select.c-input option { background: #1a1a1c; }
   </div>
 </div>
 
+<!-- CONTENT VIDEO MODAL -->
+<div class="modal-overlay" id="cvModal">
+  <div class="modal-sheet">
+    <div class="modal-hdr">
+      <div class="modal-title" id="cvModalTitle">New Video</div>
+      <button class="modal-close" onclick="closeCVModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="c-form">
+        <div class="c-field c-form-span">
+          <label>Title *</label>
+          <input class="c-input" type="text" id="cvTitle" placeholder="Video title…">
+        </div>
+        <div class="c-field">
+          <label>Brand</label>
+          <select class="c-input" id="cvBrand">
+            <option value="">None / Personal</option>
+          </select>
+        </div>
+        <div class="c-field">
+          <label>Status</label>
+          <select class="c-input" id="cvStatus">
+            <option value="Not Started">Not Started</option>
+            <option value="Filmed">Filmed</option>
+            <option value="Editing">Editing</option>
+            <option value="Blocked">Blocked</option>
+            <option value="Posted">Posted</option>
+          </select>
+        </div>
+        <div class="c-field c-form-span">
+          <label>Post Date</label>
+          <input class="c-input" type="date" id="cvPostDate">
+        </div>
+        <div class="c-field c-form-span">
+          <label>Notes / Blockers</label>
+          <input class="c-input" type="text" id="cvNotes" placeholder="Blockers, issues…">
+        </div>
+        <div class="c-field c-form-span">
+          <label>Script / Tasks</label>
+          <textarea class="c-input" id="cvScript" placeholder="Script outline, tasks…" rows="3" style="resize:vertical;line-height:1.5"></textarea>
+        </div>
+        <div class="c-form-span" style="display:flex;gap:8px;margin-top:4px">
+          <button class="c-btn primary" style="flex:1" onclick="saveCVVideo()">Save Video</button>
+          <button class="c-btn danger" id="cvDeleteBtn" onclick="confirmDeleteCVVideo()" style="display:none">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- NAV -->
 <nav class="tabbar" aria-label="Bottom navigation">
   <div class="tabbar-inner">
@@ -410,6 +537,7 @@ const SB_RH = { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY };
 const LS_DEALS    = 'ugc_deals';
 const LS_PAYMENTS = 'ugc_payments';
 const LS_VIDEOS   = 'ugc_videos';
+const LS_CV       = 'content_videos';
 
 const FIN_INC  = 'finance_income';
 
@@ -429,7 +557,7 @@ function esc(s)     { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&
 function ls(k)      { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } }
 function lsSet(k,v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 
-// ── Cloud sync (app_state table, same as gym/deepwork/index) ─────
+// ── Cloud sync ────────────────────────────────────────────────────
 async function fetchFromCloud() {
   const res = await fetch(`${SUPA_URL}/rest/v1/app_state?key=eq.${CONTENT_KEY}&select=data`, { headers: SB_RH });
   if (!res.ok) throw new Error('fetch failed ' + res.status);
@@ -437,14 +565,18 @@ async function fetchFromCloud() {
   return (rows.length && rows[0].data) ? rows[0].data : null;
 }
 async function pushToCloud() {
-  const bundle = { [LS_DEALS]: ls(LS_DEALS), [LS_PAYMENTS]: ls(LS_PAYMENTS), [LS_VIDEOS]: ls(LS_VIDEOS) };
+  const bundle = {
+    [LS_DEALS]:    ls(LS_DEALS),
+    [LS_PAYMENTS]: ls(LS_PAYMENTS),
+    [LS_VIDEOS]:   ls(LS_VIDEOS),
+    [LS_CV]:       ls(LS_CV)
+  };
   const res = await fetch(`${SUPA_URL}/rest/v1/app_state?on_conflict=key`, {
     method: 'POST', headers: SB_H,
     body: JSON.stringify({ key: CONTENT_KEY, data: bundle, updated_at: new Date().toISOString() })
   });
   if (!res.ok) throw new Error('push failed ' + res.status);
 }
-// Wrappers kept so all existing call-sites work unchanged
 async function sbUpsert() { await pushToCloud(); }
 async function sbDelete()  { await pushToCloud(); }
 
@@ -466,15 +598,26 @@ async function pushToFinance(entry) {
 }
 
 // ── State ─────────────────────────────────────────────────────────
-let _editingDealId = null;
-let brandChart     = null;
-const _delConfirm  = {};
-const _vidDelConf  = {};
+let _editingDealId  = null;
+let brandChart      = null;
+const _delConfirm   = {};
+const _vidDelConf   = {};
 let _ehTooltipTimer = null;
+let _ehPeriod       = 'month';
+let _view           = 'list';
+
+// Calendar state
+const _vanNow  = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
+let _calYear   = _vanNow.getFullYear();
+let _calMonth  = _vanNow.getMonth();
+
+// Content video modal state
+let _cvEditId         = null;
+let _cvDeleteConfirm  = false;
 
 // ── Init ──────────────────────────────────────────────────────────
 async function init() {
-  document.getElementById('payDate').value    = todayVan();
+  document.getElementById('payDate').value = todayVan();
   syncState('syncing', 'syncing…');
 
   try {
@@ -483,9 +626,9 @@ async function init() {
       if (Array.isArray(bundle[LS_DEALS]))    lsSet(LS_DEALS,    bundle[LS_DEALS]);
       if (Array.isArray(bundle[LS_PAYMENTS])) lsSet(LS_PAYMENTS, bundle[LS_PAYMENTS]);
       if (Array.isArray(bundle[LS_VIDEOS]))   lsSet(LS_VIDEOS,   bundle[LS_VIDEOS]);
+      if (Array.isArray(bundle[LS_CV]))       lsSet(LS_CV,       bundle[LS_CV]);
     } else {
-      // Nothing in cloud yet — push local data up so other devices see it
-      const hasLocal = ls(LS_DEALS).length || ls(LS_PAYMENTS).length || ls(LS_VIDEOS).length;
+      const hasLocal = ls(LS_DEALS).length || ls(LS_PAYMENTS).length || ls(LS_VIDEOS).length || ls(LS_CV).length;
       if (hasLocal) pushToCloud().catch(() => {});
     }
     syncState('ok', 'synced');
@@ -502,11 +645,23 @@ function render() {
   renderSummary();
   renderEditorCosts();
   renderEarningsHistory();
+  if (_view === 'calendar') renderCalendar();
 }
 
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) init();
 });
+
+// ── View toggle ───────────────────────────────────────────────────
+function setView(view) {
+  _view = view;
+  document.getElementById('listView').style.display     = view === 'list'     ? '' : 'none';
+  document.getElementById('calendarView').style.display = view === 'calendar' ? '' : 'none';
+  document.querySelectorAll('.view-toggle-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === view)
+  );
+  if (view === 'calendar') renderCalendar();
+}
 
 // ══════════════════════════════════════════════════════════════════
 // SECTION 1 — DEALS
@@ -763,7 +918,7 @@ async function saveVideo(dealId) {
   renderEarningsHistory();
 
   syncState('syncing','syncing…');
-  try { await sbUpsert('ugc_videos', row); syncState('ok','synced'); }
+  try { await sbUpsert(); syncState('ok','synced'); }
   catch { syncState('err','sync err'); }
 }
 
@@ -806,7 +961,7 @@ async function deleteVideo(videoId, dealId) {
   renderSummary();
   renderEditorCosts();
   renderEarningsHistory();
-  try { await sbDelete('ugc_videos', videoId); syncState('ok','synced'); }
+  try { await sbDelete(); syncState('ok','synced'); }
   catch { syncState('err','sync err'); }
 }
 
@@ -856,7 +1011,6 @@ async function saveViewBonus(videoId, dealId) {
   };
   lsSet(LS_VIDEOS, videos);
 
-  // Refresh the open history panel without full re-render
   const histEl = document.getElementById('vh-' + dealId);
   if (histEl && histEl.style.display !== 'none') {
     histEl.innerHTML = buildVideoHistory(dealId);
@@ -866,7 +1020,7 @@ async function saveViewBonus(videoId, dealId) {
   renderEarningsHistory();
 
   syncState('syncing','syncing…');
-  try { await sbUpsert('ugc_videos', videos[idx]); syncState('ok','synced'); }
+  try { await sbUpsert(); syncState('ok','synced'); }
   catch { syncState('err','sync err'); }
 }
 
@@ -899,7 +1053,7 @@ function confirmDeleteDeal(id) {
 async function deleteDeal(id) {
   lsSet(LS_DEALS, ls(LS_DEALS).filter(d => d.id !== id));
   renderDeals();
-  try { await sbDelete('ugc_deals', id); syncState('ok','synced'); }
+  try { await sbDelete(); syncState('ok','synced'); }
   catch { syncState('err','sync err'); }
 }
 
@@ -966,7 +1120,7 @@ async function saveDeal() {
   closeDealModal();
   renderDeals();
   syncState('syncing','syncing…');
-  try { await sbUpsert('ugc_deals', row); syncState('ok','synced'); }
+  try { await sbUpsert(); syncState('ok','synced'); }
   catch { syncState('err','sync err'); }
 }
 
@@ -1039,7 +1193,7 @@ document.getElementById('logPaymentBtn').addEventListener('click', async () => {
   renderSummary();
   renderEarningsHistory();
   syncState('syncing','syncing…');
-  try { await sbUpsert('ugc_payments', payRow); syncState('ok','synced'); }
+  try { await sbUpsert(); syncState('ok','synced'); }
   catch { syncState('err','sync err'); }
 });
 
@@ -1165,7 +1319,15 @@ function renderSummary() {
       responsive: true, maintainAspectRatio: true,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => ' $' + Number(ctx.raw).toFixed(2) } }
+        tooltip: {
+          backgroundColor: 'rgba(10,10,11,0.96)',
+          borderColor: 'rgba(255,255,255,0.14)',
+          borderWidth: 1,
+          titleColor: '#fff',
+          bodyColor: 'rgba(255,255,255,0.7)',
+          padding: 10,
+          callbacks: { label: ctx => ' $' + Number(ctx.raw).toFixed(2) }
+        }
       },
       scales: {
         x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 11 } } },
@@ -1176,15 +1338,26 @@ function renderSummary() {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// SECTION 5 — EARNINGS HISTORY (SVG bar chart)
+// SECTION 5 — EARNINGS HISTORY (SVG bar chart + period toggle)
 // ══════════════════════════════════════════════════════════════════
+
+function dateToMs(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).getTime();
+}
+
 function buildMonthlyData() {
-  const months = [];
   const van = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
+  const months = [];
   for (let i = 5; i >= 0; i--) {
     const d  = new Date(van.getFullYear(), van.getMonth() - i, 1);
     const mk = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
-    months.push({ key: mk, label: d.toLocaleDateString('en-US', { month: 'short' }), total: 0, videos: 0 });
+    months.push({
+      key: mk,
+      label: d.toLocaleDateString('en-US', { month: 'short' }),
+      fullLabel: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      total: 0, videos: 0
+    });
   }
   ls(LS_PAYMENTS).forEach(p => {
     const m = months.find(m => m.key === p.date.slice(0,7));
@@ -1197,12 +1370,108 @@ function buildMonthlyData() {
   return months;
 }
 
+function buildWeeklyData() {
+  const van = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
+  const todayMs  = new Date(van.getFullYear(), van.getMonth(), van.getDate()).getTime();
+  const thisSunMs = todayMs - van.getDay() * 86400000;
+
+  const weeks = [];
+  for (let i = 5; i >= 0; i--) {
+    const sunMs = thisSunMs - i * 7 * 86400000;
+    const satMs = sunMs + 6 * 86400000;
+    const sun = new Date(sunMs);
+    weeks.push({
+      sunMs, satMs,
+      label: (sun.getMonth()+1) + '/' + sun.getDate(),
+      fullLabel: 'Week of ' + sun.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      total: 0, videos: 0
+    });
+  }
+  ls(LS_PAYMENTS).forEach(p => {
+    const ms = dateToMs(p.date);
+    const w  = weeks.find(w => ms >= w.sunMs && ms <= w.satMs);
+    if (w) w.total += Number(p.amount);
+  });
+  ls(LS_VIDEOS).filter(v => v.status === 'Approved').forEach(v => {
+    const ms = dateToMs(v.date);
+    const w  = weeks.find(w => ms >= w.sunMs && ms <= w.satMs);
+    if (w) { w.total += Number(v.total); w.videos++; }
+  });
+  return weeks;
+}
+
+function buildDailyData() {
+  const van = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(van.getFullYear(), van.getMonth(), van.getDate() - i);
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    days.push({
+      key,
+      label: ['Su','Mo','Tu','We','Th','Fr','Sa'][d.getDay()],
+      fullLabel: d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
+      total: 0, videos: 0
+    });
+  }
+  ls(LS_PAYMENTS).forEach(p => {
+    const d = days.find(d => d.key === p.date);
+    if (d) d.total += Number(p.amount);
+  });
+  ls(LS_VIDEOS).filter(v => v.status === 'Approved').forEach(v => {
+    const d = days.find(d => d.key === v.date);
+    if (d) { d.total += Number(v.total); d.videos++; }
+  });
+  return days;
+}
+
+function buildYearlyData() {
+  const years = {};
+  ls(LS_PAYMENTS).forEach(p => {
+    const y = p.date.slice(0,4);
+    if (!years[y]) years[y] = { key: y, label: y, fullLabel: y, total: 0, videos: 0 };
+    years[y].total += Number(p.amount);
+  });
+  ls(LS_VIDEOS).filter(v => v.status === 'Approved').forEach(v => {
+    const y = v.date.slice(0,4);
+    if (!years[y]) years[y] = { key: y, label: y, fullLabel: y, total: 0, videos: 0 };
+    years[y].total += Number(v.total);
+    years[y].videos++;
+  });
+  const sorted = Object.values(years).sort((a,b) => a.key.localeCompare(b.key));
+  if (!sorted.length) {
+    const y = String(new Date().getFullYear());
+    return [{ key: y, label: y, fullLabel: y, total: 0, videos: 0 }];
+  }
+  return sorted;
+}
+
+const EH_PERIOD_LABELS = {
+  day:   'Last 7 days — UGC total',
+  week:  'Last 6 weeks — UGC total',
+  month: 'Last 6 months — UGC total',
+  year:  'All years — UGC total'
+};
+
+function setEHPeriod(period) {
+  _ehPeriod = period;
+  document.querySelectorAll('.pt-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.period === period)
+  );
+  const lbl = document.getElementById('ehPeriodLabel');
+  if (lbl) lbl.textContent = EH_PERIOD_LABELS[period];
+  renderEarningsHistory();
+}
+
 function renderEarningsHistory() {
   const container = document.getElementById('earningsHistoryChart');
   if (!container) return;
 
-  const months = buildMonthlyData();
-  const hasData = months.some(m => m.total > 0);
+  const data = _ehPeriod === 'week' ? buildWeeklyData() :
+               _ehPeriod === 'day'  ? buildDailyData()  :
+               _ehPeriod === 'year' ? buildYearlyData()  :
+               buildMonthlyData();
+
+  const hasData = data.some(m => m.total > 0);
   const emptyEl = document.getElementById('ehEmpty');
 
   if (!hasData) {
@@ -1213,18 +1482,19 @@ function renderEarningsHistory() {
   }
   if (emptyEl) emptyEl.style.display = 'none';
 
+  const N = data.length || 1;
   const W = 360, PAD_T = 24, BAR_H = 104, PAD_B = 22;
   const TH = PAD_T + BAR_H + PAD_B;
-  const slot = W / 6;
-  const maxVal = Math.max(...months.map(m => m.total), 0.01);
+  const slot = W / N;
+  const maxVal = Math.max(...data.map(m => m.total), 0.01);
 
   let inner = '';
-  months.forEach((m, i) => {
-    const cx   = i * slot + slot / 2;
-    const bH   = Math.max((m.total / maxVal) * BAR_H, m.total > 0 ? 3 : 0);
-    const bX   = i * slot + slot * 0.18;
-    const bW   = slot * 0.64;
-    const bY   = PAD_T + BAR_H - bH;
+  data.forEach((m, i) => {
+    const cx = i * slot + slot / 2;
+    const bH = Math.max((m.total / maxVal) * BAR_H, m.total > 0 ? 3 : 0);
+    const bX = i * slot + slot * 0.18;
+    const bW = slot * 0.64;
+    const bY = PAD_T + BAR_H - bH;
 
     inner += `<rect class="eh-bar" data-idx="${i}"
       x="${bX.toFixed(1)}" y="${bY.toFixed(1)}"
@@ -1251,19 +1521,33 @@ function renderEarningsHistory() {
   else container.insertAdjacentHTML('beforeend', svg);
 
   container.querySelectorAll('.eh-bar').forEach(bar => {
-    bar.addEventListener('mouseenter', () => bar.setAttribute('fill','rgba(110,231,183,0.8)'));
-    bar.addEventListener('mouseleave', () => bar.setAttribute('fill','rgba(110,231,183,0.5)'));
-    bar.addEventListener('click', e => showEHTooltip(e.clientX, e.clientY, months[+bar.dataset.idx]));
+    const idx = +bar.dataset.idx;
+    bar.addEventListener('mouseenter', e => {
+      bar.setAttribute('fill', 'rgba(110,231,183,0.8)');
+      showEHTooltip(e.clientX, e.clientY, data[idx], false);
+    });
+    bar.addEventListener('mousemove', e => {
+      showEHTooltip(e.clientX, e.clientY, data[idx], false);
+    });
+    bar.addEventListener('mouseleave', () => {
+      bar.setAttribute('fill', 'rgba(110,231,183,0.5)');
+      clearTimeout(_ehTooltipTimer);
+      const tip = document.getElementById('ehTooltip');
+      if (tip) tip.style.display = 'none';
+    });
+    bar.addEventListener('click', e => showEHTooltip(e.clientX, e.clientY, data[idx], true));
   });
 }
 
-function showEHTooltip(cx, cy, month) {
+function showEHTooltip(cx, cy, month, autoHide) {
   const tip = document.getElementById('ehTooltip');
-  if (!tip) return;
+  if (!tip || !month) return;
+  clearTimeout(_ehTooltipTimer);
+
   const avg = month.videos > 0 ? (month.total / month.videos).toFixed(2) : null;
-  tip.innerHTML = `<b>${month.label}</b><br>` +
-    `Total: <span style="color:#6ee7b7">$${month.total.toFixed(2)}</span><br>` +
-    `Approved videos: <b>${month.videos}</b>` +
+  tip.innerHTML = `<b>${esc(month.fullLabel || month.label)}</b><br>` +
+    `Total: <span style="color:#6ee7b7">$${month.total.toFixed(2)}</span>` +
+    (month.videos > 0 ? `<br>Videos: <b>${month.videos}</b>` : '') +
     (avg ? `<br>Avg/video: <b>$${avg}</b>` : '');
 
   tip.style.display = 'block';
@@ -1272,14 +1556,219 @@ function showEHTooltip(cx, cy, month) {
   tip.style.left = x + 'px';
   tip.style.top  = Math.max(8, y) + 'px';
 
-  clearTimeout(_ehTooltipTimer);
-  _ehTooltipTimer = setTimeout(() => { tip.style.display = 'none'; }, 3000);
+  if (autoHide) {
+    _ehTooltipTimer = setTimeout(() => { tip.style.display = 'none'; }, 3000);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CALENDAR VIEW
+// ══════════════════════════════════════════════════════════════════
+
+function statusDotClass(status) {
+  const map = {
+    'Not Started': 'not-started',
+    'Filmed':      'filmed',
+    'Editing':     'editing',
+    'Blocked':     'blocked',
+    'Posted':      'posted'
+  };
+  return map[status] || 'not-started';
+}
+
+function calPrev() {
+  _calMonth--;
+  if (_calMonth < 0) { _calMonth = 11; _calYear--; }
+  renderCalendar();
+}
+
+function calNext() {
+  _calMonth++;
+  if (_calMonth > 11) { _calMonth = 0; _calYear++; }
+  renderCalendar();
+}
+
+function calToday() {
+  const van = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
+  _calYear  = van.getFullYear();
+  _calMonth = van.getMonth();
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const navTitle = document.getElementById('calNavTitle');
+  const calGrid  = document.getElementById('calGrid');
+  if (!navTitle || !calGrid) return;
+
+  navTitle.textContent = new Date(_calYear, _calMonth, 1)
+    .toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  const todayStr = todayVan();
+  const cvs      = ls(LS_CV);
+
+  const DAY_HDRS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  let html = DAY_HDRS.map(d => `<div class="cal-day-hdr">${d}</div>`).join('');
+
+  const firstDay     = new Date(_calYear, _calMonth, 1);
+  const lastDay      = new Date(_calYear, _calMonth + 1, 0);
+  const startDow     = firstDay.getDay();
+  const prevMonthEnd = new Date(_calYear, _calMonth, 0);
+
+  // Leading cells from previous month
+  for (let i = startDow - 1; i >= 0; i--) {
+    html += `<div class="cal-cell other-month"><div class="cal-day-num">${prevMonthEnd.getDate() - i}</div></div>`;
+  }
+
+  // Current month days
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const dateStr  = _calYear + '-' + String(_calMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    const isToday  = dateStr === todayStr;
+    const dayVids  = cvs.filter(v => v.post_date === dateStr);
+
+    const cardsHtml = dayVids.map(v => {
+      const dotCls = statusDotClass(v.status);
+      const label  = esc(v.title) + (v.brand ? ' · ' + esc(v.brand) : '');
+      return `<div class="cv-card" onclick="openCVModalEdit('${esc(v.id)}',event)">` +
+        `<div class="cv-dot ${dotCls}"></div>` +
+        `<div class="cv-card-label">${label}</div>` +
+        `</div>`;
+    }).join('');
+
+    html += `<div class="cal-cell${isToday ? ' today' : ''}" onclick="openCVModal('${dateStr}',event)">` +
+      `<div class="cal-day-num">${d}</div>${cardsHtml}</div>`;
+  }
+
+  // Trailing cells from next month
+  const endDow = lastDay.getDay();
+  for (let i = 1; i < 7 - endDow; i++) {
+    html += `<div class="cal-cell other-month"><div class="cal-day-num">${i}</div></div>`;
+  }
+
+  calGrid.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CONTENT VIDEO MODAL
+// ══════════════════════════════════════════════════════════════════
+
+function populateCVBrandSelect() {
+  const sel    = document.getElementById('cvBrand');
+  if (!sel) return;
+  const active = ls(LS_DEALS).filter(d => !d.status || d.status === 'Active');
+  const cur    = sel.value;
+  sel.innerHTML = '<option value="">None / Personal</option>' +
+    active.map(d => `<option value="${esc(d.brand_name)}">${esc(d.brand_name)}</option>`).join('');
+  if (cur) sel.value = cur;
+}
+
+function openCVModal(dateStr, e) {
+  // Don't open if click came from a video card inside this cell
+  if (e && e.target && e.target.closest('.cv-card')) return;
+  _cvEditId        = null;
+  _cvDeleteConfirm = false;
+  populateCVBrandSelect();
+  document.getElementById('cvModalTitle').textContent  = 'New Video';
+  document.getElementById('cvTitle').value             = '';
+  document.getElementById('cvBrand').value             = '';
+  document.getElementById('cvStatus').value            = 'Not Started';
+  document.getElementById('cvPostDate').value          = dateStr || todayVan();
+  document.getElementById('cvNotes').value             = '';
+  document.getElementById('cvScript').value            = '';
+  document.getElementById('cvDeleteBtn').style.display = 'none';
+  document.getElementById('cvModal').classList.add('open');
+  setTimeout(() => document.getElementById('cvTitle').focus(), 100);
+}
+
+function openCVModalEdit(id, e) {
+  if (e) e.stopPropagation();
+  _cvEditId        = id;
+  _cvDeleteConfirm = false;
+  const v = ls(LS_CV).find(v => v.id === id);
+  if (!v) return;
+  populateCVBrandSelect();
+  document.getElementById('cvModalTitle').textContent  = 'Edit Video';
+  document.getElementById('cvTitle').value             = v.title    || '';
+  document.getElementById('cvBrand').value             = v.brand    || '';
+  document.getElementById('cvStatus').value            = v.status   || 'Not Started';
+  document.getElementById('cvPostDate').value          = v.post_date || '';
+  document.getElementById('cvNotes').value             = v.notes    || '';
+  document.getElementById('cvScript').value            = v.script   || '';
+  const delBtn = document.getElementById('cvDeleteBtn');
+  if (delBtn) { delBtn.style.display = ''; delBtn.textContent = 'Delete'; delBtn.classList.remove('confirming'); }
+  document.getElementById('cvModal').classList.add('open');
+}
+
+function closeCVModal() {
+  document.getElementById('cvModal').classList.remove('open');
+  _cvEditId        = null;
+  _cvDeleteConfirm = false;
+}
+
+async function saveCVVideo() {
+  const title = document.getElementById('cvTitle').value.trim();
+  if (!title) { document.getElementById('cvTitle').focus(); return; }
+
+  const brand    = document.getElementById('cvBrand').value;
+  const status   = document.getElementById('cvStatus').value;
+  const postDate = document.getElementById('cvPostDate').value;
+  const notes    = document.getElementById('cvNotes').value.trim();
+  const script   = document.getElementById('cvScript').value.trim();
+
+  const cvs = ls(LS_CV);
+  const row = {
+    id:         _cvEditId || uid(),
+    title, brand, status,
+    post_date:  postDate,
+    notes,
+    script,
+    created_at: _cvEditId
+      ? (cvs.find(v => v.id === _cvEditId)?.created_at || new Date().toISOString())
+      : new Date().toISOString()
+  };
+
+  if (_cvEditId) {
+    const idx = cvs.findIndex(v => v.id === _cvEditId);
+    if (idx >= 0) cvs[idx] = row; else cvs.push(row);
+  } else {
+    cvs.push(row);
+  }
+  lsSet(LS_CV, cvs);
+  closeCVModal();
+  renderCalendar();
+
+  syncState('syncing', 'syncing…');
+  try { await pushToCloud(); syncState('ok', 'synced'); }
+  catch { syncState('err', 'sync err'); }
+}
+
+async function confirmDeleteCVVideo() {
+  if (!_cvEditId) return;
+  const btn = document.getElementById('cvDeleteBtn');
+  if (!_cvDeleteConfirm) {
+    _cvDeleteConfirm = true;
+    if (btn) { btn.textContent = 'Sure?'; btn.classList.add('confirming'); }
+    setTimeout(() => {
+      _cvDeleteConfirm = false;
+      const b = document.getElementById('cvDeleteBtn');
+      if (b) { b.textContent = 'Delete'; b.classList.remove('confirming'); }
+    }, 3000);
+    return;
+  }
+  lsSet(LS_CV, ls(LS_CV).filter(v => v.id !== _cvEditId));
+  closeCVModal();
+  renderCalendar();
+
+  syncState('syncing', 'syncing…');
+  try { await pushToCloud(); syncState('ok', 'synced'); }
+  catch { syncState('err', 'sync err'); }
 }
 
 // ── Modal dismiss ─────────────────────────────────────────────────
 document.getElementById('dealModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeDealModal(); });
+document.getElementById('cvModal').addEventListener('click',   e => { if (e.target === e.currentTarget) closeCVModal(); });
+
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeDealModal(); }
+  if (e.key === 'Escape') { closeDealModal(); closeCVModal(); }
 });
 
 // ── Hide tooltip on scroll/tap outside ───────────────────────────
