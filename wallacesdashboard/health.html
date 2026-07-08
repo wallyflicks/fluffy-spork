@@ -66,6 +66,8 @@ const CONFIG = {
   --text-1: #ffffff;
   --text-2: rgba(255,255,255,0.6);
   --text-3: rgba(255,255,255,0.4);
+  --section-gap: 28px;
+  --hdr-gap: 14px;
   --text-4: rgba(255,255,255,0.25);
   --border: rgba(255,255,255,0.06);
   --border-strong: rgba(255,255,255,0.14);
@@ -97,14 +99,14 @@ html, body {
   color: var(--text-2);
   font-family: var(--font-mono);
   font-size: 11px; font-weight: 700; letter-spacing: 0.10em;
-  text-transform: uppercase; margin-bottom: 10px;
+  text-transform: uppercase; margin-bottom: 16px;
   -webkit-tap-highlight-color: transparent;
 }
 .day-pill .day-sep { color: var(--text-4); }
 
 .header {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 18px;
+  margin-bottom: 22px;
 }
 .title { font-size: 22px; font-weight: 700; letter-spacing: -0.015em; margin: 0; }
 .icon-btn {
@@ -120,7 +122,7 @@ html, body {
 
 /* ----- Eyebrow divider ----- */
 .divider {
-  display: flex; align-items: center; gap: 16px; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 16px; margin-bottom: var(--hdr-gap);
 }
 .divider::before, .divider::after {
   content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.10);
@@ -136,7 +138,7 @@ html, body {
   border: 1px solid var(--border);
   border-radius: 18px;
   padding: 22px 20px 18px;
-  margin-bottom: 14px;
+  margin-bottom: 18px;
 }
 
 /* ----- Water hero ----- */

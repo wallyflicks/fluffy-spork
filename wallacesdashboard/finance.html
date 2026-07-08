@@ -18,6 +18,8 @@
   --bg-card: #111113;
   --text-1: #ffffff;
   --text-2: rgba(255,255,255,0.6);
+  --section-gap: 28px;
+  --hdr-gap: 14px;
   --text-3: rgba(255,255,255,0.4);
   --text-4: rgba(255,255,255,0.22);
   --border: rgba(255,255,255,0.06);
@@ -33,10 +35,10 @@
 html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text-1); font-family: var(--font); overflow-x: hidden; }
 body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-inset-bottom, 0px) + 110px); }
 
-.fin-shell { width: min(720px, 100%); margin: 0 auto; padding: 0 16px; display: flex; flex-direction: column; gap: 22px; }
+.fin-shell { width: min(720px, 100%); margin: 0 auto; padding: 0 16px; display: flex; flex-direction: column; gap: var(--section-gap); }
 
 .fin-section-title { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; color: var(--text-3); text-transform: uppercase; margin: 0 0 10px; }
-.fin-divider { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.fin-divider { display: flex; align-items: center; gap: 10px; margin-bottom: var(--hdr-gap); }
 .fin-divider span { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; color: var(--text-3); text-transform: uppercase; white-space: nowrap; }
 .fin-divider::before, .fin-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 

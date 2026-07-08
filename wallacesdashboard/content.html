@@ -19,6 +19,8 @@
   --text-2: rgba(255,255,255,0.6);
   --text-3: rgba(255,255,255,0.4);
   --text-4: rgba(255,255,255,0.22);
+  --section-gap: 28px;
+  --hdr-gap: 14px;
   --border: rgba(255,255,255,0.06);
   --border-strong: rgba(255,255,255,0.12);
   --good: #6ee7b7;
@@ -33,16 +35,17 @@
 html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text-1); font-family: var(--font); overflow-x: hidden; }
 body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-inset-bottom, 0px) + 110px); }
 
-.content-shell { width: min(720px, 100%); margin: 0 auto; padding: 0 16px; display: flex; flex-direction: column; gap: 22px; }
+.content-shell { width: min(720px, 100%); margin: 0 auto; padding: 0 16px; display: flex; flex-direction: column; gap: var(--section-gap); }
+#listView { display: flex; flex-direction: column; gap: var(--section-gap); }
 
-.sec-divider { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.sec-divider { display: flex; align-items: center; gap: 10px; margin-bottom: var(--hdr-gap); }
 .sec-divider span { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; color: var(--text-3); text-transform: uppercase; white-space: nowrap; }
 .sec-divider::before, .sec-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-.sec-label { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; color: var(--text-3); text-transform: uppercase; margin: 0 0 10px; }
+.sec-label { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; color: var(--text-3); text-transform: uppercase; margin: 0 0 var(--hdr-gap); }
 
 .c-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 18px 18px 16px; }
 
-.c-form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.c-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
 .c-form.cols-1 { grid-template-columns: 1fr; }
 .c-form-span { grid-column: 1 / -1; }
 .c-field { display: flex; flex-direction: column; gap: 4px; }
@@ -84,7 +87,7 @@ select.c-input option { background: #1a1a1c; }
 .c-tag.cad       { background: rgba(125,211,252,0.1);  color: var(--info); }
 .c-tag.usd       { background: rgba(167,139,250,0.1);  color: var(--purple); }
 
-.deal-list { display: flex; flex-direction: column; gap: 10px; }
+.deal-list { display: flex; flex-direction: column; gap: 12px; }
 .deal-card { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 12px; padding: 14px 14px 12px; }
 .deal-card-top { display: flex; align-items: flex-start; gap: 10px; }
 .deal-card-info { flex: 1; min-width: 0; }
@@ -109,7 +112,7 @@ select.c-input option { background: #1a1a1c; }
 .v-badge.rejected { background: rgba(255,138,138,0.12); color: var(--bad); }
 .v-month-hdr { display: flex; justify-content: space-between; align-items: center; font-size: 9px; font-weight: 700; letter-spacing: 0.14em; color: var(--text-4); text-transform: uppercase; margin-bottom: 6px; padding-bottom: 5px; border-bottom: 1px solid var(--border); }
 
-.payment-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.payment-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
 .payment-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); }
 .payment-item-body { flex: 1; min-width: 0; }
 .payment-item-title { font-size: 13px; font-weight: 600; }
@@ -118,7 +121,7 @@ select.c-input option { background: #1a1a1c; }
 .payment-item-amount { font-size: 14px; font-weight: 600; color: var(--good); font-variant-numeric: tabular-nums; }
 .payment-item-date { font-size: 11px; color: var(--text-3); margin-top: 2px; }
 
-.summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 @media (max-width: 360px) { .summary-grid { grid-template-columns: 1fr; } }
 .summary-stat { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
 .summary-stat-label { font-size: 9px; font-weight: 700; letter-spacing: 0.14em; color: var(--text-4); text-transform: uppercase; margin-bottom: 4px; }

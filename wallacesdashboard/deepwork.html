@@ -15,6 +15,8 @@
   --text-primary: #FAFAFA;
   --text-secondary: #B8B6B0;
   --text-tertiary: #76746E;
+  --section-gap: 28px;
+  --hdr-gap: 14px;
   --success: #6BE3A4;
   --warning: #F2C063;
   --danger: #FF6B6B;
@@ -45,11 +47,11 @@ main {
   max-width: 540px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--section-gap);
 }
 
 /* ── Section ── */
-.section { display: flex; flex-direction: column; gap: 14px; }
+.section { display: flex; flex-direction: column; gap: 16px; }
 
 .section-title {
   display: flex;
