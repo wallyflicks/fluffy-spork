@@ -296,15 +296,12 @@ select.c-input option { background: #1a1a1c; }
             </select>
           </div>
           <div class="c-field">
-            <label>Payment Type</label>
-            <select class="c-input" id="payType">
-              <option value="flat">Flat Rate</option>
-              <option value="views">View Bonus</option>
+            <label>Deal Type</label>
+            <select class="c-input" id="payDealType">
+              <option value="Organic UGC">Organic UGC</option>
+              <option value="One-Off Deal">One-Off Deal</option>
+              <option value="Other">Other</option>
             </select>
-          </div>
-          <div class="c-field" id="viewsField" style="display:none">
-            <label>Views</label>
-            <input class="c-input" type="number" id="payViews" placeholder="125000" min="0">
           </div>
           <div class="c-field">
             <label>Amount</label>
@@ -315,6 +312,16 @@ select.c-input option { background: #1a1a1c; }
                 <button class="pt-btn active" id="payCurCAD" onclick="setPayCurrency('CAD')">CAD</button>
               </div>
             </div>
+          </div>
+          <div class="c-field">
+            <label>Payment Method</label>
+            <select class="c-input" id="payMethod">
+              <option value="PayPal">PayPal</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Stripe">Stripe</option>
+              <option value="Cash">Cash</option>
+              <option value="Other">Other</option>
+            </select>
           </div>
           <div class="c-field">
             <label>Date</label>
@@ -358,7 +365,7 @@ select.c-input option { background: #1a1a1c; }
         <div class="c-chart-wrap">
           <div class="sec-label" style="margin-top:16px;margin-bottom:8px">Earnings by brand</div>
           <canvas id="brandChart" style="display:none"></canvas>
-          <div class="empty-state" id="chartEmpty">Log payments to see earnings by brand.</div>
+          <div class="empty-state" id="chartEmpty">Log videos to see earnings by brand.</div>
         </div>
       </div>
     </div>
@@ -1039,7 +1046,7 @@ function populateBrandSelect() {
   const sel    = document.getElementById('payBrand');
   const cur    = sel.value;
   sel.innerHTML = '<option value="">Select brand…</option>' +
-    active.map(d => `<option value="${esc(d.id)}">${esc(d.brand_name)} (${esc(d.currency||'CAD')})</option>`).join('');
+    active.map(d => `<option value="${esc(d.id)}">${esc(d.brand_name)}</option>`).join('');
   if (cur) sel.value = cur;
 }
 
@@ -1137,20 +1144,10 @@ async function saveDeal() {
 // ══════════════════════════════════════════════════════════════════
 // SECTION 2 — LOG PAYMENT
 // ══════════════════════════════════════════════════════════════════
-document.getElementById('payType').addEventListener('change', () => {
-  const isViews = document.getElementById('payType').value === 'views';
-  document.getElementById('viewsField').style.display = isViews ? '' : 'none';
-  if (!isViews) autoFillFlat();
-});
-
 document.getElementById('payBrand').addEventListener('change', () => {
   const _d = ls(LS_DEALS).find(d => d.id === document.getElementById('payBrand').value);
   if (_d) setPayCurrency(_d.currency || 'CAD');
-  if (document.getElementById('payType').value === 'flat') autoFillFlat();
-  else recalcViews();
 });
-
-document.getElementById('payViews').addEventListener('input', recalcViews);
 
 let _payCurrency = 'CAD';
 function setPayCurrency(cur) {
@@ -1159,33 +1156,20 @@ function setPayCurrency(cur) {
   document.getElementById('payCurCAD').classList.toggle('active', cur === 'CAD');
 }
 
-function autoFillFlat() {
-  const id   = document.getElementById('payBrand').value;
-  const deal = ls(LS_DEALS).find(d => d.id === id);
-  if (deal) document.getElementById('payAmount').value = Number(deal.rate_per_video).toFixed(2);
-}
-
-function recalcViews() {
-  const id   = document.getElementById('payBrand').value;
-  const deal = ls(LS_DEALS).find(d => d.id === id);
-  if (!deal) return;
-  const views = parseFloat(document.getElementById('payViews').value) || 0;
-  document.getElementById('payAmount').value = ((views / 1000) * (deal.view_bonus_rate || 1)).toFixed(2);
-}
-
 document.getElementById('logPaymentBtn').addEventListener('click', async () => {
-  const dealId = document.getElementById('payBrand').value;
-  const deal   = ls(LS_DEALS).find(d => d.id === dealId);
+  const dealId    = document.getElementById('payBrand').value;
+  const deal      = ls(LS_DEALS).find(d => d.id === dealId);
   if (!deal) { alert('Select a brand first.'); return; }
   const amount = parseFloat(document.getElementById('payAmount').value);
   if (isNaN(amount) || amount <= 0) { alert('Enter a valid amount.'); return; }
-  const type  = document.getElementById('payType').value;
-  const date  = document.getElementById('payDate').value || todayVan();
-  const notes = document.getElementById('payNotes').value.trim();
+  const dealType = document.getElementById('payDealType').value;
+  const method   = document.getElementById('payMethod').value;
+  const date     = document.getElementById('payDate').value || todayVan();
+  const notes    = document.getElementById('payNotes').value.trim();
 
   const payRow = {
     id: uid(), deal_id: dealId, brand_name: deal.brand_name,
-    payment_type: type === 'flat' ? 'Flat rate' : 'View bonus',
+    deal_type: dealType, payment_method: method,
     amount, currency: _payCurrency, date, notes,
     created_at: new Date().toISOString()
   };
@@ -1200,18 +1184,15 @@ document.getElementById('logPaymentBtn').addEventListener('click', async () => {
     amount, date, tag: 'ugc', currency: _payCurrency
   });
 
-  document.getElementById('payBrand').value  = '';
-  document.getElementById('payAmount').value = '';
-  document.getElementById('payNotes').value  = '';
-  document.getElementById('payViews').value  = '';
-  document.getElementById('payDate').value   = todayVan();
-  document.getElementById('payType').value   = 'flat';
-  document.getElementById('viewsField').style.display = 'none';
+  document.getElementById('payBrand').value    = '';
+  document.getElementById('payAmount').value   = '';
+  document.getElementById('payNotes').value    = '';
+  document.getElementById('payDate').value     = todayVan();
+  document.getElementById('payDealType').value = 'Organic UGC';
+  document.getElementById('payMethod').value   = 'PayPal';
   setPayCurrency('CAD');
 
   renderPayments();
-  renderSummary();
-  renderEarningsHistory();
   syncState('syncing','syncing…');
   try { await sbUpsert(); syncState('ok','synced'); }
   catch { syncState('err','sync err'); }
@@ -1225,7 +1206,7 @@ function renderPayments() {
     <div class="payment-item">
       <div class="payment-item-body">
         <div class="payment-item-title">${esc(p.brand_name)}</div>
-        <div class="payment-item-sub">${esc(p.payment_type)}${p.notes ? ' · ' + esc(p.notes) : ''}</div>
+        <div class="payment-item-sub">${esc(p.deal_type || p.payment_type || '')}${p.payment_method ? ' · ' + esc(p.payment_method) : ''}${p.notes ? ' · ' + esc(p.notes) : ''}</div>
       </div>
       <div class="payment-item-right">
         <div class="payment-item-amount">${esc(p.currency||'CAD')} $${Number(p.amount).toFixed(2)}</div>
@@ -1290,26 +1271,19 @@ function renderEditorCosts() {
 // SECTION 3 — EARNINGS SUMMARY
 // ══════════════════════════════════════════════════════════════════
 function renderSummary() {
-  const payments   = ls(LS_PAYMENTS);
-  const videos     = ls(LS_VIDEOS).filter(v => v.status === 'Approved');
-  const thisMonth  = monthOf(todayVan());
+  const videos    = ls(LS_VIDEOS).filter(v => v.status === 'Approved');
+  const thisMonth = monthOf(todayVan());
 
-  const allIncome = [
-    ...payments.map(p => ({ date: p.date, amount: Number(p.amount) })),
-    ...videos.map(v => ({ date: v.date, amount: Number(v.total) }))
-  ];
-
-  const monthAmt = allIncome.filter(e => monthOf(e.date) === thisMonth).reduce((s,e) => s + e.amount, 0);
-  const totalAmt = allIncome.reduce((s,e) => s + e.amount, 0);
-  const avgAmt   = allIncome.length ? totalAmt / allIncome.length : 0;
+  const monthAmt = videos.filter(v => monthOf(v.date) === thisMonth).reduce((s,v) => s + Number(v.total), 0);
+  const totalAmt = videos.reduce((s,v) => s + Number(v.total), 0);
+  const avgAmt   = videos.length ? totalAmt / videos.length : 0;
 
   document.getElementById('earningsMonth').textContent   = '$' + monthAmt.toFixed(2);
   document.getElementById('earningsAllTime').textContent = '$' + totalAmt.toFixed(2);
   document.getElementById('earningsAvg').textContent     = '$' + avgAmt.toFixed(2);
-  document.getElementById('earningsCount').textContent   = allIncome.length;
+  document.getElementById('earningsCount').textContent   = videos.length;
 
   const byBrand = {};
-  payments.forEach(p => { byBrand[p.brand_name] = (byBrand[p.brand_name] || 0) + Number(p.amount); });
   videos.forEach(v => { byBrand[v.brand_name] = (byBrand[v.brand_name] || 0) + Number(v.total); });
   const entries = Object.entries(byBrand).sort((a,b) => b[1] - a[1]);
   const canvas  = document.getElementById('brandChart');
