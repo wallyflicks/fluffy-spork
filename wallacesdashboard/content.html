@@ -513,6 +513,16 @@ select.c-input option { background: #1a1a1c; }
           <label>Script / Tasks</label>
           <textarea class="c-input" id="cvScript" placeholder="Script outline, tasks…" rows="3" style="resize:vertical;line-height:1.5"></textarea>
         </div>
+        <div class="c-field c-form-span" style="padding:2px 0">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;font-size:12px;font-weight:500;letter-spacing:normal;text-transform:none;color:var(--text-2)">
+            <input type="checkbox" id="cvEditorToggle" onchange="toggleCVEditor()">
+            Used editor for this video?
+          </label>
+        </div>
+        <div class="c-field" id="cvEditorCostWrap" style="display:none">
+          <label>Editor cost (CAD$)</label>
+          <input class="c-input" type="number" id="cvEditorCost" value="3.00" min="0" step="0.01">
+        </div>
         <div class="c-form-span" style="display:flex;gap:8px;margin-top:4px">
           <button class="c-btn primary" style="flex:1" onclick="saveCVVideo()">Save Video</button>
           <button class="c-btn danger" id="cvDeleteBtn" onclick="confirmDeleteCVVideo()" style="display:none">Delete</button>
@@ -1306,6 +1316,11 @@ function toggleEditorCost(dealId) {
   calcVideoTotal(dealId);
 }
 
+function toggleCVEditor() {
+  const checked = document.getElementById('cvEditorToggle').checked;
+  document.getElementById('cvEditorCostWrap').style.display = checked ? '' : 'none';
+}
+
 // ══════════════════════════════════════════════════════════════════
 // SECTION 3b — EDITOR COSTS SUMMARY
 // ══════════════════════════════════════════════════════════════════
@@ -1745,14 +1760,17 @@ function openCVModal(dateStr, e) {
   _cvEditId        = null;
   _cvDeleteConfirm = false;
   populateCVBrandSelect();
-  document.getElementById('cvModalTitle').textContent  = 'New Video';
-  document.getElementById('cvTitle').value             = '';
-  document.getElementById('cvBrand').value             = '';
-  document.getElementById('cvStatus').value            = 'Not Started';
-  document.getElementById('cvPostDate').value          = dateStr || todayVan();
-  document.getElementById('cvNotes').value             = '';
-  document.getElementById('cvScript').value            = '';
-  document.getElementById('cvDeleteBtn').style.display = 'none';
+  document.getElementById('cvModalTitle').textContent   = 'New Video';
+  document.getElementById('cvTitle').value              = '';
+  document.getElementById('cvBrand').value              = '';
+  document.getElementById('cvStatus').value             = 'Not Started';
+  document.getElementById('cvPostDate').value           = dateStr || todayVan();
+  document.getElementById('cvNotes').value              = '';
+  document.getElementById('cvScript').value             = '';
+  document.getElementById('cvEditorToggle').checked     = false;
+  document.getElementById('cvEditorCostWrap').style.display = 'none';
+  document.getElementById('cvEditorCost').value         = '3.00';
+  document.getElementById('cvDeleteBtn').style.display  = 'none';
   document.getElementById('cvModal').classList.add('open');
   setTimeout(() => document.getElementById('cvTitle').focus(), 100);
 }
@@ -1764,13 +1782,17 @@ function openCVModalEdit(id, e) {
   const v = ls(LS_CV).find(v => v.id === id);
   if (!v) return;
   populateCVBrandSelect();
-  document.getElementById('cvModalTitle').textContent  = 'Edit Video';
-  document.getElementById('cvTitle').value             = v.title    || '';
-  document.getElementById('cvBrand').value             = v.brand    || '';
-  document.getElementById('cvStatus').value            = v.status   || 'Not Started';
-  document.getElementById('cvPostDate').value          = v.post_date || '';
-  document.getElementById('cvNotes').value             = v.notes    || '';
-  document.getElementById('cvScript').value            = v.script   || '';
+  const hasEditor = v.cv_editor_cost != null && Number(v.cv_editor_cost) > 0;
+  document.getElementById('cvModalTitle').textContent       = 'Edit Video';
+  document.getElementById('cvTitle').value                  = v.title     || '';
+  document.getElementById('cvBrand').value                  = v.brand     || '';
+  document.getElementById('cvStatus').value                 = v.status    || 'Not Started';
+  document.getElementById('cvPostDate').value               = v.post_date || '';
+  document.getElementById('cvNotes').value                  = v.notes     || '';
+  document.getElementById('cvScript').value                 = v.script    || '';
+  document.getElementById('cvEditorToggle').checked         = hasEditor;
+  document.getElementById('cvEditorCostWrap').style.display = hasEditor ? '' : 'none';
+  document.getElementById('cvEditorCost').value             = hasEditor ? String(v.cv_editor_cost) : '3.00';
   const delBtn = document.getElementById('cvDeleteBtn');
   if (delBtn) { delBtn.style.display = ''; delBtn.textContent = 'Delete'; delBtn.classList.remove('confirming'); }
   document.getElementById('cvModal').classList.add('open');
@@ -1786,22 +1808,77 @@ async function saveCVVideo() {
   const title = document.getElementById('cvTitle').value.trim();
   if (!title) { document.getElementById('cvTitle').focus(); return; }
 
-  const brand    = document.getElementById('cvBrand').value;
-  const status   = document.getElementById('cvStatus').value;
-  const postDate = document.getElementById('cvPostDate').value;
-  const notes    = document.getElementById('cvNotes').value.trim();
-  const script   = document.getElementById('cvScript').value.trim();
+  const brand      = document.getElementById('cvBrand').value;
+  const status     = document.getElementById('cvStatus').value;
+  const postDate   = document.getElementById('cvPostDate').value;
+  const notes      = document.getElementById('cvNotes').value.trim();
+  const script     = document.getElementById('cvScript').value.trim();
+  const usedEditor = document.getElementById('cvEditorToggle').checked;
+  const editorCost = usedEditor ? (parseFloat(document.getElementById('cvEditorCost').value) || 3.00) : null;
 
-  const cvs = ls(LS_CV);
+  const cvs      = ls(LS_CV);
+  const existing = _cvEditId ? cvs.find(v => v.id === _cvEditId) : null;
+  const wasPosted = existing?.status === 'Posted';
+  const isPosted  = status === 'Posted';
+  const hasBrand  = !!brand;
+
+  // ── Earnings + editor cost logic ─────────────────────────────────
+  let videoLogId = existing?.video_log_id || null;
+
+  const deal = hasBrand
+    ? ls(LS_DEALS).find(d => d.brand_name === brand && (!d.status || d.status === 'Active'))
+    : null;
+
+  if (deal) {
+    const logDate  = postDate || todayVan();
+    const netTotal = Number(deal.rate_per_video) - (usedEditor ? editorCost : 0);
+
+    if (isPosted && !wasPosted) {
+      // Newly posted → create LS_VIDEOS entry
+      const vRow = {
+        id: uid(), deal_id: deal.id, brand_name: deal.brand_name,
+        date: logDate, status: 'Approved',
+        flat_rate: Number(deal.rate_per_video),
+        view_bonus: 0, views_earned: 0, bonus: 0,
+        total: netTotal, notes: title,
+        editor_cost: editorCost,
+        created_at: new Date().toISOString()
+      };
+      const videos = ls(LS_VIDEOS);
+      videos.push(vRow);
+      lsSet(LS_VIDEOS, videos);
+      videoLogId = vRow.id;
+    } else if (isPosted && wasPosted && videoLogId) {
+      // Still posted, edited → update existing LS_VIDEOS entry
+      const videos = ls(LS_VIDEOS);
+      const idx    = videos.findIndex(v => v.id === videoLogId);
+      if (idx >= 0) {
+        videos[idx] = { ...videos[idx],
+          deal_id: deal.id, brand_name: deal.brand_name,
+          date: logDate, flat_rate: Number(deal.rate_per_video),
+          total: netTotal, editor_cost: editorCost, notes: title
+        };
+        lsSet(LS_VIDEOS, videos);
+      }
+    } else if (!isPosted && wasPosted && videoLogId) {
+      // Un-posted → remove LS_VIDEOS entry
+      lsSet(LS_VIDEOS, ls(LS_VIDEOS).filter(v => v.id !== videoLogId));
+      videoLogId = null;
+    }
+  } else if (!deal && wasPosted && videoLogId) {
+    // Brand cleared or deal gone → remove LS_VIDEOS entry
+    lsSet(LS_VIDEOS, ls(LS_VIDEOS).filter(v => v.id !== videoLogId));
+    videoLogId = null;
+  }
+
   const row = {
-    id:         _cvEditId || uid(),
+    id: _cvEditId || uid(),
     title, brand, status,
-    post_date:  postDate,
-    notes,
-    script,
-    created_at: _cvEditId
-      ? (cvs.find(v => v.id === _cvEditId)?.created_at || new Date().toISOString())
-      : new Date().toISOString()
+    post_date:      postDate,
+    notes, script,
+    video_log_id:   videoLogId,
+    cv_editor_cost: (isPosted && deal) ? editorCost : null,
+    created_at:     existing?.created_at || new Date().toISOString()
   };
 
   if (_cvEditId) {
@@ -1813,6 +1890,10 @@ async function saveCVVideo() {
   lsSet(LS_CV, cvs);
   closeCVModal();
   renderCalendar();
+  renderDeals();
+  renderSummary();
+  renderEditorCosts();
+  renderEarningsHistory();
 
   syncState('syncing', 'syncing…');
   try { await pushToCloud(); syncState('ok', 'synced'); }
@@ -1832,9 +1913,14 @@ async function confirmDeleteCVVideo() {
     }, 3000);
     return;
   }
+  const dying = ls(LS_CV).find(v => v.id === _cvEditId);
+  if (dying?.video_log_id) {
+    lsSet(LS_VIDEOS, ls(LS_VIDEOS).filter(v => v.id !== dying.video_log_id));
+  }
   lsSet(LS_CV, ls(LS_CV).filter(v => v.id !== _cvEditId));
   closeCVModal();
   renderCalendar();
+  if (dying?.video_log_id) { renderDeals(); renderSummary(); renderEditorCosts(); renderEarningsHistory(); }
 
   syncState('syncing', 'syncing…');
   try { await pushToCloud(); syncState('ok', 'synced'); }
