@@ -915,6 +915,80 @@
     }
     .notif-bell-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.08); }
     .notif-bell-btn svg { width: 18px; height: 18px; }
+
+    /* ─── Age Counter ──────────────────────────────────────────────────────── */
+    .age-widget { margin-bottom: 6px; }
+    .age-setup {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .age-setup-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-tertiary);
+      letter-spacing: 0.06em;
+    }
+    .age-date-input {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 3px 8px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 6px;
+      color: var(--text-primary);
+      outline: none;
+      color-scheme: dark;
+    }
+    .age-date-input:focus { border-color: rgba(255,255,255,0.22); }
+    .age-save-btn {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 3px 10px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      letter-spacing: 0.06em;
+    }
+    .age-save-btn:hover { background: rgba(255,255,255,0.12); color: var(--text-primary); }
+    .age-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      margin-bottom: 1px;
+    }
+    .age-number-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .age-number {
+      font-family: var(--mono);
+      font-size: 26px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+    .age-edit-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-tertiary);
+      padding: 2px 4px;
+      display: inline-flex;
+      align-items: center;
+      opacity: 0.45;
+      transition: opacity 0.15s;
+    }
+    .age-edit-btn:hover { opacity: 1; }
+    .age-edit-btn svg { width: 11px; height: 11px; }
   </style>
 </head>
 <body>
@@ -922,6 +996,21 @@
     <div class="dash-header-row">
       <h1 class="dash-title">Wallace's Dashboard</h1>
       <a href="notifications.html" class="notif-bell-btn" aria-label="Notification settings"><i data-lucide="bell"></i></a>
+    </div>
+
+    <div class="age-widget" id="ageWidget">
+      <div class="age-setup" id="ageSetup" style="display:none">
+        <span class="age-setup-label">Enter your birthdate</span>
+        <input type="date" class="age-date-input" id="ageDateInput">
+        <button class="age-save-btn" id="ageSaveBtn">Save</button>
+      </div>
+      <div class="age-display" id="ageDisplay" style="display:none">
+        <div class="age-label">years lived</div>
+        <div class="age-number-row">
+          <span class="age-number" id="ageNumber"></span>
+          <button class="age-edit-btn" id="ageEditBtn" aria-label="Edit birthdate"><i data-lucide="pencil-line"></i></button>
+        </div>
+      </div>
     </div>
 
     <div class="sync-bar">
@@ -2160,6 +2249,132 @@
       document.addEventListener('DOMContentLoaded', () => { htWire(); htLoad(); }, { once: true });
     } else {
       htWire(); htLoad();
+    }
+  })();
+  </script>
+
+  <script>
+  (function () {
+    'use strict';
+
+    const AC_URL = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
+    const AC_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
+    const AC_H = {
+      'Content-Type': 'application/json',
+      'apikey': AC_KEY,
+      'Authorization': 'Bearer ' + AC_KEY,
+      'Prefer': 'resolution=merge-duplicates',
+    };
+    const LOCAL_KEY = 'age_counter_birthdate';
+    const MS_PER_YEAR = 365.25 * 24 * 3600 * 1000;
+
+    let birthdateStr = null;
+    let birthdateMs  = null;
+    let rafId        = null;
+    let isRunning    = false;
+
+    const setupEl    = document.getElementById('ageSetup');
+    const displayEl  = document.getElementById('ageDisplay');
+    const numberEl   = document.getElementById('ageNumber');
+    const dateInputEl = document.getElementById('ageDateInput');
+    const saveBtnEl  = document.getElementById('ageSaveBtn');
+    const editBtnEl  = document.getElementById('ageEditBtn');
+
+    function tick() {
+      if (!isRunning || !birthdateMs) return;
+      numberEl.textContent = ((Date.now() - birthdateMs) / MS_PER_YEAR).toFixed(9);
+      rafId = requestAnimationFrame(tick);
+    }
+
+    function startTick() {
+      if (rafId) cancelAnimationFrame(rafId);
+      isRunning = true;
+      rafId = requestAnimationFrame(tick);
+    }
+
+    function stopTick() {
+      isRunning = false;
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) stopTick();
+      else if (birthdateMs) startTick();
+    });
+
+    function setBirthdate(str) {
+      birthdateStr = str;
+      birthdateMs  = new Date(str + 'T12:00:00').getTime();
+    }
+
+    function showDisplay() {
+      setupEl.style.display = 'none';
+      displayEl.style.display = '';
+      if (!document.hidden) startTick();
+    }
+
+    function showSetup() {
+      stopTick();
+      displayEl.style.display = 'none';
+      setupEl.style.display = '';
+      if (birthdateStr) dateInputEl.value = birthdateStr;
+    }
+
+    async function saveBirthdate(str) {
+      setBirthdate(str);
+      try { localStorage.setItem(LOCAL_KEY, str); } catch {}
+      showDisplay();
+      try {
+        await fetch(AC_URL + '/rest/v1/app_state?on_conflict=key', {
+          method: 'POST', headers: AC_H,
+          body: JSON.stringify({ key: 'user_birthdate', data: { birthdate: str }, updated_at: new Date().toISOString() })
+        });
+      } catch (e) { console.warn('[age] sync failed:', e.message); }
+    }
+
+    saveBtnEl.addEventListener('click', () => {
+      const val = dateInputEl.value;
+      if (val) saveBirthdate(val);
+    });
+
+    dateInputEl.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); const val = dateInputEl.value; if (val) saveBirthdate(val); }
+    });
+
+    editBtnEl.addEventListener('click', showSetup);
+
+    async function init() {
+      dateInputEl.max = new Date().toISOString().split('T')[0];
+
+      let local = null;
+      try { local = localStorage.getItem(LOCAL_KEY); } catch {}
+      if (local) {
+        setBirthdate(local);
+        showDisplay();
+      } else {
+        showSetup();
+      }
+
+      try {
+        const res = await fetch(AC_URL + '/rest/v1/app_state?key=eq.user_birthdate&select=data', { headers: AC_H });
+        if (res.ok) {
+          const rows = await res.json();
+          if (rows.length && rows[0].data && rows[0].data.birthdate) {
+            const sbStr = rows[0].data.birthdate;
+            if (sbStr !== local) {
+              setBirthdate(sbStr);
+              try { localStorage.setItem(LOCAL_KEY, sbStr); } catch {}
+              if (!local) showDisplay();
+            }
+          }
+        }
+      } catch (e) { console.warn('[age] load failed:', e.message); }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init, { once: true });
+    } else {
+      init();
     }
   })();
   </script>
