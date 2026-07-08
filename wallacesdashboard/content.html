@@ -774,7 +774,8 @@ function renderDeals() {
           </div>
           <div class="c-field" id="vld-editor-cost-wrap-${esc(d.id)}" style="display:none">
             <label>Editor cost (CAD$)</label>
-            <input class="c-input" type="number" id="vld-editor-cost-${esc(d.id)}" value="3.00" min="0" step="0.01">
+            <input class="c-input" type="number" id="vld-editor-cost-${esc(d.id)}" value="3.00" min="0" step="0.01"
+              oninput="calcVideoTotal('${esc(d.id)}')">
           </div>
           <div class="vlog-total-row c-form-span">
             Flat <b style="color:var(--text-1)">$${flat.toFixed(2)}</b>
@@ -830,9 +831,11 @@ function buildVideoHistory(dealId) {
       const mb       = Number(v.bonus) || 0;
       const hasViews = vb > 0;
 
+      const ec = Number(v.editor_cost) || 0;
       let breakdown = `flat $${Number(v.flat_rate).toFixed(2)}`;
       if (vb > 0) breakdown += ` + view bonus $${vb.toFixed(2)}`;
       if (mb > 0) breakdown += ` + bonus $${mb.toFixed(2)}`;
+      if (ec > 0) breakdown += ` <span style="color:var(--bad)">− editor $${ec.toFixed(2)}</span>`;
       breakdown += ` = <b style="color:var(--text-2)">$${Number(v.total).toFixed(2)}</b>`;
       if (v.notes) breakdown += ` <span style="color:var(--text-4)">· ${esc(v.notes)}</span>`;
 
@@ -901,12 +904,14 @@ function closeVideoForm(dealId) {
 function calcVideoTotal(dealId) {
   const deal = ls(LS_DEALS).find(d => d.id === dealId);
   if (!deal) return;
-  const manBonus = parseFloat(document.getElementById('vld-bonus-' + dealId)?.value) || 0;
-  const flat     = Number(deal.rate_per_video);
-  const total    = flat + manBonus;
-  const tmbEl    = document.getElementById('vld-tmb-' + dealId);
+  const manBonus   = parseFloat(document.getElementById('vld-bonus-' + dealId)?.value) || 0;
+  const usedEditor = document.getElementById('vld-editor-' + dealId)?.checked || false;
+  const editorCost = usedEditor ? (parseFloat(document.getElementById('vld-editor-cost-' + dealId)?.value) || 3.00) : 0;
+  const flat       = Number(deal.rate_per_video);
+  const total      = flat + manBonus - editorCost;
+  const tmbEl      = document.getElementById('vld-tmb-' + dealId);
   if (tmbEl) tmbEl.textContent = '$' + manBonus.toFixed(2);
-  const totEl    = document.getElementById('vld-total-' + dealId);
+  const totEl      = document.getElementById('vld-total-' + dealId);
   if (totEl) totEl.textContent = total.toFixed(2);
 }
 
@@ -921,7 +926,7 @@ async function saveVideo(dealId) {
   const usedEditor = document.getElementById('vld-editor-' + dealId)?.checked || false;
   const editorCost = usedEditor ? (parseFloat(document.getElementById('vld-editor-cost-' + dealId)?.value) || 3.00) : null;
   const flat       = Number(deal.rate_per_video);
-  const total      = flat + manBonus;
+  const total      = flat + manBonus - (usedEditor ? editorCost : 0);
 
   const row = {
     id: uid(), deal_id: dealId, brand_name: deal.brand_name,
@@ -1030,7 +1035,7 @@ async function saveViewBonus(videoId, dealId) {
     ...videos[idx],
     views_earned: views,
     view_bonus:   viewBonus,
-    total: Number(videos[idx].flat_rate) + viewBonus + Number(videos[idx].bonus || 0)
+    total: Number(videos[idx].flat_rate) + viewBonus + Number(videos[idx].bonus || 0) - Number(videos[idx].editor_cost || 0)
   };
   lsSet(LS_VIDEOS, videos);
 
@@ -1298,6 +1303,7 @@ function toggleEditorCost(dealId) {
   const checked = document.getElementById('vld-editor-' + dealId)?.checked;
   const wrap    = document.getElementById('vld-editor-cost-wrap-' + dealId);
   if (wrap) wrap.style.display = checked ? '' : 'none';
+  calcVideoTotal(dealId);
 }
 
 // ══════════════════════════════════════════════════════════════════
