@@ -590,6 +590,10 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
           <label>Notes (optional)</label>
           <input class="fin-input" type="text" id="subNotes" placeholder="Shared with family…">
         </div>
+        <div class="fin-field">
+          <label>Remind (days before renewal)</label>
+          <input class="fin-input" type="number" id="subRemindDays" value="3" min="1" max="30" step="1">
+        </div>
         <div class="fin-form-span">
           <button class="fin-btn primary full" id="subSave">Add subscription</button>
         </div>
@@ -817,6 +821,11 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   }
   function todayVan() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' }); }
+  function subDaysUntil(dateStr) {
+    if (!dateStr) return null;
+    const diff = new Date(dateStr + 'T00:00:00') - new Date(todayVan() + 'T00:00:00');
+    return Math.round(diff / 86400000);
+  }
   function fmt$(n, dec) {
     if (n == null || isNaN(n)) return '—';
     return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: dec ?? 0, maximumFractionDigits: dec ?? 0 });
@@ -1512,20 +1521,39 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
       list.innerHTML = '';
       subs.forEach(s => {
         const billedToday = s.lastBilledDate === todayStr;
+        const remDays  = s.remindDaysBefore ?? 3;
+        const days     = subDaysUntil(s.billingDate);
+        const renewSoon = days !== null && days >= 1 && days <= remDays;
+        const renewBadge = renewSoon
+          ? ` <span class="fin-tag" style="color:var(--bad);background:rgba(248,113,113,0.1)">${days === 1 ? 'Renews tomorrow' : 'Renews in ' + days + ' days'}</span>`
+          : '';
         const item = document.createElement('div');
         item.className = 'fin-item';
         item.innerHTML = `
           <div class="fin-item-body">
-            <div class="fin-item-title">${s.name}${billedToday ? ' <span class="fin-tag" style="color:var(--good);background:rgba(110,231,183,0.1)">billed today</span>' : ''}</div>
+            <div class="fin-item-title">${s.name}${billedToday ? ' <span class="fin-tag" style="color:var(--good);background:rgba(110,231,183,0.1)">billed today</span>' : ''}${renewBadge}</div>
             ${s.notes ? `<div class="fin-item-sub">${s.notes}</div>` : ''}
           </div>
           <div class="fin-item-right">
             <div class="fin-item-value">${fmt$(s.costMonthly,2)}/mo</div>
             <div class="fin-item-sub-right">${s.billingCycle}${s.billingDate ? ' · next ' + s.billingDate : ''}</div>
+            <div style="font-size:10px;color:var(--text-4);margin-top:3px;text-align:right">remind
+              <input type="number" value="${remDays}" min="1" max="30" step="1"
+                data-sub-remind="${s.id}"
+                style="width:28px;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,0.15);color:var(--text-3);font-size:10px;text-align:center;padding:0 1px;font-family:inherit">
+              d before
+            </div>
           </div>
         `;
         item.appendChild(makeDeleteBtn(() => { save(K.SUB, load(K.SUB).filter(x => x.id !== s.id)); renderSubs(); renderCashFlow(); }));
         list.appendChild(item);
+      });
+      list.querySelectorAll('[data-sub-remind]').forEach(input => {
+        input.addEventListener('change', () => {
+          const arr = load(K.SUB);
+          const idx = arr.findIndex(s => s.id === input.dataset.subRemind);
+          if (idx >= 0) { arr[idx].remindDaysBefore = Math.max(1, parseInt(input.value) || 3); save(K.SUB, arr); renderSubs(); }
+        });
       });
     }
 
@@ -1816,14 +1844,16 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 0 calc(env(safe-area-
       const cost        = parseFloat(document.getElementById('subCost').value);
       const cycle       = document.getElementById('subCycle').value;
       const notes       = document.getElementById('subNotes').value.trim();
-      const billingDate = document.getElementById('subBillingDate').value || '';
+      const billingDate     = document.getElementById('subBillingDate').value || '';
+      const remindDaysBefore = Math.max(1, parseInt(document.getElementById('subRemindDays').value) || 3);
       if (!name || isNaN(cost) || cost < 0) return;
       const costMonthly = cycle === 'yearly' ? +(cost/12).toFixed(2) : +cost.toFixed(2);
       const arr = load(K.SUB);
-      arr.push({ id: uid(), name, costMonthly, rawCost: +cost.toFixed(2), billingCycle: cycle, notes, billingDate, lastBilledDate: '' });
+      arr.push({ id: uid(), name, costMonthly, rawCost: +cost.toFixed(2), billingCycle: cycle, notes, billingDate, lastBilledDate: '', remindDaysBefore });
       save(K.SUB, arr);
       ['subName','subCost','subNotes'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('subBillingDate').value = '';
+      document.getElementById('subRemindDays').value  = '3';
       document.getElementById('subAddPanel').classList.remove('open');
       document.getElementById('subAddToggle').textContent = '+ Add';
       renderSubs(); renderCashFlow();

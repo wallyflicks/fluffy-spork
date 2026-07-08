@@ -194,6 +194,24 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // Subscription renewal reminders — fetch finance bundle once
+  const subRenewals = [];
+  try {
+    const finRes = await fetch(SUPA_URL + '/rest/v1/app_state?key=eq.finance&select=data', { headers: SB_HEADERS });
+    if (finRes.ok) {
+      const finRows = await finRes.json();
+      const subs = (finRows[0]?.data?.finance_subscriptions) || [];
+      subs.forEach(s => {
+        if (!s.billingDate) return;
+        const remindDays = s.remindDaysBefore ?? 3;
+        const diff = Math.round((new Date(s.billingDate + 'T00:00:00') - new Date(vanDate + 'T00:00:00')) / 86400000);
+        if (diff === remindDays || (diff === 1 && remindDays !== 1)) {
+          subRenewals.push({ name: s.name, days: diff, cost: s.costMonthly });
+        }
+      });
+    }
+  } catch (e) { console.warn('[push-cron] subscription check failed:', e.message); }
+
   const r = await fetch(SUPA_URL + '/rest/v1/push_subscriptions?select=*', { headers: SB_HEADERS });
   if (!r.ok) {
     const detail = await r.text();
@@ -212,6 +230,21 @@ module.exports = async function handler(req, res) {
     }
 
     const notifications = getNotificationsToFire(settings, van.hour, van.minute, journalDoneToday, workoutDoneToday);
+
+    // Subscription renewal reminders (always-on, not behind a toggle)
+    if (subRenewals.length > 0) {
+      let body;
+      if (subRenewals.length === 1) {
+        const r = subRenewals[0];
+        const dStr = r.days === 1 ? 'tomorrow' : `in ${r.days} days`;
+        body = `${r.name} renews ${dStr} — $${Number(r.cost).toFixed(2)}/mo. Cancel now if you don't want it.`;
+      } else {
+        const names = subRenewals.map(r => `${r.name} (${r.days}d)`).join(', ');
+        body = `Upcoming renewals: ${names}. Check Finance to cancel.`;
+      }
+      notifications.push({ tag: 'subRenewal', title: '💳 Subscription renewal', body });
+    }
+
     for (const notif of notifications) {
       const pushSub = {
         endpoint: row.endpoint,
