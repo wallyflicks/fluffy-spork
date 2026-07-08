@@ -598,10 +598,7 @@ async function sbUpsert() { await pushToCloud(); }
 async function sbDelete()  { await pushToCloud(); }
 
 // ── Finance integration ───────────────────────────────────────────
-async function pushToFinance(entry) {
-  const arr = ls(FIN_INC);
-  if (!arr.find(e => e.id === entry.id)) arr.push(entry);
-  lsSet(FIN_INC, arr);
+async function pushFinanceBundle() {
   try {
     const res = await fetch(`${SUPA_URL}/rest/v1/app_state?key=eq.finance&select=data`, { headers: SB_RH });
     let bundle = {};
@@ -611,14 +608,23 @@ async function pushToFinance(entry) {
       method: 'POST', headers: SB_H,
       body: JSON.stringify({ key: 'finance', data: bundle, updated_at: new Date().toISOString() })
     });
-  } catch(e) { console.warn('[content→finance sync]', e.message); }
+  } catch(e) { console.warn('[finance sync]', e.message); }
+}
+
+async function pushToFinance(entry) {
+  const arr = ls(FIN_INC);
+  if (!arr.find(e => e.id === entry.id)) arr.push(entry);
+  lsSet(FIN_INC, arr);
+  await pushFinanceBundle();
 }
 
 // ── State ─────────────────────────────────────────────────────────
 let _editingDealId  = null;
+let _editingPayId   = null;
 let brandChart      = null;
 const _delConfirm   = {};
 const _vidDelConf   = {};
+const _payDelConf   = {};
 let _ehTooltipTimer = null;
 let _ehPeriod       = 'month';
 let _view           = 'list';
@@ -1157,41 +1163,51 @@ function setPayCurrency(cur) {
 }
 
 document.getElementById('logPaymentBtn').addEventListener('click', async () => {
-  const dealId    = document.getElementById('payBrand').value;
-  const deal      = ls(LS_DEALS).find(d => d.id === dealId);
+  const dealId   = document.getElementById('payBrand').value;
+  const deal     = ls(LS_DEALS).find(d => d.id === dealId);
   if (!deal) { alert('Select a brand first.'); return; }
-  const amount = parseFloat(document.getElementById('payAmount').value);
+  const amount   = parseFloat(document.getElementById('payAmount').value);
   if (isNaN(amount) || amount <= 0) { alert('Enter a valid amount.'); return; }
   const dealType = document.getElementById('payDealType').value;
   const method   = document.getElementById('payMethod').value;
   const date     = document.getElementById('payDate').value || todayVan();
   const notes    = document.getElementById('payNotes').value.trim();
 
-  const payRow = {
-    id: uid(), deal_id: dealId, brand_name: deal.brand_name,
-    deal_type: dealType, payment_method: method,
-    amount, currency: _payCurrency, date, notes,
-    created_at: new Date().toISOString()
-  };
+  if (_editingPayId) {
+    // UPDATE existing payment
+    const payments = ls(LS_PAYMENTS);
+    const idx = payments.findIndex(p => p.id === _editingPayId);
+    if (idx >= 0) {
+      payments[idx] = { ...payments[idx], deal_id: dealId, brand_name: deal.brand_name,
+        deal_type: dealType, payment_method: method, amount, currency: _payCurrency, date, notes };
+      lsSet(LS_PAYMENTS, payments);
+    }
+    const finArr = ls(FIN_INC);
+    const finIdx = finArr.findIndex(e => e.id === 'ugc_' + _editingPayId);
+    if (finIdx >= 0) {
+      finArr[finIdx] = { ...finArr[finIdx],
+        desc: 'UGC: ' + deal.brand_name + (notes ? ' — ' + notes : ''),
+        amount, date, currency: _payCurrency };
+      lsSet(FIN_INC, finArr);
+    }
+    await pushFinanceBundle();
+  } else {
+    // CREATE new payment
+    const payRow = {
+      id: uid(), deal_id: dealId, brand_name: deal.brand_name,
+      deal_type: dealType, payment_method: method,
+      amount, currency: _payCurrency, date, notes,
+      created_at: new Date().toISOString()
+    };
+    lsSet(LS_PAYMENTS, [...ls(LS_PAYMENTS), payRow]);
+    await pushToFinance({
+      id: 'ugc_' + payRow.id,
+      desc: 'UGC: ' + deal.brand_name + (notes ? ' — ' + notes : ''),
+      amount, date, tag: 'ugc', currency: _payCurrency
+    });
+  }
 
-  const payments = ls(LS_PAYMENTS);
-  payments.push(payRow);
-  lsSet(LS_PAYMENTS, payments);
-
-  await pushToFinance({
-    id: 'ugc_' + payRow.id,
-    desc: 'UGC: ' + deal.brand_name + (notes ? ' — ' + notes : ''),
-    amount, date, tag: 'ugc', currency: _payCurrency
-  });
-
-  document.getElementById('payBrand').value    = '';
-  document.getElementById('payAmount').value   = '';
-  document.getElementById('payNotes').value    = '';
-  document.getElementById('payDate').value     = todayVan();
-  document.getElementById('payDealType').value = 'Organic UGC';
-  document.getElementById('payMethod').value   = 'PayPal';
-  setPayCurrency('CAD');
-
+  cancelPayEdit();
   renderPayments();
   syncState('syncing','syncing…');
   try { await sbUpsert(); syncState('ok','synced'); }
@@ -1203,17 +1219,79 @@ function renderPayments() {
   const el  = document.getElementById('paymentList');
   if (!all.length) { el.innerHTML = ''; return; }
   el.innerHTML = all.map(p => `
-    <div class="payment-item">
+    <div class="payment-item" id="pay-${esc(p.id)}">
       <div class="payment-item-body">
         <div class="payment-item-title">${esc(p.brand_name)}</div>
         <div class="payment-item-sub">${esc(p.deal_type || p.payment_type || '')}${p.payment_method ? ' · ' + esc(p.payment_method) : ''}${p.notes ? ' · ' + esc(p.notes) : ''}</div>
       </div>
-      <div class="payment-item-right">
+      <div class="payment-item-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
         <div class="payment-item-amount">${esc(p.currency||'CAD')} $${Number(p.amount).toFixed(2)}</div>
         <div class="payment-item-date">${esc(p.date)}</div>
+        <div style="display:flex;gap:4px;margin-top:2px">
+          <button class="c-btn sm" onclick="editPayment('${esc(p.id)}')">Edit</button>
+          <button class="c-btn sm danger" id="pdel-${esc(p.id)}" onclick="confirmDeletePayment('${esc(p.id)}')">Delete</button>
+        </div>
       </div>
     </div>
   `).join('');
+}
+
+function editPayment(id) {
+  const p = ls(LS_PAYMENTS).find(p => p.id === id);
+  if (!p) return;
+  _editingPayId = id;
+  document.getElementById('payBrand').value    = p.deal_id || '';
+  document.getElementById('payDealType').value = p.deal_type || p.payment_type || 'Organic UGC';
+  document.getElementById('payAmount').value   = Number(p.amount).toFixed(2);
+  document.getElementById('payMethod').value   = p.payment_method || 'PayPal';
+  document.getElementById('payDate').value     = p.date || todayVan();
+  document.getElementById('payNotes').value    = p.notes || '';
+  setPayCurrency(p.currency || 'CAD');
+  const btn = document.getElementById('logPaymentBtn');
+  btn.textContent = 'Update Payment';
+  btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function cancelPayEdit() {
+  _editingPayId = null;
+  document.getElementById('payBrand').value    = '';
+  document.getElementById('payAmount').value   = '';
+  document.getElementById('payNotes').value    = '';
+  document.getElementById('payDate').value     = todayVan();
+  document.getElementById('payDealType').value = 'Organic UGC';
+  document.getElementById('payMethod').value   = 'PayPal';
+  setPayCurrency('CAD');
+  document.getElementById('logPaymentBtn').textContent = 'Log Payment → Finance';
+}
+
+function confirmDeletePayment(id) {
+  if (_editingPayId === id) cancelPayEdit();
+  const btn = document.getElementById('pdel-' + id);
+  if (!btn) return;
+  if (_payDelConf[id]) {
+    clearTimeout(_payDelConf[id]);
+    delete _payDelConf[id];
+    deletePayment(id);
+  } else {
+    btn.textContent = 'Sure?';
+    btn.classList.add('confirming');
+    _payDelConf[id] = setTimeout(() => {
+      if (btn) { btn.textContent = 'Delete'; btn.classList.remove('confirming'); }
+      delete _payDelConf[id];
+    }, 3000);
+  }
+}
+
+async function deletePayment(id) {
+  lsSet(LS_PAYMENTS, ls(LS_PAYMENTS).filter(p => p.id !== id));
+  lsSet(FIN_INC, ls(FIN_INC).filter(e => e.id !== 'ugc_' + id));
+  renderPayments();
+  syncState('syncing','syncing…');
+  try {
+    await sbUpsert();
+    await pushFinanceBundle();
+    syncState('ok','synced');
+  } catch { syncState('err','sync err'); }
 }
 
 function toggleEditorCost(dealId) {
