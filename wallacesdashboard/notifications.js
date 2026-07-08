@@ -209,31 +209,6 @@
     }, delay);
   }
 
-  function scheduleDeepWorkReminder(s) {
-    if (!s.enabled) return;
-    const delay = msUntil(s.time || '09:00');
-    const targetHours = parseFloat(s.targetHours || localStorage.getItem('deepWorkDailyTarget') || 2);
-    setTimeout(() => {
-      const tag = 'deepwork';
-      if (hasFiredToday(tag)) return;
-      try {
-        const sessions = JSON.parse(localStorage.getItem('dw_sessions')) || [];
-        const today = todayStr();
-        const todayMinutes = sessions
-          .filter(s => (s.startTime || '').slice(0,10) === today)
-          .reduce((sum, s) => sum + (s.durationMin || 0), 0);
-        const todayHours = todayMinutes / 60;
-        const remaining = Math.max(0, targetHours - todayHours);
-        if (remaining > 0.1) {
-          const remStr = remaining < 1 ? `${Math.round(remaining * 60)}m` : `${remaining.toFixed(1).replace('.0','')}h`;
-          showNotification('🧠 Deep Work', `${remStr} of deep work left today — lock in.`, tag);
-        }
-      } catch {
-        showNotification('🧠 Deep Work', `${targetHours}h deep work target — lock in.`, tag);
-      }
-    }, delay);
-  }
-
   function scheduleEveningCheckIn(s) {
     if (!s.enabled) return;
     const delay = msUntil(s.time || '20:00');
@@ -316,7 +291,6 @@
     scheduleTodoReminder(s.todoReminder || {});
     scheduleBedtimeReminder(s.bedtimeReminder || {});
     scheduleGymReminder(s.gymReminder || {});
-    scheduleDeepWorkReminder(s.deepWorkReminder || {});
     scheduleEveningCheckIn(s.eveningCheckIn   || {});
     scheduleWorkoutMissed(s.workoutMissed     || {});
     schedulePlanTomorrow(s.planTomorrow       || {});

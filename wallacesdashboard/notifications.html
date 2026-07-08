@@ -239,7 +239,7 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
 
 <div class="perm-banner" id="permBanner">
   <span class="perm-icon">🔔</span>
-  <div class="perm-text" id="permText">Enable notifications to get reminders for water, tasks, bedtime, gym, and deep work.</div>
+  <div class="perm-text" id="permText">Enable notifications to get reminders for water, tasks, bedtime, and gym.</div>
   <button class="perm-btn" id="permBtn" onclick="enableNotifs()">Enable</button>
 </div>
 
@@ -322,24 +322,6 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
   <label class="notif-toggle"><input type="checkbox" id="gymEnabled"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
 </div>
 
-<!-- Deep Work -->
-<div class="notif-card" id="card-deepwork">
-  <span class="notif-card-emoji">🧠</span>
-  <div class="notif-card-body">
-    <div class="notif-card-title">Deep work reminder</div>
-    <div class="notif-card-desc">Fires if today's deep work is below your daily target</div>
-    <div class="notif-card-control">
-      <input type="time" class="notif-time-input" id="deepworkTime" value="09:00">
-    </div>
-    <div class="notif-card-control" style="margin-top:8px;gap:8px">
-      <label style="font-size:11px;color:var(--text-tertiary);white-space:nowrap">Daily target</label>
-      <input type="number" class="notif-time-input" id="deepworkTarget" value="2" min="0.5" max="6" step="0.5" style="width:64px">
-      <span style="font-size:12px;color:var(--text-tertiary)">hours</span>
-    </div>
-  </div>
-  <label class="notif-toggle"><input type="checkbox" id="deepworkEnabled"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
-</div>
-
 <!-- Evening check-in -->
 <div class="notif-card" id="card-eveningCheckIn">
   <span class="notif-card-emoji">🌆</span>
@@ -403,7 +385,6 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
     <a href="health.html"   class="tabbar-link" aria-label="Health"><i data-lucide="heart"></i></a>
     <a href="gym.html"      class="tabbar-link" aria-label="Gym"><i data-lucide="dumbbell"></i></a>
     <a href="finance.html"  class="tabbar-link" aria-label="Finance"><i data-lucide="dollar-sign"></i></a>
-    <a href="deepwork.html" class="tabbar-link" aria-label="Deep Work"><i data-lucide="brain"></i></a>
     <a href="journal.html"  class="tabbar-link" aria-label="Journal"><i data-lucide="book-open"></i></a>
     <a href="content.html"  class="tabbar-link" aria-label="Content"><i data-lucide="video"></i></a>
     <a href="calendar.html" class="tabbar-link" aria-label="Calendar"><i data-lucide="calendar"></i></a>
@@ -440,7 +421,6 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
     const t = s.todoReminder || {};
     const b = s.bedtimeReminder || {};
     const g = s.gymReminder || {};
-    const d  = s.deepWorkReminder || {};
     const ec = s.eveningCheckIn   || {};
     const wm = s.workoutMissed    || {};
     const pt = s.planTomorrow     || {};
@@ -454,9 +434,6 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
     document.getElementById('bedtimeTime').value     = b.time || '22:30';
     document.getElementById('gymEnabled').checked    = !!g.enabled;
     document.getElementById('gymTime').value          = g.time || '08:00';
-    document.getElementById('deepworkEnabled').checked = !!d.enabled;
-    document.getElementById('deepworkTime').value    = d.time || '09:00';
-    document.getElementById('deepworkTarget').value  = d.targetHours || '2';
     document.getElementById('eveningCheckInEnabled').checked = !!ec.enabled;
     document.getElementById('eveningCheckInTime').value      = ec.time || '20:00';
     document.getElementById('workoutMissedEnabled').checked  = !!wm.enabled;
@@ -474,13 +451,11 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
       todoReminder:     { enabled: document.getElementById('todoEnabled').checked,     time: document.getElementById('todoTime').value },
       bedtimeReminder:  { enabled: document.getElementById('bedtimeEnabled').checked,  time: document.getElementById('bedtimeTime').value },
       gymReminder:      { enabled: document.getElementById('gymEnabled').checked,      time: document.getElementById('gymTime').value },
-      deepWorkReminder: { enabled: document.getElementById('deepworkEnabled').checked, time: document.getElementById('deepworkTime').value, targetHours: parseFloat(document.getElementById('deepworkTarget').value) || 2 },
       eveningCheckIn:   { enabled: document.getElementById('eveningCheckInEnabled').checked, time: document.getElementById('eveningCheckInTime').value },
       workoutMissed:    { enabled: document.getElementById('workoutMissedEnabled').checked,  time: document.getElementById('workoutMissedTime').value },
       planTomorrow:     { enabled: document.getElementById('planTomorrowEnabled').checked,   time: document.getElementById('planTomorrowTime').value },
       journalReminder:  { enabled: document.getElementById('journalEnabled').checked,        time: document.getElementById('journalTime').value }
     });
-    localStorage.setItem('deepWorkDailyTarget', String(parseFloat(document.getElementById('deepworkTarget').value) || 2));
   }
 
   function updatePermBanner() {
@@ -499,13 +474,13 @@ body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env
       banner.classList.add('denied');
       text.textContent = 'Notifications are blocked. Allow them in your device settings, then reload.';
     } else {
-      text.textContent = 'Enable notifications to get reminders for water, tasks, bedtime, gym, and deep work.';
+      text.textContent = 'Enable notifications to get reminders for water, tasks, bedtime, and gym.';
     }
   }
 
   function updateDisabledState() {
     const denied = !('Notification' in window) || Notification.permission === 'denied';
-    ['water','todo','bedtime','gym','deepwork','eveningCheckIn','workoutMissed','planTomorrow','journal'].forEach(id => {
+    ['water','todo','bedtime','gym','eveningCheckIn','workoutMissed','planTomorrow','journal'].forEach(id => {
       const card = document.getElementById('card-' + id);
       if (card) card.classList.toggle('disabled', denied);
     });

@@ -98,14 +98,6 @@ function getNotificationsToFire(settings, vanHour, vanMinute, journalDoneToday, 
     }
   }
 
-  // Deep work reminder
-  if (s.deepWorkReminder && s.deepWorkReminder.enabled) {
-    if (matchesTime(s.deepWorkReminder.time, '09:00', vanHour, vanMinute)) {
-      const target = parseFloat(s.deepWorkReminder.targetHours || 2);
-      out.push({ tag: 'deepwork', title: '🧠 Deep Work', body: `${target}h deep work target today — lock in.` });
-    }
-  }
-
   // Evening check-in
   if (s.eveningCheckIn && s.eveningCheckIn.enabled) {
     if (matchesTime(s.eveningCheckIn.time, '20:00', vanHour, vanMinute)) {
