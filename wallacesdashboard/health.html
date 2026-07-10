@@ -675,6 +675,20 @@ body {
     </div>
   </div>
 
+  <!-- 7-Day Nutrition History -->
+  <div class="card" style="padding-top:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span style="font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-3)">Last 7 Days</span>
+      <div style="display:flex;align-items:center;gap:12px;font-size:11px;color:var(--text-3)">
+        <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#fbbf24;margin-right:3px;vertical-align:middle"></span>Calories</span>
+        <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#7DD3FC;margin-right:3px;vertical-align:middle"></span>Protein</span>
+      </div>
+    </div>
+    <div style="position:relative;height:156px">
+      <canvas id="nutrWeekChart"></canvas>
+    </div>
+  </div>
+
   <!-- Daily Targets card -->
   <div class="card targets-card" id="targetsCard">
     <div class="targets-hdr" id="targetsToggle">
@@ -1575,6 +1589,9 @@ body {
 .water-minus-btn {
   margin-bottom: max(0px, env(safe-area-inset-bottom));
 }
+.modal-actions {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
 
   .tabbar {
     position: fixed;
@@ -1711,19 +1728,113 @@ body {
     const list = $('foodLogList');
     if (!entries.length) {
       list.innerHTML = '<div style="text-align:center;font-size:12px;color:var(--text-4);padding:14px 0;font-style:italic">No food logged today.</div>';
+    } else {
+      list.innerHTML = entries.map(e =>
+        '<div class="food-log-item">'
+        + '<div class="food-log-name">' + esc(e.name)
+        + '<small>' + esc(String(e.quantity)) + ' × ' + esc(e.unit || 'serving') + (e.source === 'barcode' ? ' · scanned' : e.source === 'voice' ? ' · voice' : '') + '</small>'
+        + '</div>'
+        + '<div class="food-log-macros">' + Math.round(e.calories || 0) + ' kcal<br>' + (e.protein || 0) + 'g pro</div>'
+        + '<button class="food-log-del" data-id="' + esc(e.id) + '" aria-label="Delete">×</button>'
+        + '</div>'
+      ).join('');
+      list.querySelectorAll('.food-log-del').forEach(btn => {
+        btn.addEventListener('click', () => { deleteEntry(btn.dataset.id); renderNutrition(); });
+      });
+    }
+    if (window.Chart) buildNutritionWeekChart();
+  }
+
+  /* ── 7-day nutrition chart ── */
+  let _nutrWeekChart = null;
+
+  function buildNutritionWeekChart() {
+    const ctx = document.getElementById('nutrWeekChart');
+    if (!ctx || !window.Chart) return;
+    const log = getLog();
+    const labels = [], calData = [], proData = [];
+    const DOW = ['S','M','T','W','T','F','S'];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dk = d.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
+      labels.push(DOW[d.getDay()]);
+      const entries = log[dk] || [];
+      calData.push(Math.round(entries.reduce((s, e) => s + (e.calories || 0), 0)));
+      proData.push(Math.round(entries.reduce((s, e) => s + (e.protein  || 0), 0)));
+    }
+    const calGoalLine = Array(7).fill(CAL_GOAL);
+    const proGoalLine = Array(7).fill(PRO_GOAL);
+    const calColors = calData.map((cal, i) =>
+      (cal >= CAL_GOAL && proData[i] >= PRO_GOAL) ? '#6ee7b7' :
+      (cal > 0 || proData[i] > 0) ? '#fbbf24' : 'rgba(255,255,255,0.07)'
+    );
+    const datasets = [
+      {
+        type: 'bar', label: 'Calories', data: calData,
+        backgroundColor: calColors, borderRadius: 5, borderSkipped: false,
+        yAxisID: 'yL', order: 2
+      },
+      {
+        type: 'line', label: 'Protein', data: proData,
+        borderColor: '#7DD3FC', backgroundColor: 'rgba(125,211,252,0.10)',
+        pointBackgroundColor: '#7DD3FC', pointRadius: 3, pointHoverRadius: 5,
+        tension: 0.35, fill: false, yAxisID: 'yR', order: 1
+      },
+      {
+        type: 'line', label: '_calGoal', data: calGoalLine,
+        borderColor: 'rgba(251,191,36,0.45)', borderDash: [4,4], borderWidth: 1.5,
+        pointRadius: 0, fill: false, yAxisID: 'yL', order: 3
+      },
+      {
+        type: 'line', label: '_proGoal', data: proGoalLine,
+        borderColor: 'rgba(125,211,252,0.45)', borderDash: [4,4], borderWidth: 1.5,
+        pointRadius: 0, fill: false, yAxisID: 'yR', order: 3
+      }
+    ];
+    if (_nutrWeekChart) {
+      _nutrWeekChart.data.labels = labels;
+      _nutrWeekChart.data.datasets[0].data = calData;
+      _nutrWeekChart.data.datasets[0].backgroundColor = calColors;
+      _nutrWeekChart.data.datasets[1].data = proData;
+      _nutrWeekChart.data.datasets[2].data = calGoalLine;
+      _nutrWeekChart.data.datasets[3].data = proGoalLine;
+      _nutrWeekChart.update('none');
       return;
     }
-    list.innerHTML = entries.map(e =>
-      '<div class="food-log-item">'
-      + '<div class="food-log-name">' + esc(e.name)
-      + '<small>' + esc(String(e.quantity)) + ' × ' + esc(e.unit || 'serving') + (e.source === 'barcode' ? ' · scanned' : e.source === 'voice' ? ' · voice' : '') + '</small>'
-      + '</div>'
-      + '<div class="food-log-macros">' + Math.round(e.calories || 0) + ' kcal<br>' + (e.protein || 0) + 'g pro</div>'
-      + '<button class="food-log-del" data-id="' + esc(e.id) + '" aria-label="Delete">×</button>'
-      + '</div>'
-    ).join('');
-    list.querySelectorAll('.food-log-del').forEach(btn => {
-      btn.addEventListener('click', () => { deleteEntry(btn.dataset.id); renderNutrition(); });
+    _nutrWeekChart = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: { duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 400 },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(10,10,11,0.92)', borderColor: 'rgba(255,255,255,0.12)', borderWidth: 1,
+            titleColor: 'rgba(255,255,255,0.9)', bodyColor: 'rgba(255,255,255,0.55)', padding: 10,
+            filter: item => !item.dataset.label.startsWith('_'),
+            callbacks: {
+              label: item => item.dataset.label === 'Calories'
+                ? item.raw + ' / ' + CAL_GOAL + ' kcal'
+                : item.raw + ' / ' + PRO_GOAL + 'g protein'
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.45)', font: { size: 11 } } },
+          yL: {
+            type: 'linear', position: 'left', beginAtZero: true,
+            grid: { color: 'rgba(255,255,255,0.06)' },
+            ticks: { color: 'rgba(255,255,255,0.35)', maxTicksLimit: 4, font: { size: 10 } }
+          },
+          yR: {
+            type: 'linear', position: 'right', beginAtZero: true,
+            grid: { display: false },
+            ticks: { color: 'rgba(125,211,252,0.5)', maxTicksLimit: 4, font: { size: 10 }, callback: v => v + 'g' }
+          }
+        }
+      }
     });
   }
 
@@ -2486,6 +2597,9 @@ body {
 
   /* ── Boot ── */
   renderNutrition();     // immediate render from localStorage cache
+  (function tryNutrChart() {
+    if (window.Chart) buildNutritionWeekChart(); else setTimeout(tryNutrChart, 100);
+  })();
   loadFoodLog();         // async: fetch from Supabase, re-render when ready
   loadProfileLocal();
   populateTargetsForm();
