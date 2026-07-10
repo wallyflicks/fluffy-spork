@@ -464,6 +464,85 @@ html, body {
   .card { padding: 16px 14px; }
 }
 </style>
+
+<style>
+/* ===== NUTRITION ===== */
+.nutr-totals { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+.nutr-stat { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+.nutr-stat-label { font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-3); margin-bottom: 6px; }
+.nutr-stat-val { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+.nutr-stat-goal { font-size: 11px; color: var(--text-3); margin-top: 3px; }
+.nutr-bar-track { height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+.nutr-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+.nutr-bar-fill.cal { background: var(--warn); }
+.nutr-bar-fill.pro { background: var(--info); }
+.nutr-bar-fill.done { background: var(--good); }
+.food-log-list { margin-bottom: 14px; }
+.food-log-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.food-log-item:last-child { border-bottom: none; }
+.food-log-name { flex: 1; font-size: 13px; color: var(--text-1); font-weight: 600; }
+.food-log-name small { display: block; font-size: 11px; color: var(--text-3); font-weight: 400; margin-top: 1px; }
+.food-log-macros { font-size: 11px; color: var(--text-2); text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); white-space: nowrap; }
+.food-log-del { background: transparent; border: none; color: var(--text-4); cursor: pointer; padding: 4px 8px; font-size: 18px; line-height: 1; -webkit-tap-highlight-color: transparent; }
+.food-log-del:hover { color: var(--bad); }
+.nutr-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.nutr-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 13px; border: 1px solid var(--border); background: rgba(255,255,255,0.04); color: var(--text-1); border-radius: 12px; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background 0.15s; }
+.nutr-btn:hover { background: rgba(255,255,255,0.08); }
+.nutr-btn.primary { background: linear-gradient(180deg,#fff 0%,#e8e5dd 100%); color: #0a0a0b; border-color: transparent; box-shadow: inset 0 1px 0 rgba(255,255,255,0.55),0 4px 14px rgba(0,0,0,0.40); }
+.nutr-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+/* voice modal */
+.voice-modal-state { text-align: center; padding: 20px 0 8px; }
+.voice-modal-icon { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,0.06); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 26px; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+.voice-modal-icon.recording { background: rgba(255,138,138,0.15); border-color: rgba(255,138,138,0.4); animation: voice-pulse 1.2s ease-in-out infinite; }
+@keyframes voice-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(255,138,138,0.3)} 50%{box-shadow:0 0 0 10px rgba(255,138,138,0)} }
+.voice-status { font-size: 13px; color: var(--text-3); margin-bottom: 8px; min-height: 18px; }
+.voice-transcript { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; color: var(--text-1); font-family: inherit; font-size: 14px; line-height: 1.5; padding: 10px 12px; resize: none; outline: none; margin: 10px 0; min-height: 72px; }
+.voice-transcript:focus { border-color: rgba(255,255,255,0.2); }
+.voice-fallback { padding: 10px; background: rgba(255,138,138,0.08); border: 1px solid rgba(255,138,138,0.2); border-radius: 8px; font-size: 13px; color: var(--bad); margin-bottom: 10px; }
+/* food search modal */
+.parsed-item-group { margin-bottom: 18px; }
+.parsed-item-header { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.10em; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+.parsed-item-del { background: transparent; border: none; color: var(--text-4); cursor: pointer; padding: 2px 6px; font-size: 18px; line-height: 1; flex-shrink: 0; -webkit-tap-highlight-color: transparent; }
+.parsed-item-del:hover { color: var(--bad); }
+.fdc-result { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; margin-bottom: 6px; transition: background 0.12s, border-color 0.12s; -webkit-tap-highlight-color: transparent; }
+.fdc-result:hover { background: rgba(255,255,255,0.04); }
+.fdc-result.selected { background: rgba(110,231,183,0.08); border-color: rgba(110,231,183,0.3); }
+.fdc-result-check { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border-strong); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: transparent; font-weight: 700; }
+.fdc-result.selected .fdc-result-check { background: var(--good); border-color: var(--good); color: #0a0a0b; }
+.fdc-result-info { flex: 1; min-width: 0; }
+.fdc-result-name { font-size: 13px; font-weight: 600; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fdc-result-macros { font-size: 11px; color: var(--text-3); font-family: var(--font-mono); margin-top: 2px; }
+.fdc-no-results { font-size: 13px; color: var(--text-4); font-style: italic; padding: 8px 0; }
+.qty-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.qty-label { font-size: 12px; color: var(--text-3); flex-shrink: 0; }
+.qty-input { width: 64px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1); font-family: inherit; font-size: 14px; font-weight: 600; padding: 6px 10px; outline: none; text-align: center; -moz-appearance: textfield; }
+.qty-input::-webkit-outer-spin-button, .qty-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.qty-unit { font-size: 12px; color: var(--text-3); }
+.manual-add-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.manual-add-row input { background: rgba(0,0,0,0.28); border: 1px solid var(--border); color: var(--text-1); font-family: inherit; font-size: 13px; padding: 8px 10px; border-radius: 8px; outline: none; min-width: 0; }
+.manual-add-row input:focus { border-color: rgba(255,255,255,0.2); }
+.fdc-searching { padding: 8px 0; color: var(--text-3); font-size: 12px; font-style: italic; }
+/* confirm modal */
+.confirm-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.confirm-item:last-child { border-bottom: none; }
+.confirm-item-name { flex: 1; font-size: 13px; color: var(--text-1); font-weight: 600; }
+.confirm-item-name small { display: block; font-size: 11px; color: var(--text-3); }
+.confirm-item-macros { font-size: 12px; color: var(--text-2); font-family: var(--font-mono); text-align: right; white-space: nowrap; }
+.confirm-total { display: flex; justify-content: space-between; padding: 12px 0 0; margin-top: 4px; border-top: 1px solid var(--border); font-size: 13px; font-weight: 700; }
+.confirm-total span:last-child { font-family: var(--font-mono); color: var(--good); }
+/* barcode modal */
+.barcode-video-wrap { position: relative; width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+.barcode-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.barcode-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.barcode-frame { width: 70%; aspect-ratio: 3/1; border: 2px solid rgba(110,231,183,0.7); border-radius: 6px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.4); position: relative; }
+.barcode-scan-line { position: absolute; left: 0; right: 0; height: 2px; background: linear-gradient(90deg,transparent,var(--good),transparent); animation: scan 1.8s ease-in-out infinite; top: 0; }
+@keyframes scan { 0%{top:10%} 50%{top:85%} 100%{top:10%} }
+.barcode-status { text-align: center; font-size: 13px; color: var(--text-3); margin-bottom: 12px; }
+/* toast */
+.nutr-toast { position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%) translateY(14px); background: rgba(110,231,183,0.12); border: 1px solid rgba(110,231,183,0.3); color: var(--good); padding: 9px 20px; border-radius: 999px; font-size: 13px; font-weight: 600; pointer-events: none; opacity: 0; transition: opacity 0.2s, transform 0.2s; z-index: 500; white-space: nowrap; }
+.nutr-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.nutr-toast.err { background: rgba(255,138,138,0.12); border-color: rgba(255,138,138,0.3); color: var(--bad); }
+</style>
 </head>
 <body>
 
@@ -538,6 +617,130 @@ html, body {
     <div style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:11px;color:rgba(255,255,255,0.3)">
       <span style="width:12px;height:12px;border-radius:3px;background:rgba(255,255,255,0.08);display:inline-block"></span>Missed
       <span style="width:12px;height:12px;border-radius:3px;background:#6ee7b7;display:inline-block"></span>Hit target
+    </div>
+  </div>
+
+  <!-- ===== NUTRITION ===== -->
+  <div class="divider"><span>NUTRITION</span></div>
+
+  <div class="card">
+    <div class="nutr-totals">
+      <div class="nutr-stat">
+        <div class="nutr-stat-label">Calories</div>
+        <div class="nutr-stat-val" id="nutCalVal">0 <span style="font-size:15px;font-weight:500;color:var(--text-3)">kcal</span></div>
+        <div class="nutr-stat-goal" id="nutCalGoal">/ 2000 kcal goal</div>
+        <div class="nutr-bar-track"><div class="nutr-bar-fill cal" id="nutCalBar" style="width:0%"></div></div>
+      </div>
+      <div class="nutr-stat">
+        <div class="nutr-stat-label">Protein</div>
+        <div class="nutr-stat-val" id="nutProVal">0 <span style="font-size:15px;font-weight:500;color:var(--text-3)">g</span></div>
+        <div class="nutr-stat-goal" id="nutProGoal">/ 150g goal</div>
+        <div class="nutr-bar-track"><div class="nutr-bar-fill pro" id="nutProBar" style="width:0%"></div></div>
+      </div>
+    </div>
+    <div class="food-log-list" id="foodLogList">
+      <div style="text-align:center;font-size:12px;color:var(--text-4);padding:14px 0;font-style:italic">No food logged today.</div>
+    </div>
+    <div class="nutr-actions">
+      <button class="nutr-btn" id="barcodeScanBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5v4"/><path d="M3 5h4"/><path d="M17 5h4"/><path d="M21 5v4"/><path d="M3 15v4"/><path d="M3 19h4"/><path d="M17 19h4"/><path d="M21 15v4"/><line x1="7" y1="8" x2="9" y2="8"/><line x1="7" y1="12" x2="9" y2="12"/><line x1="7" y1="16" x2="9" y2="16"/><line x1="11" y1="8" x2="13" y2="8"/><line x1="11" y1="12" x2="13" y2="12"/><line x1="11" y1="16" x2="13" y2="16"/><line x1="15" y1="8" x2="17" y2="8"/><line x1="15" y1="12" x2="17" y2="12"/><line x1="15" y1="16" x2="17" y2="16"/></svg>
+        Scan Barcode
+      </button>
+      <button class="nutr-btn primary" id="voiceLogBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        Log by Voice
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<div class="nutr-toast" id="nutrToast"></div>
+
+<!-- Voice log modal -->
+<div class="modal-bg" id="voiceModalBg">
+  <div class="modal">
+    <h3>Log Meal by Voice</h3>
+    <div class="voice-modal-state">
+      <div class="voice-modal-icon" id="voiceMicIcon" role="button" aria-label="Start recording">🎤</div>
+      <div class="voice-status" id="voiceStatus">Tap the mic to start speaking</div>
+    </div>
+    <div class="voice-fallback" id="voiceFallback" style="display:none">
+      Voice recognition isn't supported in this browser. Type your meal below instead.
+    </div>
+    <textarea class="voice-transcript" id="voiceTranscript" rows="3" placeholder="e.g. two eggs, a cup of rice and one banana"></textarea>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="voiceCancel">Cancel</button>
+      <button class="btn-primary" id="voiceSearch" style="opacity:0.5;pointer-events:none">Find Foods</button>
+    </div>
+  </div>
+</div>
+
+<!-- Food search results modal -->
+<div class="modal-bg" id="searchModalBg">
+  <div class="modal">
+    <h3>Match Foods</h3>
+    <p style="font-size:13px;color:var(--text-3);margin:-4px 0 14px">Select the best match for each item. Values are per 100g.</p>
+    <div id="searchResults"></div>
+    <div class="manual-add-row">
+      <input type="text" id="manualFoodName" placeholder="Add food manually…" style="flex:1">
+      <input type="number" id="manualCal" placeholder="kcal" min="0" style="width:68px">
+      <input type="number" id="manualPro" placeholder="g pro" min="0" style="width:68px">
+      <button class="btn-secondary" id="manualAddBtn" style="flex:none;padding:8px 12px;font-size:12px;white-space:nowrap">+ Add</button>
+    </div>
+    <div id="manualExtraList" style="margin-top:8px"></div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="btn-secondary" id="searchBack">Back</button>
+      <button class="btn-primary" id="searchConfirm">Review &amp; Log</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm modal -->
+<div class="modal-bg" id="confirmModalBg">
+  <div class="modal">
+    <h3>Confirm Log</h3>
+    <div id="confirmList"></div>
+    <div class="confirm-total" id="confirmTotal"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="confirmBack">Back</button>
+      <button class="btn-primary" id="confirmSave">Log it</button>
+    </div>
+  </div>
+</div>
+
+<!-- Barcode scanner modal -->
+<div class="modal-bg" id="barcodeModalBg">
+  <div class="modal">
+    <h3>Scan Barcode</h3>
+    <div class="barcode-video-wrap">
+      <video class="barcode-video" id="barcodeVideo" autoplay muted playsinline></video>
+      <div class="barcode-overlay">
+        <div class="barcode-frame">
+          <div class="barcode-scan-line"></div>
+        </div>
+      </div>
+    </div>
+    <div class="barcode-status" id="barcodeStatus">Point camera at a barcode</div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="barcodeCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Barcode result modal -->
+<div class="modal-bg" id="barcodeResultBg">
+  <div class="modal">
+    <h3 id="barcodeResultName" style="font-size:15px;line-height:1.4;word-break:break-word"></h3>
+    <div id="barcodeResultInfo" style="font-size:14px;color:var(--text-2);margin:12px 0 16px"></div>
+    <div class="qty-row" style="margin-bottom:16px">
+      <span class="qty-label">Servings:</span>
+      <input type="number" class="qty-input" id="barcodeQtyInput" value="1" min="0.25" step="0.25">
+      <span class="qty-unit" id="barcodeQtyUnit"></span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="barcodeResultCancel">Cancel</button>
+      <button class="btn-primary" id="barcodeResultSave">Log it</button>
     </div>
   </div>
 </div>
@@ -1351,5 +1554,505 @@ html, body {
   </div>
 </nav>
 <script>if(window.lucide)lucide.createIcons();</script>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── Config ── */
+  const USDA_KEY   = 'DEMO_KEY'; // replace with a key from https://fdc.nal.usda.gov/api-key-signup
+  const NUT_KEY    = 'wallace_nutrition_v1';
+  const CAL_GOAL   = 2000;
+  const PRO_GOAL   = 150;
+
+  /* ── Helpers ── */
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+  function todayVan() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' }); }
+
+  /* ── Storage ── */
+  function getLog() { try { return JSON.parse(localStorage.getItem(NUT_KEY)) || {}; } catch { return {}; } }
+  function saveLog(d) { localStorage.setItem(NUT_KEY, JSON.stringify(d)); }
+  function getTodayEntries() { return (getLog()[todayVan()] || []).slice(); }
+  function persistEntry(entry) {
+    const log = getLog(), k = todayVan();
+    if (!Array.isArray(log[k])) log[k] = [];
+    log[k].push(entry);
+    saveLog(log);
+  }
+  function deleteEntry(id) {
+    const log = getLog(), k = todayVan();
+    if (log[k]) log[k] = log[k].filter(e => e.id !== id);
+    saveLog(log);
+  }
+
+  /* ── Toast ── */
+  let _toastTimer = null;
+  function toast(msg, isErr) {
+    const t = $('nutrToast');
+    t.textContent = msg;
+    t.className = 'nutr-toast' + (isErr ? ' err' : '');
+    t.classList.add('show');
+    if (_toastTimer) clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+  }
+
+  /* ── Render nutrition card ── */
+  function renderNutrition() {
+    const entries = getTodayEntries();
+    const totalCal = entries.reduce((s, e) => s + (e.calories || 0), 0);
+    const totalPro = entries.reduce((s, e) => s + (e.protein  || 0), 0);
+
+    $('nutCalVal').innerHTML = Math.round(totalCal) + ' <span style="font-size:15px;font-weight:500;color:var(--text-3)">kcal</span>';
+    $('nutProVal').innerHTML = Math.round(totalPro) + ' <span style="font-size:15px;font-weight:500;color:var(--text-3)">g</span>';
+    const calPct = Math.min(100, (totalCal / CAL_GOAL) * 100);
+    const proPct = Math.min(100, (totalPro / PRO_GOAL) * 100);
+    const cb = $('nutCalBar'), pb = $('nutProBar');
+    cb.style.width = calPct + '%'; cb.className = 'nutr-bar-fill ' + (calPct >= 100 ? 'done' : 'cal');
+    pb.style.width = proPct + '%'; pb.className = 'nutr-bar-fill ' + (proPct >= 100 ? 'done' : 'pro');
+
+    const list = $('foodLogList');
+    if (!entries.length) {
+      list.innerHTML = '<div style="text-align:center;font-size:12px;color:var(--text-4);padding:14px 0;font-style:italic">No food logged today.</div>';
+      return;
+    }
+    list.innerHTML = entries.map(e =>
+      '<div class="food-log-item">'
+      + '<div class="food-log-name">' + esc(e.name)
+      + '<small>' + esc(String(e.quantity)) + ' × ' + esc(e.unit || 'serving') + (e.source === 'barcode' ? ' · scanned' : e.source === 'voice' ? ' · voice' : '') + '</small>'
+      + '</div>'
+      + '<div class="food-log-macros">' + Math.round(e.calories || 0) + ' kcal<br>' + (e.protein || 0) + 'g pro</div>'
+      + '<button class="food-log-del" data-id="' + esc(e.id) + '" aria-label="Delete">×</button>'
+      + '</div>'
+    ).join('');
+    list.querySelectorAll('.food-log-del').forEach(btn => {
+      btn.addEventListener('click', () => { deleteEntry(btn.dataset.id); renderNutrition(); });
+    });
+  }
+
+  /* ── USDA FoodData Central search ── */
+  async function searchUSDA(query, limit) {
+    limit = limit || 5;
+    try {
+      const url = 'https://api.nal.usda.gov/fdc/v1/foods/search?query='
+        + encodeURIComponent(query) + '&api_key=' + USDA_KEY
+        + '&pageSize=' + limit + '&dataType=SR%20Legacy,Foundation,Branded';
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      return (data.foods || []).map(food => {
+        let cal = 0, pro = 0;
+        (food.foodNutrients || []).forEach(n => {
+          const id = n.nutrientId, nm = (n.nutrientName || '').toLowerCase();
+          if (id === 1008 || id === 2048 || nm === 'energy') cal = n.value || 0;
+          if (id === 1003 || nm === 'protein') pro = n.value || 0;
+        });
+        return {
+          fdcId: food.fdcId,
+          description: food.description,
+          brand: food.brandName || food.brandOwner || '',
+          calories: Math.round(cal),
+          protein: Math.round(pro * 10) / 10
+        };
+      });
+    } catch (e) {
+      console.warn('[USDA search]', e.message);
+      return [];
+    }
+  }
+
+  /* ── Rule-based meal text parser ── */
+  const WORD_NUMS = { a:1, an:1, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, half:0.5 };
+  const UNITS_SET = new Set(['cup','cups','tbsp','tablespoon','tablespoons','tsp','teaspoon','teaspoons','oz','ounce','ounces','gram','grams','g','ml','serving','servings','piece','pieces','slice','slices','scoop','scoops','handful','handfuls','bottle','can','cans','bowl','bowls','plate','plates']);
+
+  function parseMealText(text) {
+    const segments = text.toLowerCase()
+      .split(/\s*(?:,\s*|\s+and\s+)/)
+      .map(s => s.trim()).filter(s => s.length > 1);
+
+    return segments.map(seg => {
+      let quantity = 1, unit = 'serving', noun = seg;
+
+      const numRx = seg.match(/^(\d+(?:\.\d+)?)\s*([a-z]+)?\s+(.+)$/);
+      const wrdRx = seg.match(/^(a|an|one|two|three|four|five|six|seven|eight|nine|ten|half)\s+([a-z]+)?\s*(.*)$/);
+
+      if (numRx) {
+        quantity = parseFloat(numRx[1]);
+        const tok2 = (numRx[2] || '').toLowerCase();
+        if (UNITS_SET.has(tok2)) { unit = tok2; noun = numRx[3]; }
+        else { noun = (tok2 ? tok2 + ' ' : '') + (numRx[3] || ''); }
+      } else if (wrdRx) {
+        quantity = WORD_NUMS[wrdRx[1].toLowerCase()] || 1;
+        const tok2 = (wrdRx[2] || '').toLowerCase();
+        if (UNITS_SET.has(tok2)) { unit = tok2; noun = wrdRx[3] || ''; }
+        else { noun = (tok2 ? tok2 + ' ' : '') + (wrdRx[3] || ''); }
+      }
+
+      noun = noun.trim() || seg;
+      return { raw: seg, quantity, unit, noun, fdcResults: null, selectedIdx: -1 };
+    });
+  }
+
+  /* ── Voice modal ── */
+  let _voiceRec = null, _voiceOn = false;
+
+  function openVoiceModal() {
+    $('voiceTranscript').value = '';
+    $('voiceStatus').textContent = 'Tap the mic to start speaking';
+    $('voiceMicIcon').className = 'voice-modal-icon';
+    setVoiceSearchEnabled(false);
+    $('voiceModalBg').classList.add('show');
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    $('voiceFallback').style.display = SR ? 'none' : '';
+  }
+
+  function closeVoiceModal() {
+    if (_voiceRec && _voiceOn) { try { _voiceRec.stop(); } catch {} }
+    $('voiceModalBg').classList.remove('show');
+  }
+
+  function setVoiceSearchEnabled(on) {
+    const btn = $('voiceSearch');
+    btn.style.opacity = on ? '' : '0.5';
+    btn.style.pointerEvents = on ? '' : 'none';
+  }
+
+  $('voiceMicIcon').addEventListener('click', () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+    if (_voiceOn) { _voiceRec.stop(); return; }
+    _voiceRec = new SR();
+    _voiceRec.continuous = true;
+    _voiceRec.interimResults = false;
+    _voiceRec.lang = 'en-US';
+    _voiceRec.onstart = () => {
+      _voiceOn = true;
+      $('voiceMicIcon').className = 'voice-modal-icon recording';
+      $('voiceStatus').textContent = 'Listening… tap mic to stop';
+    };
+    _voiceRec.onresult = ev => {
+      const ta = $('voiceTranscript');
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        if (ev.results[i].isFinal) {
+          const t = ev.results[i][0].transcript.trim();
+          ta.value += (ta.value && !ta.value.endsWith(' ') ? ' ' : '') + t;
+        }
+      }
+      setVoiceSearchEnabled(!!$('voiceTranscript').value.trim());
+    };
+    _voiceRec.onend = () => {
+      _voiceOn = false;
+      $('voiceMicIcon').className = 'voice-modal-icon';
+      $('voiceStatus').textContent = 'Done. Edit above or tap Find Foods.';
+      setVoiceSearchEnabled(!!$('voiceTranscript').value.trim());
+    };
+    _voiceRec.onerror = ev => {
+      _voiceOn = false;
+      $('voiceMicIcon').className = 'voice-modal-icon';
+      $('voiceStatus').textContent = 'Error: ' + ev.error + '. Try again.';
+    };
+    _voiceRec.start();
+  });
+
+  $('voiceTranscript').addEventListener('input', () =>
+    setVoiceSearchEnabled(!!$('voiceTranscript').value.trim()));
+
+  $('voiceCancel').addEventListener('click', closeVoiceModal);
+  $('voiceLogBtn').addEventListener('click', openVoiceModal);
+
+  $('voiceSearch').addEventListener('click', async () => {
+    const text = $('voiceTranscript').value.trim();
+    if (!text) return;
+    closeVoiceModal();
+    await openSearchModal(parseMealText(text));
+  });
+
+  /* ── Search results modal ── */
+  let _parsedItems = [], _extraItems = [];
+
+  async function openSearchModal(items) {
+    _parsedItems = items;
+    _extraItems = [];
+    $('searchModalBg').classList.add('show');
+    $('manualExtraList').innerHTML = '';
+    renderSearchGroups();
+    // Fire USDA requests sequentially to avoid rate-limit with DEMO_KEY
+    for (let i = 0; i < _parsedItems.length; i++) {
+      const item = _parsedItems[i];
+      const wrap = document.querySelector('[data-iidx="' + i + '"] .fdc-results-wrap');
+      if (wrap) wrap.innerHTML = '<div class="fdc-searching">Searching USDA…</div>';
+      item.fdcResults = await searchUSDA(item.noun);
+      item.selectedIdx = item.fdcResults.length ? 0 : -1;
+      renderResultsForItem(i);
+    }
+  }
+
+  function closeSearchModal() { $('searchModalBg').classList.remove('show'); }
+
+  function renderSearchGroups() {
+    const c = $('searchResults');
+    c.innerHTML = _parsedItems.map((item, i) =>
+      '<div class="parsed-item-group" data-iidx="' + i + '">'
+      + '<div class="parsed-item-header">'
+      + '<span>' + esc(item.raw) + '</span>'
+      + '<button class="parsed-item-del" data-i="' + i + '" aria-label="Remove">×</button>'
+      + '</div>'
+      + '<div class="qty-row">'
+      + '<span class="qty-label">Qty:</span>'
+      + '<input type="number" class="qty-input" data-i="' + i + '" value="' + item.quantity + '" min="0.25" step="0.25">'
+      + '<span class="qty-unit">' + esc(item.unit) + '</span>'
+      + '</div>'
+      + '<div class="fdc-results-wrap" style="margin-top:8px"><div class="fdc-searching">Searching USDA…</div></div>'
+      + '</div>'
+    ).join('');
+
+    c.querySelectorAll('.parsed-item-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _parsedItems.splice(parseInt(btn.dataset.i), 1);
+        if (!_parsedItems.length) { closeSearchModal(); openVoiceModal(); return; }
+        renderSearchGroups();
+      });
+    });
+    c.querySelectorAll('.qty-input').forEach(inp => {
+      inp.addEventListener('input', () => { _parsedItems[parseInt(inp.dataset.i)].quantity = parseFloat(inp.value) || 1; });
+    });
+  }
+
+  function renderResultsForItem(idx) {
+    const group = document.querySelector('[data-iidx="' + idx + '"]');
+    if (!group) return;
+    const wrap = group.querySelector('.fdc-results-wrap');
+    const item = _parsedItems[idx];
+    if (!item.fdcResults || !item.fdcResults.length) {
+      wrap.innerHTML = '<div class="fdc-no-results">No USDA matches. Add manually below.</div>';
+      return;
+    }
+    wrap.innerHTML = item.fdcResults.map((r, ri) =>
+      '<div class="fdc-result' + (ri === item.selectedIdx ? ' selected' : '') + '" data-item="' + idx + '" data-ri="' + ri + '">'
+      + '<div class="fdc-result-check">' + (ri === item.selectedIdx ? '✓' : '') + '</div>'
+      + '<div class="fdc-result-info">'
+      + '<div class="fdc-result-name">' + esc(r.description) + (r.brand ? ' <span style="color:var(--text-4);font-weight:400">· ' + esc(r.brand) + '</span>' : '') + '</div>'
+      + '<div class="fdc-result-macros">' + r.calories + ' kcal · ' + r.protein + 'g protein (per 100g)</div>'
+      + '</div></div>'
+    ).join('');
+    wrap.querySelectorAll('.fdc-result').forEach(el => {
+      el.addEventListener('click', () => {
+        _parsedItems[parseInt(el.dataset.item)].selectedIdx = parseInt(el.dataset.ri);
+        renderResultsForItem(parseInt(el.dataset.item));
+      });
+    });
+  }
+
+  $('manualAddBtn').addEventListener('click', () => {
+    const name = $('manualFoodName').value.trim();
+    const cal  = parseFloat($('manualCal').value) || 0;
+    const pro  = parseFloat($('manualPro').value) || 0;
+    if (!name) { $('manualFoodName').focus(); return; }
+    _extraItems.push({ name, calories: cal, protein: pro, quantity: 1, unit: 'serving' });
+    $('manualFoodName').value = ''; $('manualCal').value = ''; $('manualPro').value = '';
+    renderExtraList();
+  });
+
+  function renderExtraList() {
+    $('manualExtraList').innerHTML = _extraItems.map((e, i) =>
+      '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;color:var(--text-2)">'
+      + '<span style="flex:1">' + esc(e.name) + '</span>'
+      + '<span style="font-family:var(--font-mono);color:var(--text-3)">' + e.calories + ' kcal · ' + e.protein + 'g pro</span>'
+      + '<button class="food-log-del" data-ei="' + i + '" aria-label="Remove">×</button>'
+      + '</div>'
+    ).join('');
+    $('manualExtraList').querySelectorAll('.food-log-del').forEach(btn => {
+      btn.addEventListener('click', () => { _extraItems.splice(parseInt(btn.dataset.ei), 1); renderExtraList(); });
+    });
+  }
+
+  $('searchBack').addEventListener('click', () => {
+    closeSearchModal();
+    openVoiceModal();
+    $('voiceTranscript').value = _parsedItems.map(i => i.raw).join(', ');
+    setVoiceSearchEnabled(true);
+  });
+
+  $('searchConfirm').addEventListener('click', openConfirmModal);
+
+  /* ── Confirm modal ── */
+  let _pendingEntries = [];
+
+  function buildPendingEntries() {
+    const entries = [];
+    _parsedItems.forEach(item => {
+      if (item.selectedIdx < 0 || !item.fdcResults || !item.fdcResults[item.selectedIdx]) return;
+      const r = item.fdcResults[item.selectedIdx];
+      const qty = item.quantity;
+      entries.push({
+        id: uid(), name: r.description + (r.brand ? ' · ' + r.brand : ''),
+        quantity: qty, unit: item.unit,
+        calories: Math.round(r.calories * qty),
+        protein: Math.round(r.protein * qty * 10) / 10,
+        source: 'voice', logged_at: new Date().toISOString()
+      });
+    });
+    _extraItems.forEach(ei => {
+      entries.push({ id: uid(), name: ei.name, quantity: 1, unit: 'serving',
+        calories: ei.calories, protein: ei.protein, source: 'manual', logged_at: new Date().toISOString() });
+    });
+    return entries;
+  }
+
+  function openConfirmModal() {
+    _pendingEntries = buildPendingEntries();
+    if (!_pendingEntries.length) { toast('No items selected.', true); return; }
+    closeSearchModal();
+    renderConfirm();
+    $('confirmModalBg').classList.add('show');
+  }
+
+  function renderConfirm() {
+    const totalCal = _pendingEntries.reduce((s, e) => s + e.calories, 0);
+    const totalPro = _pendingEntries.reduce((s, e) => s + e.protein, 0);
+    $('confirmList').innerHTML = _pendingEntries.map((e, i) =>
+      '<div class="confirm-item">'
+      + '<div class="confirm-item-name">' + esc(e.name)
+      + '<small>' + esc(String(e.quantity)) + ' × ' + esc(e.unit) + '</small>'
+      + '</div>'
+      + '<div class="confirm-item-macros">' + Math.round(e.calories) + ' kcal<br>' + e.protein + 'g pro</div>'
+      + '<button class="food-log-del" data-ci="' + i + '" aria-label="Remove">×</button>'
+      + '</div>'
+    ).join('');
+    $('confirmList').querySelectorAll('.food-log-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _pendingEntries.splice(parseInt(btn.dataset.ci), 1);
+        if (!_pendingEntries.length) { $('confirmModalBg').classList.remove('show'); return; }
+        renderConfirm();
+      });
+    });
+    $('confirmTotal').innerHTML = '<span>Total</span><span>' + Math.round(totalCal) + ' kcal · ' + Math.round(totalPro) + 'g pro</span>';
+  }
+
+  $('confirmBack').addEventListener('click', () => {
+    $('confirmModalBg').classList.remove('show');
+    openSearchModal(_parsedItems).then(() => {});
+  });
+
+  $('confirmSave').addEventListener('click', () => {
+    _pendingEntries.forEach(e => persistEntry(e));
+    $('confirmModalBg').classList.remove('show');
+    renderNutrition();
+    toast('Logged ' + _pendingEntries.length + ' item' + (_pendingEntries.length !== 1 ? 's' : '') + '!');
+    _pendingEntries = [];
+  });
+
+  /* ── Barcode scanner ── */
+  let _bcStream = null, _bcDetector = null, _bcLoop = null, _bcProduct = null;
+
+  $('barcodeScanBtn').addEventListener('click', openBarcodeScanner);
+
+  async function openBarcodeScanner() {
+    $('barcodeStatus').textContent = 'Starting camera…';
+    $('barcodeModalBg').classList.add('show');
+    try {
+      _bcStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      const vid = $('barcodeVideo');
+      vid.srcObject = _bcStream;
+      await vid.play();
+      if ('BarcodeDetector' in window) {
+        _bcDetector = new BarcodeDetector({ formats: ['ean_13','ean_8','upc_a','upc_e','code_128','code_39'] });
+        $('barcodeStatus').textContent = 'Point camera at a barcode';
+        startBarcodeLoop();
+      } else {
+        $('barcodeStatus').textContent = 'Barcode detection not supported in this browser (use Chrome or Edge). Enter barcode manually if needed.';
+      }
+    } catch (err) {
+      $('barcodeStatus').textContent = 'Camera access denied: ' + err.message;
+    }
+  }
+
+  function startBarcodeLoop() {
+    if (_bcLoop) return;
+    _bcLoop = setInterval(async () => {
+      const vid = $('barcodeVideo');
+      if (!_bcDetector || vid.readyState < 2) return;
+      try {
+        const codes = await _bcDetector.detect(vid);
+        if (codes.length) {
+          clearInterval(_bcLoop); _bcLoop = null;
+          const code = codes[0].rawValue;
+          closeBarcodeScanner();
+          await lookupBarcode(code);
+        }
+      } catch {}
+    }, 350);
+  }
+
+  function closeBarcodeScanner() {
+    if (_bcLoop) { clearInterval(_bcLoop); _bcLoop = null; }
+    if (_bcStream) { _bcStream.getTracks().forEach(t => t.stop()); _bcStream = null; }
+    $('barcodeVideo').srcObject = null;
+    $('barcodeModalBg').classList.remove('show');
+  }
+
+  $('barcodeCancel').addEventListener('click', closeBarcodeScanner);
+
+  async function lookupBarcode(code) {
+    toast('Looking up barcode…');
+    try {
+      const res = await fetch('https://world.openfoodfacts.org/api/v0/product/' + code + '.json');
+      const data = await res.json();
+      if (data.status !== 1 || !data.product) { toast('Product not found in database.', true); return; }
+      const p = data.product;
+      const n = p.nutriments || {};
+      const perServing = (v100, vsrv) => (vsrv != null && vsrv !== '' ? vsrv : v100);
+      _bcProduct = {
+        name: p.product_name || p.product_name_en || ('Barcode ' + code),
+        brand: p.brands || '',
+        servingLabel: p.serving_size || '100g',
+        calPer: Math.round(perServing(n['energy-kcal_100g'] || 0, n['energy-kcal_serving'])),
+        proPer: Math.round((perServing(n['proteins_100g'] || 0, n['proteins_serving'])) * 10) / 10,
+      };
+      showBarcodeResult();
+    } catch (err) {
+      toast('Lookup failed: ' + err.message, true);
+    }
+  }
+
+  function showBarcodeResult() {
+    const p = _bcProduct;
+    $('barcodeResultName').textContent = p.name + (p.brand ? ' — ' + p.brand : '');
+    $('barcodeResultInfo').innerHTML =
+      '<div style="font-size:11px;color:var(--text-3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.1em">Per serving (' + esc(p.servingLabel) + ')</div>'
+      + '<div style="font-size:26px;font-weight:700">' + p.calPer + ' <span style="font-size:14px;color:var(--text-3);font-weight:500">kcal</span></div>'
+      + '<div style="font-size:14px;color:var(--text-2);margin-top:4px">' + p.proPer + 'g protein</div>';
+    $('barcodeQtyInput').value = 1;
+    $('barcodeQtyUnit').textContent = 'serving' + (p.servingLabel ? ' (' + p.servingLabel + ')' : '');
+    $('barcodeResultBg').classList.add('show');
+  }
+
+  $('barcodeResultCancel').addEventListener('click', () => $('barcodeResultBg').classList.remove('show'));
+
+  $('barcodeResultSave').addEventListener('click', () => {
+    const qty = parseFloat($('barcodeQtyInput').value) || 1;
+    const p = _bcProduct;
+    persistEntry({
+      id: uid(),
+      name: p.name + (p.brand ? ' · ' + p.brand : ''),
+      quantity: qty, unit: 'serving (' + p.servingLabel + ')',
+      calories: Math.round(p.calPer * qty),
+      protein: Math.round(p.proPer * qty * 10) / 10,
+      source: 'barcode', logged_at: new Date().toISOString()
+    });
+    $('barcodeResultBg').classList.remove('show');
+    renderNutrition();
+    toast('Logged!');
+  });
+
+  /* ── Boot ── */
+  renderNutrition();
+
+})();
+</script>
 </body>
 </html>
