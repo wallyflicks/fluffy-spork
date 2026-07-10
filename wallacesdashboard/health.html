@@ -1668,11 +1668,13 @@ html, body {
     if (!Array.isArray(log[k])) log[k] = [];
     log[k].push(entry);
     saveLog(log);
+    scheduleFoodSync();
   }
   function deleteEntry(id) {
     const log = getLog(), k = todayVan();
     if (log[k]) log[k] = log[k].filter(e => e.id !== id);
     saveLog(log);
+    scheduleFoodSync();
   }
 
   /* ── Toast ── */
@@ -2295,6 +2297,40 @@ html, body {
   const SUPA_URL_N = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
   const SUPA_KEY_N = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
   const SUPA_H_N = { 'apikey': SUPA_KEY_N, 'Authorization': 'Bearer ' + SUPA_KEY_N };
+  const SUPA_H_NJ = { ...SUPA_H_N, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' };
+
+  /* ── Food log Supabase sync ── */
+  const FOOD_SB_KEY = 'food_logs';
+  let _foodSyncTimer = null;
+
+  function scheduleFoodSync() {
+    clearTimeout(_foodSyncTimer);
+    _foodSyncTimer = setTimeout(pushFoodLog, 800);
+  }
+
+  async function pushFoodLog() {
+    try {
+      await fetch(SUPA_URL_N + '/rest/v1/app_state?on_conflict=key', {
+        method: 'POST', headers: SUPA_H_NJ,
+        body: JSON.stringify({ key: FOOD_SB_KEY, data: getLog(), updated_at: new Date().toISOString() })
+      });
+    } catch (e) { console.warn('[food sync] push failed:', e.message); }
+  }
+
+  async function loadFoodLog() {
+    try {
+      const res = await fetch(SUPA_URL_N + '/rest/v1/app_state?key=eq.' + FOOD_SB_KEY + '&select=data', { headers: SUPA_H_N });
+      if (!res.ok) return;
+      const rows = await res.json();
+      if (!rows.length || !rows[0].data) { pushFoodLog(); return; }
+      saveLog(rows[0].data);
+      renderNutrition();
+    } catch (e) { console.warn('[food sync] load failed:', e.message); }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) loadFoodLog();
+  });
 
   let _nutrProfile = null;
   let _latestWeightKg = null;
@@ -2420,7 +2456,8 @@ html, body {
   });
 
   /* ── Boot ── */
-  renderNutrition();
+  renderNutrition();     // immediate render from localStorage cache
+  loadFoodLog();         // async: fetch from Supabase, re-render when ready
   loadProfileLocal();
   populateTargetsForm();
   applyTargets();
