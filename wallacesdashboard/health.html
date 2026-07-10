@@ -492,7 +492,7 @@ html, body {
 .nutr-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
 /* voice modal */
 .voice-modal-state { text-align: center; padding: 20px 0 8px; }
-.voice-modal-icon { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,0.06); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 26px; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+.voice-modal-icon { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,0.06); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
 .voice-modal-icon.recording { background: rgba(255,138,138,0.15); border-color: rgba(255,138,138,0.4); animation: voice-pulse 1.2s ease-in-out infinite; }
 @keyframes voice-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(255,138,138,0.3)} 50%{box-shadow:0 0 0 10px rgba(255,138,138,0)} }
 .voice-status { font-size: 13px; color: var(--text-3); margin-bottom: 8px; min-height: 18px; }
@@ -542,6 +542,24 @@ html, body {
 .nutr-toast { position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%) translateY(14px); background: rgba(110,231,183,0.12); border: 1px solid rgba(110,231,183,0.3); color: var(--good); padding: 9px 20px; border-radius: 999px; font-size: 13px; font-weight: 600; pointer-events: none; opacity: 0; transition: opacity 0.2s, transform 0.2s; z-index: 500; white-space: nowrap; }
 .nutr-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .nutr-toast.err { background: rgba(255,138,138,0.12); border-color: rgba(255,138,138,0.3); color: var(--bad); }
+/* daily targets card */
+.targets-card { margin-top: -6px; }
+.targets-hdr { display: flex; align-items: center; gap: 8px; cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none; }
+.targets-hdr-label { display: flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-3); flex-shrink: 0; }
+.targets-hdr-val { flex: 1; font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; font-family: var(--font-mono); text-align: right; }
+.targets-chevron { color: var(--text-3); transition: transform 0.2s; flex-shrink: 0; }
+.targets-chevron.open { transform: rotate(180deg); }
+.targets-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.targets-field { display: flex; flex-direction: column; gap: 4px; }
+.targets-lbl { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); }
+.targets-inp { background: rgba(0,0,0,0.28); border: 1px solid var(--border); border-radius: 8px; color: var(--text-1); font-family: inherit; font-size: 13px; padding: 8px 10px; outline: none; width: 100%; -webkit-appearance: none; appearance: none; }
+.targets-inp:focus { border-color: rgba(255,255,255,0.2); }
+.targets-wt { font-size: 13px; color: var(--text-2); padding: 8px 10px; background: rgba(0,0,0,0.14); border: 1px solid transparent; border-radius: 8px; font-variant-numeric: tabular-nums; }
+.targets-preview { margin-top: 14px; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; display: none; }
+.targets-preview.show { display: block; }
+.targets-preview-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; padding: 3px 0; color: var(--text-2); }
+.targets-preview-row + .targets-preview-row { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; }
+.targets-preview-val { font-family: var(--font-mono); font-weight: 700; color: var(--good); }
 </style>
 </head>
 <body>
@@ -653,6 +671,63 @@ html, body {
     </div>
   </div>
 
+  <!-- Daily Targets card -->
+  <div class="card targets-card" id="targetsCard">
+    <div class="targets-hdr" id="targetsToggle">
+      <span class="targets-hdr-label">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Daily Targets
+      </span>
+      <span class="targets-hdr-val" id="targetsComputed">2000 kcal · 150g protein</span>
+      <svg class="targets-chevron" id="targetsChevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="targets-body" id="targetsBody" style="display:none">
+      <div class="targets-row" style="margin-top:14px">
+        <div class="targets-field">
+          <label class="targets-lbl" for="trHeight">Height (cm)</label>
+          <input type="number" class="targets-inp" id="trHeight" placeholder="175" min="100" max="250">
+        </div>
+        <div class="targets-field">
+          <label class="targets-lbl" for="trAge">Age</label>
+          <input type="number" class="targets-inp" id="trAge" placeholder="25" min="15" max="100">
+        </div>
+        <div class="targets-field">
+          <label class="targets-lbl" for="trSex">Sex</label>
+          <select class="targets-inp" id="trSex">
+            <option value="">—</option>
+            <option value="M">Male</option>
+            <option value="F">Female</option>
+          </select>
+        </div>
+        <div class="targets-field">
+          <label class="targets-lbl">Weight</label>
+          <div class="targets-wt" id="trWeightDisplay">loading…</div>
+        </div>
+      </div>
+      <div class="targets-field" style="margin-top:12px">
+        <label class="targets-lbl" for="trActivity">Activity Level</label>
+        <select class="targets-inp" id="trActivity">
+          <option value="1.2">Sedentary (desk job, little exercise)</option>
+          <option value="1.375">Lightly Active (1–3×/wk)</option>
+          <option value="1.55">Moderately Active (3–5×/wk)</option>
+          <option value="1.725">Very Active (6–7×/wk)</option>
+        </select>
+      </div>
+      <div class="targets-field" style="margin-top:10px">
+        <label class="targets-lbl" for="trGoal">Goal</label>
+        <select class="targets-inp" id="trGoal">
+          <option value="-500">Lose weight (−500 kcal/day)</option>
+          <option value="0">Maintain weight</option>
+          <option value="300">Gain weight (+300 kcal/day)</option>
+        </select>
+      </div>
+      <div class="targets-preview" id="targetsPreview"></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:14px">
+        <button class="nutr-btn primary" id="trSaveBtn" style="flex:none;padding:10px 18px;font-size:13px">Save Targets</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <div class="nutr-toast" id="nutrToast"></div>
@@ -662,7 +737,9 @@ html, body {
   <div class="modal">
     <h3>Log Meal by Voice</h3>
     <div class="voice-modal-state">
-      <div class="voice-modal-icon" id="voiceMicIcon" role="button" aria-label="Start recording">🎤</div>
+      <div class="voice-modal-icon" id="voiceMicIcon" role="button" aria-label="Start recording">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      </div>
       <div class="voice-status" id="voiceStatus">Tap the mic to start speaking</div>
     </div>
     <div class="voice-fallback" id="voiceFallback" style="display:none">
@@ -1563,8 +1640,8 @@ html, body {
   /* ── Config ── */
   const USDA_KEY   = 'DEMO_KEY'; // replace with a key from https://fdc.nal.usda.gov/api-key-signup
   const NUT_KEY    = 'wallace_nutrition_v1';
-  const CAL_GOAL   = 2000;
-  const PRO_GOAL   = 150;
+  let CAL_GOAL   = 2000;
+  let PRO_GOAL   = 150;
 
   /* ── Helpers ── */
   function $(id) { return document.getElementById(id); }
@@ -1610,6 +1687,8 @@ html, body {
 
     $('nutCalVal').innerHTML = Math.round(totalCal) + ' <span style="font-size:15px;font-weight:500;color:var(--text-3)">kcal</span>';
     $('nutProVal').innerHTML = Math.round(totalPro) + ' <span style="font-size:15px;font-weight:500;color:var(--text-3)">g</span>';
+    $('nutCalGoal').textContent = '/ ' + CAL_GOAL + ' kcal goal';
+    $('nutProGoal').textContent = '/ ' + PRO_GOAL + 'g goal';
     const calPct = Math.min(100, (totalCal / CAL_GOAL) * 100);
     const proPct = Math.min(100, (totalPro / PRO_GOAL) * 100);
     const cb = $('nutCalBar'), pb = $('nutProBar');
@@ -1636,12 +1715,11 @@ html, body {
   }
 
   /* ── USDA FoodData Central search ── */
-  async function searchUSDA(query, limit) {
-    limit = limit || 5;
+  async function searchUSDA(query) {
     try {
       const url = 'https://api.nal.usda.gov/fdc/v1/foods/search?query='
         + encodeURIComponent(query) + '&api_key=' + USDA_KEY
-        + '&pageSize=' + limit + '&dataType=SR%20Legacy,Foundation,Branded';
+        + '&pageSize=20&dataType=SR%20Legacy,Foundation,Branded';
       const res = await fetch(url);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
@@ -1656,6 +1734,7 @@ html, body {
           fdcId: food.fdcId,
           description: food.description,
           brand: food.brandName || food.brandOwner || '',
+          dataType: food.dataType || '',
           calories: Math.round(cal),
           protein: Math.round(pro * 10) / 10
         };
@@ -1664,6 +1743,28 @@ html, body {
       console.warn('[USDA search]', e.message);
       return [];
     }
+  }
+
+  function rankFDCResults(foods, query) {
+    const q = query.toLowerCase().trim();
+    const words = q.split(/\s+/);
+    return foods.map(food => {
+      const desc = (food.description || '').toLowerCase();
+      const parts = desc.split(',');
+      const first = parts[0].trim();
+      let score = 0;
+      if (food.dataType === 'Foundation' || food.dataType === 'SR Legacy') score += 100;
+      else if (food.dataType === 'Branded') score -= 50;
+      if (first === q) score += 80;
+      else if (first.startsWith(q)) score += 60;
+      else if (words.every(w => first.includes(w))) score += 40;
+      else if (words.every(w => desc.includes(w))) score += 15;
+      // Penalise if query only matches after first comma (incidental ingredient mention)
+      if (!first.includes(q) && parts.slice(1).some(p => p.toLowerCase().includes(q))) score -= 25;
+      // Prefer shorter, more generic descriptions
+      score -= Math.min(desc.length / 8, 25);
+      return { ...food, _score: score };
+    }).sort((a, b) => b._score - a._score).slice(0, 5);
   }
 
   /* ── Rule-based meal text parser ── */
@@ -1786,7 +1887,7 @@ html, body {
       const item = _parsedItems[i];
       const wrap = document.querySelector('[data-iidx="' + i + '"] .fdc-results-wrap');
       if (wrap) wrap.innerHTML = '<div class="fdc-searching">Searching USDA…</div>';
-      item.fdcResults = await searchUSDA(item.noun);
+      item.fdcResults = rankFDCResults(await searchUSDA(item.noun), item.noun);
       item.selectedIdx = item.fdcResults.length ? 0 : -1;
       renderResultsForItem(i);
     }
@@ -2050,8 +2151,142 @@ html, body {
     toast('Logged!');
   });
 
+  /* ── Daily Targets calculator ── */
+  const NUTR_PROFILE_KEY = 'nutrition_profile_v1';
+  const SUPA_URL_N = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
+  const SUPA_KEY_N = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
+  const SUPA_H_N = { 'apikey': SUPA_KEY_N, 'Authorization': 'Bearer ' + SUPA_KEY_N };
+
+  let _nutrProfile = null;
+  let _latestWeightKg = null;
+
+  function loadProfileLocal() {
+    try { _nutrProfile = JSON.parse(localStorage.getItem(NUTR_PROFILE_KEY)) || null; } catch { _nutrProfile = null; }
+  }
+
+  function saveProfile(p) {
+    _nutrProfile = p;
+    localStorage.setItem(NUTR_PROFILE_KEY, JSON.stringify(p));
+    fetch(SUPA_URL_N + '/rest/v1/app_state?on_conflict=key', {
+      method: 'POST',
+      headers: { ...SUPA_H_N, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+      body: JSON.stringify({ key: 'nutrition_profile', data: p, updated_at: new Date().toISOString() })
+    }).catch(() => {});
+  }
+
+  async function loadProfileRemote() {
+    try {
+      const res = await fetch(SUPA_URL_N + '/rest/v1/app_state?select=data&key=eq.nutrition_profile', { headers: SUPA_H_N });
+      const rows = await res.json();
+      if (rows && rows.length && rows[0].data) {
+        _nutrProfile = rows[0].data;
+        localStorage.setItem(NUTR_PROFILE_KEY, JSON.stringify(_nutrProfile));
+        populateTargetsForm();
+        applyTargets();
+      }
+    } catch {}
+  }
+
+  async function fetchLatestWeight() {
+    try {
+      const res = await fetch(SUPA_URL_N + '/rest/v1/weight_logs?select=date,weight,unit&order=date.desc&limit=1', { headers: SUPA_H_N });
+      const rows = await res.json();
+      if (rows && rows.length) {
+        const r = rows[0];
+        _latestWeightKg = r.unit === 'lbs' ? r.weight * 0.453592 : r.weight;
+        $('trWeightDisplay').textContent = r.weight + ' ' + (r.unit || 'kg');
+        applyTargets();
+      } else {
+        $('trWeightDisplay').textContent = 'No weight logged';
+      }
+    } catch {
+      $('trWeightDisplay').textContent = 'Could not load';
+    }
+  }
+
+  function computeTargets(profile, weightKg) {
+    if (!profile || !profile.heightCm || !profile.age || !profile.sex) return null;
+    const wKg = weightKg || 70;
+    const h = parseFloat(profile.heightCm);
+    const age = parseFloat(profile.age);
+    const activity = parseFloat(profile.activity) || 1.55;
+    const goalAdj = parseInt(profile.goal) || 0;
+    const bmr = profile.sex === 'M'
+      ? 10 * wKg + 6.25 * h - 5 * age + 5
+      : 10 * wKg + 6.25 * h - 5 * age - 161;
+    return {
+      cal: Math.round(bmr * activity + goalAdj),
+      pro: Math.round(wKg * 2.2 * 0.8)  // 0.8g per lb bodyweight
+    };
+  }
+
+  function applyTargets() {
+    const result = computeTargets(_nutrProfile, _latestWeightKg);
+    if (!result) return;
+    CAL_GOAL = result.cal;
+    PRO_GOAL = result.pro;
+    $('targetsComputed').textContent = CAL_GOAL + ' kcal · ' + PRO_GOAL + 'g protein';
+    renderNutrition();
+  }
+
+  function updatePreview() {
+    const h = parseFloat($('trHeight').value);
+    const age = parseFloat($('trAge').value);
+    const sex = $('trSex').value;
+    const activity = $('trActivity').value;
+    const goal = $('trGoal').value;
+    const preview = $('targetsPreview');
+    if (!h || !age || !sex) { preview.className = 'targets-preview'; return; }
+    const result = computeTargets({ heightCm: h, age, sex, activity, goal }, _latestWeightKg);
+    if (!result) return;
+    preview.className = 'targets-preview show';
+    preview.innerHTML =
+      '<div class="targets-preview-row"><span>Calorie target</span><span class="targets-preview-val">' + result.cal + ' kcal</span></div>'
+      + '<div class="targets-preview-row"><span>Protein target</span><span class="targets-preview-val">' + result.pro + 'g</span></div>';
+  }
+
+  function populateTargetsForm() {
+    if (!_nutrProfile) return;
+    if (_nutrProfile.heightCm) $('trHeight').value = _nutrProfile.heightCm;
+    if (_nutrProfile.age) $('trAge').value = _nutrProfile.age;
+    if (_nutrProfile.sex) $('trSex').value = _nutrProfile.sex;
+    if (_nutrProfile.activity) $('trActivity').value = _nutrProfile.activity;
+    if (_nutrProfile.goal != null) $('trGoal').value = _nutrProfile.goal;
+    updatePreview();
+  }
+
+  $('targetsToggle').addEventListener('click', () => {
+    const body = $('targetsBody');
+    const chevron = $('targetsChevron');
+    const isOpen = body.style.display !== 'none';
+    body.style.display = isOpen ? 'none' : 'block';
+    chevron.classList.toggle('open', !isOpen);
+  });
+
+  ['trHeight', 'trAge', 'trSex', 'trActivity', 'trGoal'].forEach(id => {
+    $(id).addEventListener('input', updatePreview);
+    $(id).addEventListener('change', updatePreview);
+  });
+
+  $('trSaveBtn').addEventListener('click', () => {
+    const h = parseFloat($('trHeight').value);
+    const age = parseFloat($('trAge').value);
+    const sex = $('trSex').value;
+    if (!h || !age || !sex) { toast('Please fill in height, age, and sex.', true); return; }
+    saveProfile({ heightCm: h, age, sex, activity: $('trActivity').value, goal: $('trGoal').value });
+    applyTargets();
+    $('targetsBody').style.display = 'none';
+    $('targetsChevron').classList.remove('open');
+    toast('Targets saved!');
+  });
+
   /* ── Boot ── */
   renderNutrition();
+  loadProfileLocal();
+  populateTargetsForm();
+  applyTargets();
+  fetchLatestWeight();
+  loadProfileRemote();
 
 })();
 </script>
