@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0b">
+<title>News Digest</title>
+<link rel="manifest" href="/manifest.json">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+:root {
+  --bg: #0a0a0b;
+  --bg-card: #111113;
+  --text-1: #ffffff;
+  --text-2: rgba(255,255,255,0.6);
+  --text-3: rgba(255,255,255,0.4);
+  --text-4: rgba(255,255,255,0.25);
+  --border: rgba(255,255,255,0.06);
+  --border-strong: rgba(255,255,255,0.14);
+  --good: #6ee7b7;
+  --warn: #fbbf24;
+  --bad: #ff8a8a;
+  --info: #7DD3FC;
+  --font: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, SF Mono, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--bg);
+  color: var(--text-1);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100%;
+}
+body {
+  padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(110px + env(safe-area-inset-bottom, 0px));
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+/* Header */
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 22px;
+}
+.page-title { font-size: 22px; font-weight: 700; letter-spacing: -0.015em; }
+.header-date {
+  font-size: 11px; color: var(--text-3);
+  font-family: var(--font-mono); font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+
+/* Section divider */
+.divider {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 14px;
+}
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.10); }
+.divider span { font-size: 11px; letter-spacing: 0.22em; font-weight: 600; color: rgba(255,255,255,0.85); }
+
+/* Card */
+.card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 18px; padding: 20px; margin-bottom: 14px;
+}
+
+/* Interests */
+.interests-hdr {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
+}
+.interests-label { font-size: 14px; font-weight: 700; color: var(--text-1); }
+.interests-sub { font-size: 12px; color: var(--text-3); margin-bottom: 14px; }
+.topic-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.topic-chip {
+  padding: 8px 16px; border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-3); font-size: 13px; font-weight: 600;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: all 0.12s; user-select: none;
+}
+.topic-chip:hover { background: rgba(255,255,255,0.08); color: var(--text-2); }
+.topic-chip.selected { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.28); color: var(--text-1); }
+.topic-chip[data-cat="Tech"].selected     { background: rgba(125,211,252,0.14); border-color: rgba(125,211,252,0.40); color: var(--info); }
+.topic-chip[data-cat="Business"].selected { background: rgba(251,191,36,0.11);  border-color: rgba(251,191,36,0.35);  color: var(--warn); }
+.topic-chip[data-cat="Health"].selected   { background: rgba(110,231,183,0.11); border-color: rgba(110,231,183,0.35); color: var(--good); }
+.topic-chip[data-cat="Science"].selected  { background: rgba(196,181,253,0.14); border-color: rgba(196,181,253,0.40); color: #c4b5fd; }
+.topic-chip[data-cat="World"].selected    { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.24); color: var(--text-1); }
+.topic-chip[data-cat="Startups"].selected { background: rgba(251,146,60,0.14);  border-color: rgba(251,146,60,0.38);  color: #fb923c; }
+.topic-chip[data-cat="Investing"].selected{ background: rgba(250,204,21,0.11);  border-color: rgba(250,204,21,0.35);  color: #facc15; }
+
+.btn-primary {
+  width: 100%; padding: 13px; border: none;
+  background: linear-gradient(180deg, #ffffff 0%, #e8e5dd 100%);
+  color: #0a0a0b; border-radius: 12px;
+  font-family: inherit; font-size: 14px; font-weight: 700;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 4px 14px rgba(0,0,0,0.40);
+  -webkit-tap-highlight-color: transparent; transition: transform 0.1s;
+}
+.btn-primary:active { transform: scale(0.98); }
+.btn-ghost {
+  background: transparent; border: none; padding: 0;
+  color: var(--text-3); font-family: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.btn-ghost:hover { color: var(--text-1); }
+
+/* Digest header row */
+.digest-hdr {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
+}
+.digest-hdr .divider { flex: 1; margin-bottom: 0; }
+
+/* Article card */
+.article-card {
+  display: block; text-decoration: none;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 16px; margin-bottom: 8px;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.12s, border-color 0.12s;
+}
+.article-card:hover { background: rgba(255,255,255,0.035); border-color: rgba(255,255,255,0.11); }
+.article-card:active { transform: scale(0.995); }
+.article-meta {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 9px; flex-wrap: wrap;
+}
+.cat-tag {
+  font-size: 10px; font-weight: 800; letter-spacing: 0.10em;
+  text-transform: uppercase; padding: 3px 8px; border-radius: 999px;
+}
+.cat-tag.World    { background: rgba(255,255,255,0.08); color: var(--text-2); }
+.cat-tag.Tech     { background: rgba(125,211,252,0.14); color: var(--info); }
+.cat-tag.Business { background: rgba(251,191,36,0.12);  color: var(--warn); }
+.cat-tag.Health   { background: rgba(110,231,183,0.12); color: var(--good); }
+.cat-tag.Science  { background: rgba(196,181,253,0.14); color: #c4b5fd; }
+.cat-tag.Startups { background: rgba(251,146,60,0.14);  color: #fb923c; }
+.cat-tag.Investing{ background: rgba(250,204,21,0.12);  color: #facc15; }
+.article-source { font-size: 11px; color: var(--text-3); font-weight: 600; }
+.article-time { font-size: 11px; color: var(--text-4); font-family: var(--font-mono); margin-left: auto; }
+.article-title { font-size: 15px; font-weight: 700; color: var(--text-1); line-height: 1.4; margin-bottom: 7px; letter-spacing: -0.01em; }
+.article-desc { font-size: 13px; color: var(--text-3); line-height: 1.5; }
+
+/* Skeleton */
+.skeleton-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 8px; }
+.sk {
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 100%);
+  background-size: 200% 100%; animation: shimmer 1.6s infinite; border-radius: 5px;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+/* Fetch meta */
+.fetch-meta { font-size: 11px; color: var(--text-4); font-family: var(--font-mono); margin-bottom: 10px; }
+
+/* Refresh */
+.refresh-wrap { text-align: center; padding: 18px 0 8px; }
+.refresh-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 20px; border: 1px solid var(--border);
+  background: rgba(255,255,255,0.04); color: var(--text-2);
+  border-radius: 10px; font-family: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; transition: all 0.15s;
+}
+.refresh-btn:hover:not(:disabled) { background: rgba(255,255,255,0.08); color: var(--text-1); }
+.refresh-btn:disabled { opacity: 0.42; cursor: not-allowed; }
+.refresh-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* Empty / error */
+.state-msg { text-align: center; padding: 44px 20px; color: var(--text-3); font-size: 14px; line-height: 1.6; }
+.state-msg strong { display: block; color: var(--text-2); font-size: 16px; margin-bottom: 8px; }
+
+/* Tabbar */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 9999;
+  display: flex; justify-content: center;
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
+  background: rgba(10,10,11,0.95);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.tabbar-inner {
+  width: 100%; max-width: 480px;
+  display: flex; align-items: center; padding: 6px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px; gap: 4px;
+}
+.tabbar-link {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  height: 44px; min-width: 0;
+  color: rgba(255,255,255,0.38); text-decoration: none; border-radius: 999px;
+  transition: color 0.15s; -webkit-tap-highlight-color: transparent;
+}
+.tabbar-link svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tabbar-link.active { background: #ffffff; color: #0a0a0a; }
+.tabbar-link:hover:not(.active) { color: rgba(255,255,255,0.65); }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1 class="page-title">News Digest</h1>
+  <span class="header-date" id="todayLabel"></span>
+</div>
+
+<!-- Interests setup / edit card -->
+<div id="interestsSection">
+  <div class="card">
+    <div class="interests-hdr">
+      <span class="interests-label" id="interestsTitle">What do you want to follow?</span>
+      <button class="btn-ghost" id="interestsDone" style="display:none">Done</button>
+    </div>
+    <p class="interests-sub">Pick the topics you care about. Your digest will surface these first.</p>
+    <div class="topic-chips" id="topicChips"></div>
+    <button class="btn-primary" id="saveInterests">Save &amp; load digest</button>
+  </div>
+</div>
+
+<!-- Digest view -->
+<div id="digestSection" style="display:none">
+  <div class="digest-hdr">
+    <div class="divider" style="margin-bottom:0"><span>TODAY'S DIGEST</span></div>
+    <button class="btn-ghost" id="editInterestsBtn">Edit interests</button>
+  </div>
+  <div class="fetch-meta" id="fetchMeta"></div>
+  <div id="digestList"></div>
+  <div class="refresh-wrap">
+    <button class="refresh-btn" id="refreshBtn">
+      <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      Refresh digest
+    </button>
+  </div>
+</div>
+
+<nav class="tabbar" aria-label="Bottom navigation">
+  <div class="tabbar-inner">
+    <a href="index.html"    class="tabbar-link" aria-label="Main"><i data-lucide="home"></i></a>
+    <a href="health.html"   class="tabbar-link" aria-label="Health"><i data-lucide="heart"></i></a>
+    <a href="gym.html"      class="tabbar-link" aria-label="Gym"><i data-lucide="dumbbell"></i></a>
+    <a href="finance.html"  class="tabbar-link" aria-label="Finance"><i data-lucide="dollar-sign"></i></a>
+    <a href="journal.html"  class="tabbar-link" aria-label="Journal"><i data-lucide="book-open"></i></a>
+    <a href="content.html"  class="tabbar-link" aria-label="Content"><i data-lucide="video"></i></a>
+    <a href="calendar.html" class="tabbar-link" aria-label="Calendar"><i data-lucide="calendar"></i></a>
+    <a href="news.html"     class="tabbar-link active" aria-current="page" aria-label="News"><i data-lucide="newspaper"></i></a>
+  </div>
+</nav>
+<script>if(window.lucide)lucide.createIcons();</script>
+
+<script>
+(function () {
+  'use strict';
+
+  const SUPA_URL = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
+  const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
+  const SB_HDR = {
+    'Content-Type': 'application/json',
+    'apikey': SUPA_KEY,
+    'Authorization': 'Bearer ' + SUPA_KEY,
+    'Prefer': 'resolution=merge-duplicates',
+  };
+
+  const TOPICS = ['Tech', 'Business', 'Health', 'Science', 'World', 'Startups', 'Investing'];
+  const LS_INTERESTS = 'news_interests_v1';
+  const LS_REFRESH   = 'news_last_refresh';
+  const COOLDOWN_MS  = 3 * 60 * 1000;
+  const MAX_ARTICLES = 20;
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function $(id) { return document.getElementById(id); }
+
+  // ── Date helpers ────────────────────────────────────────────────
+  function fmtToday() {
+    return new Date().toLocaleDateString('en-US', {
+      weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Vancouver',
+    }).toUpperCase();
+  }
+  function timeAgo(dateStr) {
+    if (!dateStr) return '';
+    try {
+      const diff = Date.now() - new Date(dateStr).getTime();
+      if (isNaN(diff) || diff < 0) return '';
+      const m = Math.floor(diff / 60000);
+      if (m < 2)  return 'just now';
+      if (m < 60) return m + 'm ago';
+      const h = Math.floor(diff / 3600000);
+      if (h < 24) return h + 'h ago';
+      return Math.floor(diff / 86400000) + 'd ago';
+    } catch { return ''; }
+  }
+
+  // ── Interests storage ───────────────────────────────────────────
+  function getInterests() {
+    try { return JSON.parse(localStorage.getItem(LS_INTERESTS)) || null; } catch { return null; }
+  }
+  function saveInterests(arr) {
+    localStorage.setItem(LS_INTERESTS, JSON.stringify(arr));
+  }
+
+  async function loadInterestsFromSupa() {
+    try {
+      const r = await fetch(SUPA_URL + '/rest/v1/app_state?key=eq.news_interests&select=data', { headers: SB_HDR });
+      if (!r.ok) return;
+      const rows = await r.json();
+      if (rows && rows.length && rows[0].data && Array.isArray(rows[0].data.interests)) {
+        saveInterests(rows[0].data.interests);
+      }
+    } catch {}
+  }
+
+  function pushInterestsToSupa(arr) {
+    fetch(SUPA_URL + '/rest/v1/app_state?on_conflict=key', {
+      method: 'POST', headers: SB_HDR,
+      body: JSON.stringify({ key: 'news_interests', data: { interests: arr }, updated_at: new Date().toISOString() }),
+    }).catch(() => {});
+  }
+
+  // ── Topic chips ─────────────────────────────────────────────────
+  let selectedTopics = new Set();
+
+  function buildChips() {
+    const wrap = $('topicChips');
+    wrap.innerHTML = '';
+    TOPICS.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'topic-chip' + (selectedTopics.has(cat) ? ' selected' : '');
+      btn.dataset.cat = cat;
+      btn.textContent = cat;
+      btn.addEventListener('click', () => {
+        if (selectedTopics.has(cat)) selectedTopics.delete(cat);
+        else selectedTopics.add(cat);
+        btn.classList.toggle('selected', selectedTopics.has(cat));
+      });
+      wrap.appendChild(btn);
+    });
+  }
+
+  function showInterests(editing) {
+    $('interestsTitle').textContent = editing ? 'Edit interests' : 'What do you want to follow?';
+    $('saveInterests').textContent = editing ? 'Save & reload' : 'Save & load digest';
+    $('interestsDone').style.display = editing ? '' : 'none';
+    buildChips();
+    $('interestsSection').style.display = '';
+    $('digestSection').style.display = 'none';
+  }
+
+  function showDigest() {
+    $('interestsSection').style.display = 'none';
+    $('digestSection').style.display = '';
+  }
+
+  $('saveInterests').addEventListener('click', async () => {
+    if (!selectedTopics.size) {
+      const lbl = $('interestsTitle');
+      lbl.textContent = 'Select at least one topic';
+      lbl.style.color = 'var(--bad)';
+      setTimeout(() => { lbl.textContent = 'What do you want to follow?'; lbl.style.color = ''; }, 1600);
+      return;
+    }
+    const arr = [...selectedTopics];
+    saveInterests(arr);
+    pushInterestsToSupa(arr);
+    showDigest();
+    await loadDigest(false);
+  });
+
+  $('editInterestsBtn').addEventListener('click', () => {
+    const saved = getInterests() || [];
+    selectedTopics = new Set(saved);
+    showInterests(true);
+  });
+
+  $('interestsDone').addEventListener('click', () => {
+    const saved = getInterests() || [];
+    selectedTopics = new Set(saved);
+    showDigest();
+  });
+
+  // ── Refresh rate limiting ────────────────────────────────────────
+  let _countdown = null;
+
+  function cooldownRemaining() {
+    const last = parseInt(localStorage.getItem(LS_REFRESH) || '0', 10);
+    return Math.max(0, COOLDOWN_MS - (Date.now() - last));
+  }
+
+  function updateRefreshBtn() {
+    const btn = $('refreshBtn');
+    const ms = cooldownRemaining();
+    if (ms <= 0) {
+      btn.disabled = false;
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>Refresh digest';
+      if (_countdown) { clearInterval(_countdown); _countdown = null; }
+      return;
+    }
+    btn.disabled = true;
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>Refresh in ' + Math.ceil(ms / 1000) + 's';
+  }
+
+  function armCooldown() {
+    localStorage.setItem(LS_REFRESH, String(Date.now()));
+    updateRefreshBtn();
+    if (_countdown) clearInterval(_countdown);
+    _countdown = setInterval(updateRefreshBtn, 1000);
+  }
+
+  $('refreshBtn').addEventListener('click', async () => {
+    if (cooldownRemaining() > 0) return;
+    armCooldown();
+    await loadDigest(true);
+  });
+
+  // ── Article ranking ──────────────────────────────────────────────
+  function rankArticles(articles, interests) {
+    const iSet = new Set(interests);
+    return [...articles].sort((a, b) => {
+      const ma = iSet.has(a.category) ? 1 : 0;
+      const mb = iSet.has(b.category) ? 1 : 0;
+      if (mb !== ma) return mb - ma;
+      const ta = +new Date(a.pubDate) || 0;
+      const tb = +new Date(b.pubDate) || 0;
+      return tb - ta;
+    }).slice(0, MAX_ARTICLES);
+  }
+
+  // ── Render helpers ───────────────────────────────────────────────
+  function renderSkeletons() {
+    $('digestList').innerHTML = [1,2,3,4,5].map(() =>
+      '<div class="skeleton-card">'
+      + '<div class="sk" style="width:30%;height:10px;margin-bottom:10px"></div>'
+      + '<div class="sk" style="width:90%;height:15px;margin-bottom:6px"></div>'
+      + '<div class="sk" style="width:75%;height:15px;margin-bottom:10px"></div>'
+      + '<div class="sk" style="width:100%;height:11px;margin-bottom:4px"></div>'
+      + '<div class="sk" style="width:85%;height:11px"></div>'
+      + '</div>'
+    ).join('');
+  }
+
+  function renderArticles(articles, interests) {
+    const ranked = rankArticles(articles, interests);
+    if (!ranked.length) {
+      $('digestList').innerHTML = '<div class="state-msg"><strong>No articles found</strong>Try refreshing or check your connection.</div>';
+      return;
+    }
+    $('digestList').innerHTML = ranked.map(a => {
+      const ago = timeAgo(a.pubDate);
+      return '<a class="article-card" href="' + esc(a.link) + '" target="_blank" rel="noopener noreferrer">'
+        + '<div class="article-meta">'
+        + '<span class="cat-tag ' + esc(a.category) + '">' + esc(a.category) + '</span>'
+        + '<span class="article-source">' + esc(a.source) + '</span>'
+        + (ago ? '<span class="article-time">' + esc(ago) + '</span>' : '')
+        + '</div>'
+        + '<div class="article-title">' + esc(a.title) + '</div>'
+        + (a.description ? '<div class="article-desc">' + esc(a.description) + '</div>' : '')
+        + '</a>';
+    }).join('');
+  }
+
+  // ── Fetch digest from serverless API ────────────────────────────
+  async function loadDigest(force) {
+    renderSkeletons();
+    $('fetchMeta').textContent = 'Loading…';
+    const interests = getInterests() || [];
+    try {
+      const r = await fetch('/api/news' + (force ? '?force=1' : ''));
+      if (!r.ok) throw new Error('Server error ' + r.status);
+      const data = await r.json();
+      const cached = r.headers.get('X-News-Cache') === 'HIT';
+      const ago = data.fetchedAt ? timeAgo(data.fetchedAt) : '';
+      const okSources = (data.sources || []).filter(s => s.ok).length;
+      $('fetchMeta').textContent = (cached ? 'Cached · ' : '')
+        + data.articles.length + ' articles from ' + okSources + ' sources'
+        + (ago ? ' · ' + ago : '');
+      renderArticles(data.articles, interests);
+    } catch (e) {
+      $('fetchMeta').textContent = '';
+      $('digestList').innerHTML = '<div class="state-msg"><strong>Couldn\'t load digest</strong>'
+        + 'Check your connection. The RSS fetch runs server-side.<br><br>'
+        + '<span style="font-size:12px;color:var(--text-4)">' + esc(e.message) + '</span></div>';
+    }
+  }
+
+  // ── Boot ─────────────────────────────────────────────────────────
+  async function init() {
+    $('todayLabel').textContent = fmtToday();
+
+    // Restore countdown if still active
+    if (cooldownRemaining() > 0) {
+      updateRefreshBtn();
+      _countdown = setInterval(updateRefreshBtn, 1000);
+    }
+
+    // Pull interests from Supabase, then fall back to localStorage
+    await loadInterestsFromSupa();
+
+    const saved = getInterests();
+    if (!saved || !saved.length) {
+      showInterests(false);
+    } else {
+      selectedTopics = new Set(saved);
+      showDigest();
+      await loadDigest(false);
+    }
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
