@@ -799,6 +799,12 @@ html, body {
       </div>
     </div>
     <div class="barcode-status" id="barcodeStatus">Point camera at a barcode</div>
+    <div id="barcodeManualRow" style="display:none;margin-top:4px">
+      <div style="display:flex;gap:8px">
+        <input type="text" class="targets-inp" id="barcodeManualInput" placeholder="Enter barcode number…" inputmode="numeric" style="flex:1;min-height:44px">
+        <button class="nutr-btn" id="barcodeManualBtn" style="flex:none;white-space:nowrap;min-width:80px">Look up</button>
+      </div>
+    </div>
     <div class="modal-actions">
       <button class="btn-primary" id="barcodeCancel">Cancel</button>
     </div>
@@ -824,6 +830,7 @@ html, body {
 
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script>
 (function() {
   function dateStr(d) {
@@ -1745,24 +1752,81 @@ html, body {
     }
   }
 
-  function rankFDCResults(foods, query) {
+  function rankFDCResults(foods, query, preferCooked) {
     const q = query.toLowerCase().trim();
-    const words = q.split(/\s+/);
+    const qWords = q.split(/\s+/);
+    const qFirst = qWords[0]; // leading query word (e.g. "apple" from "apple")
+
+    // Singularise/pluralise helpers for matching (handles most English food words)
+    function variants(w) {
+      return [w, w + 's', w.endsWith('s') ? w.slice(0, -1) : w + 's',
+              w.endsWith('ies') ? w.slice(0, -3) + 'y' : w.replace(/y$/, 'ies')];
+    }
+
     return foods.map(food => {
       const desc = (food.description || '').toLowerCase();
-      const parts = desc.split(',');
-      const first = parts[0].trim();
+      const commaIdx = desc.indexOf(',');
+      // Part before first comma — this is USDA's primary food name
+      const primary = (commaIdx >= 0 ? desc.slice(0, commaIdx) : desc).trim();
+      const primaryWords = primary.split(/\s+/);
+      const primaryFirst = primaryWords[0];
+      const afterComma = commaIdx >= 0 ? desc.slice(commaIdx + 1) : '';
+
       let score = 0;
-      if (food.dataType === 'Foundation' || food.dataType === 'SR Legacy') score += 100;
-      else if (food.dataType === 'Branded') score -= 50;
-      if (first === q) score += 80;
-      else if (first.startsWith(q)) score += 60;
-      else if (words.every(w => first.includes(w))) score += 40;
-      else if (words.every(w => desc.includes(w))) score += 15;
-      // Penalise if query only matches after first comma (incidental ingredient mention)
-      if (!first.includes(q) && parts.slice(1).some(p => p.toLowerCase().includes(q))) score -= 25;
-      // Prefer shorter, more generic descriptions
-      score -= Math.min(desc.length / 8, 25);
+
+      // ── 1. Data-type preference (Foundation > SR Legacy > Branded) ──
+      if (food.dataType === 'Foundation') score += 120;
+      else if (food.dataType === 'SR Legacy') score += 100;
+      else if (food.dataType === 'Branded') score -= 60;
+
+      // ── 2. USDA primary-name format: "{QueryWord}, descriptor" ──
+      // Generic foods in USDA are formatted "Apples, raw" — query word is the ENTIRE
+      // primary part (before first comma), or the first word of it, and a comma follows.
+      const firstWordMatchesQuery = variants(qFirst).some(v => v === primaryFirst);
+
+      if (primary === q) {
+        // Exact primary match with no comma at all (e.g. desc = "almonds") → very generic
+        score += 95;
+      } else if (firstWordMatchesQuery && commaIdx >= 0 && primaryWords.length <= 3) {
+        // "Apples, raw" / "Fish, carp, raw" — query word is first, comma present, short primary
+        // This is USDA's canonical generic-food format
+        score += 85;
+        // Bonus: all query words are in the primary part (multi-word query like "brown rice")
+        if (qWords.length > 1 && qWords.every(w => primary.includes(w))) score += 15;
+      } else if (firstWordMatchesQuery && commaIdx < 0) {
+        // "Almonds" or "Salmon" with no comma — still a plain food, no comma needed
+        // But also catches compounds like "Rice crackers" where first word matches
+        if (primaryWords.length === 1) {
+          score += 80; // Single-word, no comma — plain food
+        } else {
+          // Multi-word primary with no comma: "Rice crackers", "Fish broth" — compound noun
+          // The query word just happens to be first; penalise vs. generic
+          score -= 20;
+        }
+      } else if (qWords.length > 1 && qWords.every(w => primary.includes(w))) {
+        // Multi-word query, all words in primary → partial match
+        score += 40;
+      } else if (qWords.every(w => desc.includes(w))) {
+        // Query words found somewhere in description (after comma etc.)
+        score += 10;
+      }
+
+      // ── 3. Penalise post-comma appearance: "Oil, rice bran" for query "rice" ──
+      // Query word appears only in the after-comma part (modifier of a different primary food)
+      if (!primaryFirst || !variants(qFirst).some(v => primary.includes(v))) {
+        if (afterComma && variants(qFirst).some(v => afterComma.includes(v))) score -= 50;
+      }
+
+      // ── 4. Preparation-state matching ──
+      // Container units (bowl, plate, cup) → prefer "cooked" over "raw"
+      if (preferCooked) {
+        if (desc.includes('cooked') || desc.includes('prepared')) score += 25;
+        if (desc.includes(', raw')) score -= 15;
+      }
+
+      // ── 5. Shorter description = more generic = preferred ──
+      score -= Math.min(desc.length / 6, 30);
+
       return { ...food, _score: score };
     }).sort((a, b) => b._score - a._score).slice(0, 5);
   }
@@ -1770,33 +1834,94 @@ html, body {
   /* ── Rule-based meal text parser ── */
   const WORD_NUMS = { a:1, an:1, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, half:0.5 };
   const UNITS_SET = new Set(['cup','cups','tbsp','tablespoon','tablespoons','tsp','teaspoon','teaspoons','oz','ounce','ounces','gram','grams','g','ml','serving','servings','piece','pieces','slice','slices','scoop','scoops','handful','handfuls','bottle','can','cans','bowl','bowls','plate','plates']);
+  // Units that imply a prepared/cooked serving rather than raw ingredient
+  const CONTAINER_UNITS = new Set(['bowl','bowls','plate','plates','cup','cups','serving','servings']);
 
   function parseMealText(text) {
-    const segments = text.toLowerCase()
-      .split(/\s*(?:,\s*|\s+and\s+)/)
+    const t = text.toLowerCase().trim();
+
+    // Step 1: split on explicit connector words
+    const connParts = t
+      .split(/\s*,\s*|\s+and\s+|\s+with\s+|\s+plus\s+|\s+along\s+with\s+|\s+as\s+well\s+as\s+/)
       .map(s => s.trim()).filter(s => s.length > 1);
 
-    return segments.map(seg => {
-      let quantity = 1, unit = 'serving', noun = seg;
+    // Step 2: within each segment, further split on embedded quantity signals
+    // (e.g. "bananas one scoop of protein some almonds" → 3 items)
+    const allSegs = [];
+    for (const seg of connParts) allSegs.push(..._splitOnQuantifiers(seg));
 
-      const numRx = seg.match(/^(\d+(?:\.\d+)?)\s*([a-z]+)?\s+(.+)$/);
-      const wrdRx = seg.match(/^(a|an|one|two|three|four|five|six|seven|eight|nine|ten|half)\s+([a-z]+)?\s*(.*)$/);
+    return allSegs.map(_parseSeg).filter(Boolean);
+  }
 
-      if (numRx) {
-        quantity = parseFloat(numRx[1]);
-        const tok2 = (numRx[2] || '').toLowerCase();
-        if (UNITS_SET.has(tok2)) { unit = tok2; noun = numRx[3]; }
-        else { noun = (tok2 ? tok2 + ' ' : '') + (numRx[3] || ''); }
-      } else if (wrdRx) {
-        quantity = WORD_NUMS[wrdRx[1].toLowerCase()] || 1;
-        const tok2 = (wrdRx[2] || '').toLowerCase();
-        if (UNITS_SET.has(tok2)) { unit = tok2; noun = wrdRx[3] || ''; }
-        else { noun = (tok2 ? tok2 + ' ' : '') + (wrdRx[3] || ''); }
-      }
+  function _splitOnQuantifiers(seg) {
+    // Normalise multi-word vague quantifiers to single tokens so we can split cleanly
+    let s = seg
+      .replace(/\ba\s+little\s+bit\s+of\b/g, '__VAGUE__')
+      .replace(/\ba\s+little\b/g, '__VAGUE__')
+      .replace(/\ba\s+few\b/g, '__VAGUE__')
+      .replace(/\ba\s+couple\s+of\b/g, '__COUPLE__')
+      .replace(/\ba\s+handful\s+of\b/g, '__HANDFUL__');
 
-      noun = noun.trim() || seg;
-      return { raw: seg, quantity, unit, noun, fdcResults: null, selectedIdx: -1 };
-    });
+    // Split at whitespace immediately before a quantity signal
+    // (the \s+ means this cannot fire at position 0, so first-word quantifiers are kept)
+    const parts = s.split(
+      /\s+(?=(?:\d+(?:\.\d+)?\s|one\s|two\s|three\s|four\s|five\s|six\s|seven\s|eight\s|nine\s|ten\s|half\s|some\s|__VAGUE__|__COUPLE__|__HANDFUL__))/
+    );
+
+    return parts.map(p => p
+      .replace(/__VAGUE__/g, 'some')
+      .replace(/__COUPLE__/g, 'a couple of')
+      .replace(/__HANDFUL__/g, 'a handful of')
+      .trim()
+    ).filter(p => p.length > 1);
+  }
+
+  function _parseSeg(seg) {
+    if (!seg || seg.length < 2) return null;
+    let quantity = 1, unit = 'serving', noun = seg;
+
+    // Vague quantifiers: "some X", "a few X", "a little X", "a little bit of X"
+    const vagueM = seg.match(/^(?:some|a\s+few|a\s+little(?:\s+bit\s+of)?)\s+(.+)$/);
+    // "a couple of X" → qty 2
+    const coupleM = seg.match(/^a\s+couple\s+of\s+(.+)$/);
+    // "a handful of X"
+    const handfulM = seg.match(/^a\s+handful\s+of\s+(.+)$/);
+    // Numeric: "2 cups of rice", "5 bananas"
+    const numRx = seg.match(/^(\d+(?:\.\d+)?)\s+([a-z]+)(?:\s+of)?\s+(.+)$/) ||
+                  seg.match(/^(\d+(?:\.\d+)?)\s+([a-z]+)$/);
+    // Word-number: "one scoop of protein", "two bananas"
+    const wrdRx = seg.match(/^(a|an|one|two|three|four|five|six|seven|eight|nine|ten|half)\s+([a-z]+)(?:\s+of)?\s+(.*)$/) ||
+                  seg.match(/^(a|an|one|two|three|four|five|six|seven|eight|nine|ten|half)\s+([a-z]+)$/);
+
+    if (vagueM) {
+      quantity = 1; unit = 'serving'; noun = vagueM[1].trim();
+    } else if (coupleM) {
+      quantity = 2; unit = 'serving'; noun = coupleM[1].trim();
+    } else if (handfulM) {
+      quantity = 1; unit = 'handful'; noun = handfulM[1].trim();
+    } else if (numRx) {
+      quantity = parseFloat(numRx[1]);
+      const tok = (numRx[2] || '').toLowerCase();
+      if (UNITS_SET.has(tok)) { unit = tok; noun = (numRx[3] || tok).trim(); }
+      else { noun = tok + (numRx[3] ? ' ' + numRx[3] : ''); }
+    } else if (wrdRx) {
+      quantity = WORD_NUMS[wrdRx[1].toLowerCase()] || 1;
+      const tok = (wrdRx[2] || '').toLowerCase();
+      if (UNITS_SET.has(tok)) { unit = tok; noun = (wrdRx[3] || '').trim() || tok; }
+      else { noun = tok + (wrdRx[3] ? ' ' + wrdRx[3] : ''); }
+    }
+
+    noun = noun.trim() || seg;
+
+    // Context-specific noun enrichment: "protein" + scoop unit → "protein powder"
+    if ((unit === 'scoop' || unit === 'scoops') && noun === 'protein') noun = 'protein powder';
+
+    // Strip residual filler words from search noun
+    const searchNoun = noun.replace(/\b(of|the)\b/g, ' ').replace(/\s+/g, ' ').trim() || noun;
+
+    const preferCooked = CONTAINER_UNITS.has(unit);
+
+    return { raw: seg, quantity, unit, noun: searchNoun, preferCooked, fdcResults: null, selectedIdx: -1 };
   }
 
   /* ── Voice modal ── */
@@ -1887,7 +2012,7 @@ html, body {
       const item = _parsedItems[i];
       const wrap = document.querySelector('[data-iidx="' + i + '"] .fdc-results-wrap');
       if (wrap) wrap.innerHTML = '<div class="fdc-searching">Searching USDA…</div>';
-      item.fdcResults = rankFDCResults(await searchUSDA(item.noun), item.noun);
+      item.fdcResults = rankFDCResults(await searchUSDA(item.noun), item.noun, item.preferCooked);
       item.selectedIdx = item.fdcResults.length ? 0 : -1;
       renderResultsForItem(i);
     }
@@ -2048,56 +2173,70 @@ html, body {
     _pendingEntries = [];
   });
 
-  /* ── Barcode scanner ── */
-  let _bcStream = null, _bcDetector = null, _bcLoop = null, _bcProduct = null;
+  /* ── Barcode scanner (ZXing — works on iOS Safari + Chrome/Edge) ── */
+  let _bcReader = null, _bcActive = false, _bcProduct = null;
 
   $('barcodeScanBtn').addEventListener('click', openBarcodeScanner);
 
   async function openBarcodeScanner() {
+    _bcActive = true;
     $('barcodeStatus').textContent = 'Starting camera…';
+    $('barcodeManualRow').style.display = 'none';
+    $('barcodeManualInput').value = '';
     $('barcodeModalBg').classList.add('show');
+
+    if (typeof ZXing === 'undefined') {
+      $('barcodeStatus').textContent = 'Scanner not loaded. Enter barcode manually below.';
+      $('barcodeManualRow').style.display = '';
+      return;
+    }
+
     try {
-      _bcStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-      const vid = $('barcodeVideo');
-      vid.srcObject = _bcStream;
-      await vid.play();
-      if ('BarcodeDetector' in window) {
-        _bcDetector = new BarcodeDetector({ formats: ['ean_13','ean_8','upc_a','upc_e','code_128','code_39'] });
-        $('barcodeStatus').textContent = 'Point camera at a barcode';
-        startBarcodeLoop();
-      } else {
-        $('barcodeStatus').textContent = 'Barcode detection not supported in this browser (use Chrome or Edge). Enter barcode manually if needed.';
-      }
+      _bcReader = new ZXing.BrowserMultiFormatReader();
+      await _bcReader.decodeFromConstraints(
+        { audio: false, video: { facingMode: { ideal: 'environment' } } },
+        $('barcodeVideo'),
+        async (result, err) => {
+          if (!_bcActive) return;
+          if (result) {
+            _bcActive = false;
+            const code = result.getText();
+            closeBarcodeScanner();
+            await lookupBarcode(code);
+          }
+          // NotFoundException fires every frame with no match — ignore it
+        }
+      );
+      if (_bcActive) $('barcodeStatus').textContent = 'Point camera at a barcode';
     } catch (err) {
-      $('barcodeStatus').textContent = 'Camera access denied: ' + err.message;
+      $('barcodeStatus').textContent = 'Camera unavailable. Enter barcode manually below.';
+      $('barcodeManualRow').style.display = '';
     }
   }
 
-  function startBarcodeLoop() {
-    if (_bcLoop) return;
-    _bcLoop = setInterval(async () => {
-      const vid = $('barcodeVideo');
-      if (!_bcDetector || vid.readyState < 2) return;
-      try {
-        const codes = await _bcDetector.detect(vid);
-        if (codes.length) {
-          clearInterval(_bcLoop); _bcLoop = null;
-          const code = codes[0].rawValue;
-          closeBarcodeScanner();
-          await lookupBarcode(code);
-        }
-      } catch {}
-    }, 350);
-  }
-
   function closeBarcodeScanner() {
-    if (_bcLoop) { clearInterval(_bcLoop); _bcLoop = null; }
-    if (_bcStream) { _bcStream.getTracks().forEach(t => t.stop()); _bcStream = null; }
+    _bcActive = false;
+    if (_bcReader) { try { _bcReader.reset(); } catch {} _bcReader = null; }
     $('barcodeVideo').srcObject = null;
     $('barcodeModalBg').classList.remove('show');
   }
 
   $('barcodeCancel').addEventListener('click', closeBarcodeScanner);
+
+  $('barcodeManualBtn').addEventListener('click', async () => {
+    const code = $('barcodeManualInput').value.trim();
+    if (!code) { $('barcodeManualInput').focus(); return; }
+    closeBarcodeScanner();
+    await lookupBarcode(code);
+  });
+  $('barcodeManualInput').addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') {
+      const code = $('barcodeManualInput').value.trim();
+      if (!code) return;
+      closeBarcodeScanner();
+      await lookupBarcode(code);
+    }
+  });
 
   async function lookupBarcode(code) {
     toast('Looking up barcode…');
