@@ -1753,23 +1753,47 @@ body {
   function buildNutritionWeekCharts() {
     if (!window.Chart) return;
     const log = getLog();
+
+    // Resolve Monday of current calendar week in Vancouver timezone
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
+    const [ty, tm, td] = todayStr.split('-').map(Number);
+    const todayLocal = new Date(ty, tm - 1, td); // calendar date, no TZ arithmetic
+    const dow = todayLocal.getDay(); // 0=Sun…6=Sat
+    const daysFromMon = dow === 0 ? 6 : dow - 1; // Mon=0…Sun=6
+    const todayIdx = daysFromMon; // position of today within the Mon-Sun array
+
+    const MO = new Date(ty, tm - 1, td - daysFromMon); // Monday of current week
+
+    const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const ANIM = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 400;
+
     const labels = [], calData = [], proData = [];
-    const DOW = ['S','M','T','W','T','F','S'];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dk = d.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
-      labels.push(DOW[d.getDay()]);
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(MO.getFullYear(), MO.getMonth(), MO.getDate() + i);
+      const dk = [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
+      labels.push([DAYS[i], MON[d.getMonth()] + ' ' + d.getDate()]);
       const entries = log[dk] || [];
       calData.push(Math.round(entries.reduce((s, e) => s + (e.calories || 0), 0)));
       proData.push(Math.round(entries.reduce((s, e) => s + (e.protein  || 0), 0)));
     }
 
-    const calColors = calData.map(v => v >= CAL_GOAL ? 'rgba(110,231,183,0.75)' : v > 0 ? 'rgba(251,191,36,0.75)' : 'rgba(255,255,255,0.07)');
-    const proColors = proData.map(v => v >= PRO_GOAL ? 'rgba(110,231,183,0.75)' : v > 0 ? 'rgba(125,211,252,0.75)' : 'rgba(255,255,255,0.07)');
-    const ANIM = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 400;
+    // Bar colors — today's bar is full opacity; past/future are muted
+    const calColors = calData.map((v, i) =>
+      v >= CAL_GOAL ? (i === todayIdx ? '#6ee7b7'  : 'rgba(110,231,183,0.55)') :
+      v > 0         ? (i === todayIdx ? '#fbbf24'   : 'rgba(251,191,36,0.55)')  :
+                      (i === todayIdx ? 'rgba(255,255,255,0.13)' : 'rgba(255,255,255,0.07)')
+    );
+    const proColors = proData.map((v, i) =>
+      v >= PRO_GOAL ? (i === todayIdx ? '#6ee7b7'  : 'rgba(110,231,183,0.55)') :
+      v > 0         ? (i === todayIdx ? '#7DD3FC'   : 'rgba(125,211,252,0.55)') :
+                      (i === todayIdx ? 'rgba(255,255,255,0.13)' : 'rgba(255,255,255,0.07)')
+    );
+    // White border on today's bar only
+    const todayBorderColor = Array(7).fill('transparent').map((_, i) => i === todayIdx ? 'rgba(255,255,255,0.45)' : 'transparent');
+    const todayBorderWidth = Array(7).fill(0).map((_, i) => i === todayIdx ? 1.5 : 0);
 
-    function miniChartOpts(goalVal, suffix, gridColor) {
+    function miniChartOpts(goalVal, suffix, tooltipTodayIdx) {
       return {
         responsive: true, maintainAspectRatio: false,
         animation: { duration: ANIM },
@@ -1779,11 +1803,20 @@ body {
             backgroundColor: 'rgba(10,10,11,0.92)', borderColor: 'rgba(255,255,255,0.12)', borderWidth: 1,
             titleColor: 'rgba(255,255,255,0.9)', bodyColor: 'rgba(255,255,255,0.55)', padding: 8,
             filter: item => item.dataset.label !== 'Goal',
-            callbacks: { label: item => item.raw + suffix + ' / ' + goalVal + suffix }
+            callbacks: {
+              title: items => {
+                const lbl = items[0].chart.data.labels[items[0].dataIndex];
+                return Array.isArray(lbl) ? lbl.join(' ') : lbl;
+              },
+              label: item => item.raw + suffix + ' / ' + goalVal + suffix
+            }
           }
         },
         scales: {
-          x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.38)', font: { size: 9 } } },
+          x: {
+            grid: { display: false },
+            ticks: { color: 'rgba(255,255,255,0.38)', font: { size: 9 }, maxRotation: 0 }
+          },
           y: {
             beginAtZero: true,
             grid: { color: 'rgba(255,255,255,0.05)' },
@@ -1793,9 +1826,9 @@ body {
       };
     }
 
-    function goalLine(color) {
+    function goalLine(color, goalVal) {
       return {
-        type: 'line', label: 'Goal',
+        type: 'line', label: 'Goal', data: Array(7).fill(goalVal),
         borderColor: color, borderDash: [4, 4], borderWidth: 1.5,
         pointRadius: 0, pointHoverRadius: 0, fill: false, tension: 0
       };
@@ -1807,6 +1840,8 @@ body {
         _nutrCalChart.data.labels = labels;
         _nutrCalChart.data.datasets[0].data = calData;
         _nutrCalChart.data.datasets[0].backgroundColor = calColors;
+        _nutrCalChart.data.datasets[0].borderColor = todayBorderColor;
+        _nutrCalChart.data.datasets[0].borderWidth = todayBorderWidth;
         _nutrCalChart.data.datasets[1].data = Array(7).fill(CAL_GOAL);
         _nutrCalChart.update('none');
       } else {
@@ -1815,8 +1850,8 @@ body {
           data: {
             labels,
             datasets: [
-              { label: 'Calories', data: calData, backgroundColor: calColors, borderRadius: 3 },
-              { ...goalLine('rgba(251,191,36,0.55)'), data: Array(7).fill(CAL_GOAL) }
+              { label: 'Calories', data: calData, backgroundColor: calColors, borderRadius: 3, borderColor: todayBorderColor, borderWidth: todayBorderWidth },
+              goalLine('rgba(251,191,36,0.55)', CAL_GOAL)
             ]
           },
           options: miniChartOpts(CAL_GOAL, ' kcal')
@@ -1830,6 +1865,8 @@ body {
         _nutrProChart.data.labels = labels;
         _nutrProChart.data.datasets[0].data = proData;
         _nutrProChart.data.datasets[0].backgroundColor = proColors;
+        _nutrProChart.data.datasets[0].borderColor = todayBorderColor;
+        _nutrProChart.data.datasets[0].borderWidth = todayBorderWidth;
         _nutrProChart.data.datasets[1].data = Array(7).fill(PRO_GOAL);
         _nutrProChart.update('none');
       } else {
@@ -1838,8 +1875,8 @@ body {
           data: {
             labels,
             datasets: [
-              { label: 'Protein', data: proData, backgroundColor: proColors, borderRadius: 3 },
-              { ...goalLine('rgba(125,211,252,0.45)'), data: Array(7).fill(PRO_GOAL) }
+              { label: 'Protein', data: proData, backgroundColor: proColors, borderRadius: 3, borderColor: todayBorderColor, borderWidth: todayBorderWidth },
+              goalLine('rgba(125,211,252,0.45)', PRO_GOAL)
             ]
           },
           options: miniChartOpts(PRO_GOAL, 'g')
