@@ -299,7 +299,7 @@ body {
 .modal-bg {
   display: none; position: fixed; inset: 0;
   background: rgba(0,0,0,0.65); backdrop-filter: blur(6px);
-  z-index: 100; align-items: center; justify-content: center; padding: 20px;
+  z-index: 10000; align-items: center; justify-content: center; padding: 20px;
 }
 .modal-bg.show { display: flex; }
 .modal {
@@ -1590,7 +1590,7 @@ body {
   margin-bottom: max(0px, env(safe-area-inset-bottom));
 }
 .modal-actions {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 20px) + 16px);
 }
 
   .tabbar {
@@ -1772,24 +1772,27 @@ body {
     const datasets = [
       {
         type: 'bar', label: 'Calories', data: calData,
-        backgroundColor: calColors, borderRadius: 5, borderSkipped: false,
+        backgroundColor: calColors, borderRadius: 4,
         yAxisID: 'yL', order: 2
       },
       {
         type: 'line', label: 'Protein', data: proData,
-        borderColor: '#7DD3FC', backgroundColor: 'rgba(125,211,252,0.10)',
-        pointBackgroundColor: '#7DD3FC', pointRadius: 3, pointHoverRadius: 5,
-        tension: 0.35, fill: false, yAxisID: 'yR', order: 1
+        borderColor: '#7DD3FC', borderWidth: 2,
+        pointBackgroundColor: '#7DD3FC', pointBorderColor: '#7DD3FC',
+        pointRadius: 4, pointHoverRadius: 6,
+        tension: 0.3, fill: false, yAxisID: 'yR', order: 1
       },
       {
-        type: 'line', label: '_calGoal', data: calGoalLine,
-        borderColor: 'rgba(251,191,36,0.45)', borderDash: [4,4], borderWidth: 1.5,
-        pointRadius: 0, fill: false, yAxisID: 'yL', order: 3
+        type: 'line', label: 'Cal Goal', data: calGoalLine,
+        borderColor: 'rgba(251,191,36,0.5)', borderDash: [5,5], borderWidth: 1.5,
+        pointRadius: 0, pointHoverRadius: 0, fill: false, tension: 0,
+        yAxisID: 'yL', order: 3
       },
       {
-        type: 'line', label: '_proGoal', data: proGoalLine,
-        borderColor: 'rgba(125,211,252,0.45)', borderDash: [4,4], borderWidth: 1.5,
-        pointRadius: 0, fill: false, yAxisID: 'yR', order: 3
+        type: 'line', label: 'Pro Goal', data: proGoalLine,
+        borderColor: 'rgba(125,211,252,0.45)', borderDash: [5,5], borderWidth: 1.5,
+        pointRadius: 0, pointHoverRadius: 0, fill: false, tension: 0,
+        yAxisID: 'yR', order: 3
       }
     ];
     if (_nutrWeekChart) {
@@ -1813,7 +1816,7 @@ body {
           tooltip: {
             backgroundColor: 'rgba(10,10,11,0.92)', borderColor: 'rgba(255,255,255,0.12)', borderWidth: 1,
             titleColor: 'rgba(255,255,255,0.9)', bodyColor: 'rgba(255,255,255,0.55)', padding: 10,
-            filter: item => !item.dataset.label.startsWith('_'),
+            filter: item => item.dataset.label === 'Calories' || item.dataset.label === 'Protein',
             callbacks: {
               label: item => item.dataset.label === 'Calories'
                 ? item.raw + ' / ' + CAL_GOAL + ' kcal'
