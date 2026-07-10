@@ -676,16 +676,18 @@ body {
   </div>
 
   <!-- 7-Day Nutrition History -->
-  <div class="card" style="padding-top:14px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <span style="font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-3)">Last 7 Days</span>
-      <div style="display:flex;align-items:center;gap:12px;font-size:11px;color:var(--text-3)">
-        <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#fbbf24;margin-right:3px;vertical-align:middle"></span>Calories</span>
-        <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#7DD3FC;margin-right:3px;vertical-align:middle"></span>Protein</span>
+  <div class="nutr-totals">
+    <div class="nutr-stat" style="padding:12px 12px 10px">
+      <div class="nutr-stat-label">Calories — 7 Days</div>
+      <div style="position:relative;height:96px;margin-top:8px">
+        <canvas id="nutrCalChart"></canvas>
       </div>
     </div>
-    <div style="position:relative;height:156px">
-      <canvas id="nutrWeekChart"></canvas>
+    <div class="nutr-stat" style="padding:12px 12px 10px">
+      <div class="nutr-stat-label">Protein — 7 Days</div>
+      <div style="position:relative;height:96px;margin-top:8px">
+        <canvas id="nutrProChart"></canvas>
+      </div>
     </div>
   </div>
 
@@ -1742,15 +1744,14 @@ body {
         btn.addEventListener('click', () => { deleteEntry(btn.dataset.id); renderNutrition(); });
       });
     }
-    if (window.Chart) buildNutritionWeekChart();
+    if (window.Chart) buildNutritionWeekCharts();
   }
 
   /* ── 7-day nutrition chart ── */
-  let _nutrWeekChart = null;
+  let _nutrCalChart = null, _nutrProChart = null;
 
-  function buildNutritionWeekChart() {
-    const ctx = document.getElementById('nutrWeekChart');
-    if (!ctx || !window.Chart) return;
+  function buildNutritionWeekCharts() {
+    if (!window.Chart) return;
     const log = getLog();
     const labels = [], calData = [], proData = [];
     const DOW = ['S','M','T','W','T','F','S'];
@@ -1763,82 +1764,88 @@ body {
       calData.push(Math.round(entries.reduce((s, e) => s + (e.calories || 0), 0)));
       proData.push(Math.round(entries.reduce((s, e) => s + (e.protein  || 0), 0)));
     }
-    const calGoalLine = Array(7).fill(CAL_GOAL);
-    const proGoalLine = Array(7).fill(PRO_GOAL);
-    const calColors = calData.map((cal, i) =>
-      (cal >= CAL_GOAL && proData[i] >= PRO_GOAL) ? '#6ee7b7' :
-      (cal > 0 || proData[i] > 0) ? '#fbbf24' : 'rgba(255,255,255,0.07)'
-    );
-    const datasets = [
-      {
-        type: 'bar', label: 'Calories', data: calData,
-        backgroundColor: calColors, borderRadius: 4,
-        yAxisID: 'yL', order: 2
-      },
-      {
-        type: 'line', label: 'Protein', data: proData,
-        borderColor: '#7DD3FC', borderWidth: 2,
-        pointBackgroundColor: '#7DD3FC', pointBorderColor: '#7DD3FC',
-        pointRadius: 4, pointHoverRadius: 6,
-        tension: 0.3, fill: false, yAxisID: 'yR', order: 1
-      },
-      {
-        type: 'line', label: 'Cal Goal', data: calGoalLine,
-        borderColor: 'rgba(251,191,36,0.5)', borderDash: [5,5], borderWidth: 1.5,
-        pointRadius: 0, pointHoverRadius: 0, fill: false, tension: 0,
-        yAxisID: 'yL', order: 3
-      },
-      {
-        type: 'line', label: 'Pro Goal', data: proGoalLine,
-        borderColor: 'rgba(125,211,252,0.45)', borderDash: [5,5], borderWidth: 1.5,
-        pointRadius: 0, pointHoverRadius: 0, fill: false, tension: 0,
-        yAxisID: 'yR', order: 3
-      }
-    ];
-    if (_nutrWeekChart) {
-      _nutrWeekChart.data.labels = labels;
-      _nutrWeekChart.data.datasets[0].data = calData;
-      _nutrWeekChart.data.datasets[0].backgroundColor = calColors;
-      _nutrWeekChart.data.datasets[1].data = proData;
-      _nutrWeekChart.data.datasets[2].data = calGoalLine;
-      _nutrWeekChart.data.datasets[3].data = proGoalLine;
-      _nutrWeekChart.update('none');
-      return;
-    }
-    _nutrWeekChart = new Chart(ctx, {
-      type: 'bar',
-      data: { labels, datasets },
-      options: {
+
+    const calColors = calData.map(v => v >= CAL_GOAL ? 'rgba(110,231,183,0.75)' : v > 0 ? 'rgba(251,191,36,0.75)' : 'rgba(255,255,255,0.07)');
+    const proColors = proData.map(v => v >= PRO_GOAL ? 'rgba(110,231,183,0.75)' : v > 0 ? 'rgba(125,211,252,0.75)' : 'rgba(255,255,255,0.07)');
+    const ANIM = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 400;
+
+    function miniChartOpts(goalVal, suffix, gridColor) {
+      return {
         responsive: true, maintainAspectRatio: false,
-        animation: { duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 400 },
+        animation: { duration: ANIM },
         plugins: {
           legend: { display: false },
           tooltip: {
             backgroundColor: 'rgba(10,10,11,0.92)', borderColor: 'rgba(255,255,255,0.12)', borderWidth: 1,
-            titleColor: 'rgba(255,255,255,0.9)', bodyColor: 'rgba(255,255,255,0.55)', padding: 10,
-            filter: item => item.dataset.label === 'Calories' || item.dataset.label === 'Protein',
-            callbacks: {
-              label: item => item.dataset.label === 'Calories'
-                ? item.raw + ' / ' + CAL_GOAL + ' kcal'
-                : item.raw + ' / ' + PRO_GOAL + 'g protein'
-            }
+            titleColor: 'rgba(255,255,255,0.9)', bodyColor: 'rgba(255,255,255,0.55)', padding: 8,
+            filter: item => item.dataset.label !== 'Goal',
+            callbacks: { label: item => item.raw + suffix + ' / ' + goalVal + suffix }
           }
         },
         scales: {
-          x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.45)', font: { size: 11 } } },
-          yL: {
-            type: 'linear', position: 'left', beginAtZero: true,
-            grid: { color: 'rgba(255,255,255,0.06)' },
-            ticks: { color: 'rgba(255,255,255,0.35)', maxTicksLimit: 4, font: { size: 10 } }
-          },
-          yR: {
-            type: 'linear', position: 'right', beginAtZero: true,
-            grid: { display: false },
-            ticks: { color: 'rgba(125,211,252,0.5)', maxTicksLimit: 4, font: { size: 10 }, callback: v => v + 'g' }
+          x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.38)', font: { size: 9 } } },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: 'rgba(255,255,255,0.3)', maxTicksLimit: 3, font: { size: 9 } }
           }
         }
+      };
+    }
+
+    function goalLine(color) {
+      return {
+        type: 'line', label: 'Goal',
+        borderColor: color, borderDash: [4, 4], borderWidth: 1.5,
+        pointRadius: 0, pointHoverRadius: 0, fill: false, tension: 0
+      };
+    }
+
+    const calCtx = document.getElementById('nutrCalChart');
+    if (calCtx) {
+      if (_nutrCalChart) {
+        _nutrCalChart.data.labels = labels;
+        _nutrCalChart.data.datasets[0].data = calData;
+        _nutrCalChart.data.datasets[0].backgroundColor = calColors;
+        _nutrCalChart.data.datasets[1].data = Array(7).fill(CAL_GOAL);
+        _nutrCalChart.update('none');
+      } else {
+        _nutrCalChart = new Chart(calCtx, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [
+              { label: 'Calories', data: calData, backgroundColor: calColors, borderRadius: 3 },
+              { ...goalLine('rgba(251,191,36,0.55)'), data: Array(7).fill(CAL_GOAL) }
+            ]
+          },
+          options: miniChartOpts(CAL_GOAL, ' kcal')
+        });
       }
-    });
+    }
+
+    const proCtx = document.getElementById('nutrProChart');
+    if (proCtx) {
+      if (_nutrProChart) {
+        _nutrProChart.data.labels = labels;
+        _nutrProChart.data.datasets[0].data = proData;
+        _nutrProChart.data.datasets[0].backgroundColor = proColors;
+        _nutrProChart.data.datasets[1].data = Array(7).fill(PRO_GOAL);
+        _nutrProChart.update('none');
+      } else {
+        _nutrProChart = new Chart(proCtx, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [
+              { label: 'Protein', data: proData, backgroundColor: proColors, borderRadius: 3 },
+              { ...goalLine('rgba(125,211,252,0.45)'), data: Array(7).fill(PRO_GOAL) }
+            ]
+          },
+          options: miniChartOpts(PRO_GOAL, 'g')
+        });
+      }
+    }
   }
 
   /* ── USDA FoodData Central search ── */
@@ -2601,7 +2608,7 @@ body {
   /* ── Boot ── */
   renderNutrition();     // immediate render from localStorage cache
   (function tryNutrChart() {
-    if (window.Chart) buildNutritionWeekChart(); else setTimeout(tryNutrChart, 100);
+    if (window.Chart) buildNutritionWeekCharts(); else setTimeout(tryNutrChart, 100);
   })();
   loadFoodLog();         // async: fetch from Supabase, re-render when ready
   loadProfileLocal();
