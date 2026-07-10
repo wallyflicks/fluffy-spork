@@ -2309,10 +2309,12 @@ html, body {
   }
 
   async function pushFoodLog() {
+    const data = getLog();
+    if (!Object.keys(data).length) return; // never overwrite Supabase with empty local state
     try {
       await fetch(SUPA_URL_N + '/rest/v1/app_state?on_conflict=key', {
         method: 'POST', headers: SUPA_H_NJ,
-        body: JSON.stringify({ key: FOOD_SB_KEY, data: getLog(), updated_at: new Date().toISOString() })
+        body: JSON.stringify({ key: FOOD_SB_KEY, data, updated_at: new Date().toISOString() })
       });
     } catch (e) { console.warn('[food sync] push failed:', e.message); }
   }
@@ -2322,9 +2324,32 @@ html, body {
       const res = await fetch(SUPA_URL_N + '/rest/v1/app_state?key=eq.' + FOOD_SB_KEY + '&select=data', { headers: SUPA_H_N });
       if (!res.ok) return;
       const rows = await res.json();
-      if (!rows.length || !rows[0].data) { pushFoodLog(); return; }
-      saveLog(rows[0].data);
+      const local = getLog();
+      const hasLocal = Object.values(local).some(d => Array.isArray(d) && d.length > 0);
+
+      // Supabase empty — promote local data so other devices can see it
+      const remote = (rows.length && rows[0].data) ? rows[0].data : {};
+      const hasRemote = Object.values(remote).some(d => Array.isArray(d) && d.length > 0);
+      if (!hasRemote) { if (hasLocal) pushFoodLog(); return; }
+
+      // Merge: union entries by ID for each day so neither device's logs are lost
+      const merged = Object.assign({}, remote);
+      Object.keys(local).forEach(day => {
+        if (!Array.isArray(local[day]) || !local[day].length) return;
+        if (!Array.isArray(merged[day]) || !merged[day].length) {
+          merged[day] = local[day];
+        } else {
+          const seen = new Set(merged[day].map(e => e.id));
+          local[day].forEach(e => { if (!seen.has(e.id)) merged[day].push(e); });
+          merged[day].sort((a, b) => (a.logged_at || '').localeCompare(b.logged_at || ''));
+        }
+      });
+
+      saveLog(merged);
       renderNutrition();
+
+      // Push merged result back if local contributed new entries
+      if (JSON.stringify(merged) !== JSON.stringify(remote)) pushFoodLog();
     } catch (e) { console.warn('[food sync] load failed:', e.message); }
   }
 
