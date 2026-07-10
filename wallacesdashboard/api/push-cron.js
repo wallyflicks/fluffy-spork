@@ -219,6 +219,74 @@ module.exports = async function handler(req, res) {
     }
   } catch (e) { console.warn('[push-cron] subscription check failed:', e.message); }
 
+  // ── Done → Posted auto-transition ─────────────────────────────────
+  // Runs every morning: any content video with status "Done" whose post_date
+  // is today or earlier gets promoted to "Posted" and earns its deal income.
+  try {
+    const contRes = await fetch(
+      SUPA_URL + '/rest/v1/app_state?key=eq.content&select=data',
+      { headers: SB_HEADERS }
+    );
+    if (contRes.ok) {
+      const contRows = await contRes.json();
+      if (contRows.length && contRows[0].data) {
+        const bundle = contRows[0].data;
+        const cvs    = bundle['content_videos'] || [];
+        const vids   = bundle['ugc_videos']     || [];
+        const deals  = bundle['ugc_deals']      || [];
+        let changed  = false;
+
+        for (const v of cvs) {
+          if (v.status !== 'Done') continue;
+          if (!v.post_date || v.post_date > vanDate) continue;
+
+          v.status = 'Posted';
+          changed  = true;
+
+          if (v.video_log_id) continue; // earnings entry already exists
+
+          const deal = v.brand ? deals.find(d => d.brand_name === v.brand) : null;
+          if (!deal) continue;
+
+          const usedEditor  = !!(v.used_editor || (v.cv_editor_cost != null && Number(v.cv_editor_cost) > 0));
+          const editorDeduct = usedEditor ? (Number(v.cv_editor_cost) || 3.0) : 0;
+          const netTotal     = Number(deal.rate_per_video) - editorDeduct;
+          const newId        = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+          vids.push({
+            id:           newId,
+            deal_id:      deal.id,
+            brand_name:   deal.brand_name,
+            date:         v.post_date,
+            status:       'Approved',
+            flat_rate:    Number(deal.rate_per_video),
+            view_bonus:   0,
+            views_earned: 0,
+            bonus:        0,
+            total:        netTotal,
+            notes:        v.title || '',
+            editor_cost:  usedEditor ? (Number(v.cv_editor_cost) || 3.0) : null,
+            created_at:   new Date().toISOString()
+          });
+          v.video_log_id = newId;
+        }
+
+        if (changed) {
+          bundle['content_videos'] = cvs;
+          bundle['ugc_videos']     = vids;
+          await fetch(SUPA_URL + '/rest/v1/app_state?on_conflict=key', {
+            method: 'POST',
+            headers: { ...SB_HEADERS, 'Prefer': 'resolution=merge-duplicates' },
+            body: JSON.stringify({ key: 'content', data: bundle, updated_at: new Date().toISOString() })
+          });
+          console.log('[push-cron] Done→Posted: promoted', cvs.filter(v => v.status === 'Posted' && v.video_log_id).length, 'videos');
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[push-cron] Done→Posted transition failed:', e.message);
+  }
+
   const r = await fetch(SUPA_URL + '/rest/v1/push_subscriptions?select=*', { headers: SB_HEADERS });
   if (!r.ok) {
     const detail = await r.text();
