@@ -577,6 +577,7 @@ const LS_CV       = 'content_videos';
 const FIN_INC  = 'finance_income';
 const FIN_EXP  = 'finance_expenses';
 const LS_EDITOR_PAYMENTS = 'ugc_editor_payments';
+const LS_EDITOR_RESET_AT = 'ugc_editor_reset_at'; // ISO timestamp, set on pay, never cleared on delete
 
 // ── Sync indicator ────────────────────────────────────────────────
 const syncDot   = document.getElementById('syncDot');
@@ -607,7 +608,8 @@ async function pushToCloud() {
     [LS_PAYMENTS]:        ls(LS_PAYMENTS),
     [LS_VIDEOS]:          ls(LS_VIDEOS),
     [LS_CV]:              ls(LS_CV),
-    [LS_EDITOR_PAYMENTS]: ls(LS_EDITOR_PAYMENTS)
+    [LS_EDITOR_PAYMENTS]: ls(LS_EDITOR_PAYMENTS),
+    [LS_EDITOR_RESET_AT]: localStorage.getItem(LS_EDITOR_RESET_AT) || null
   };
   const res = await fetch(`${SUPA_URL}/rest/v1/app_state?on_conflict=key`, {
     method: 'POST', headers: SB_H,
@@ -705,6 +707,7 @@ async function init() {
       if (Array.isArray(bundle[LS_VIDEOS]))          lsSet(LS_VIDEOS,          bundle[LS_VIDEOS]);
       if (Array.isArray(bundle[LS_CV]))              lsSet(LS_CV,              bundle[LS_CV]);
       if (Array.isArray(bundle[LS_EDITOR_PAYMENTS])) lsSet(LS_EDITOR_PAYMENTS, bundle[LS_EDITOR_PAYMENTS]);
+      if (bundle[LS_EDITOR_RESET_AT]) localStorage.setItem(LS_EDITOR_RESET_AT, bundle[LS_EDITOR_RESET_AT]);
     } else {
       const hasLocal = ls(LS_DEALS).length || ls(LS_PAYMENTS).length || ls(LS_VIDEOS).length || ls(LS_CV).length;
       if (hasLocal) pushToCloud().catch(() => {});
@@ -1371,9 +1374,7 @@ function toggleCVEditor() {
 // SECTION 3b — EDITOR COSTS SUMMARY
 // ══════════════════════════════════════════════════════════════════
 function getEditorResetAt() {
-  const payments = ls(LS_EDITOR_PAYMENTS);
-  if (!payments.length) return null;
-  return payments.slice().sort((a, b) => b.paid_at.localeCompare(a.paid_at))[0].paid_at;
+  return localStorage.getItem(LS_EDITOR_RESET_AT) || null;
 }
 
 function getAccumulatedEditorVideos() {
@@ -1455,6 +1456,7 @@ async function payEditor() {
   const paymentId = uid();
   const paidAt    = new Date().toISOString();
 
+  localStorage.setItem(LS_EDITOR_RESET_AT, paidAt);
   const payments = ls(LS_EDITOR_PAYMENTS);
   payments.push({ id: paymentId, date, amount: total, finance_expense_id: expenseId, paid_at: paidAt });
   lsSet(LS_EDITOR_PAYMENTS, payments);
