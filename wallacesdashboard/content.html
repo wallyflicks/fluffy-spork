@@ -376,7 +376,13 @@ select.c-input option { background: #1a1a1c; }
       <div class="sec-divider"><span>Editor Costs</span></div>
       <div class="c-card">
         <div id="editorCostContent">
-          <div class="empty-state">No editor costs logged this month.</div>
+          <div class="empty-state">No editor costs logged.</div>
+        </div>
+      </div>
+      <div id="editorPayHistorySection" style="display:none;margin-top:12px">
+        <div class="c-card">
+          <div class="sec-label" style="margin-bottom:10px">Payment History</div>
+          <div id="editorPayHistoryList"></div>
         </div>
       </div>
     </div>
@@ -569,6 +575,8 @@ const LS_VIDEOS   = 'ugc_videos';
 const LS_CV       = 'content_videos';
 
 const FIN_INC  = 'finance_income';
+const FIN_EXP  = 'finance_expenses';
+const LS_EDITOR_PAYMENTS = 'ugc_editor_payments';
 
 // ── Sync indicator ────────────────────────────────────────────────
 const syncDot   = document.getElementById('syncDot');
@@ -595,10 +603,11 @@ async function fetchFromCloud() {
 }
 async function pushToCloud() {
   const bundle = {
-    [LS_DEALS]:    ls(LS_DEALS),
-    [LS_PAYMENTS]: ls(LS_PAYMENTS),
-    [LS_VIDEOS]:   ls(LS_VIDEOS),
-    [LS_CV]:       ls(LS_CV)
+    [LS_DEALS]:           ls(LS_DEALS),
+    [LS_PAYMENTS]:        ls(LS_PAYMENTS),
+    [LS_VIDEOS]:          ls(LS_VIDEOS),
+    [LS_CV]:              ls(LS_CV),
+    [LS_EDITOR_PAYMENTS]: ls(LS_EDITOR_PAYMENTS)
   };
   const res = await fetch(`${SUPA_URL}/rest/v1/app_state?on_conflict=key`, {
     method: 'POST', headers: SB_H,
@@ -630,6 +639,38 @@ async function pushToFinance(entry) {
   await pushFinanceBundle();
 }
 
+async function addEditorExpenseToFinance(entry) {
+  try {
+    const res = await fetch(`${SUPA_URL}/rest/v1/app_state?key=eq.finance&select=data`, { headers: SB_RH });
+    let bundle = {};
+    if (res.ok) { const rows = await res.json(); if (rows.length && rows[0].data) bundle = rows[0].data; }
+    const arr = Array.isArray(bundle[FIN_EXP]) ? bundle[FIN_EXP] : [];
+    if (!arr.find(e => e.id === entry.id)) arr.push(entry);
+    bundle[FIN_EXP] = arr;
+    bundle[FIN_INC] = ls(FIN_INC);
+    await fetch(`${SUPA_URL}/rest/v1/app_state?on_conflict=key`, {
+      method: 'POST', headers: SB_H,
+      body: JSON.stringify({ key: 'finance', data: bundle, updated_at: new Date().toISOString() })
+    });
+  } catch(e) { console.warn('[finance expense add]', e.message); }
+}
+
+async function removeEditorExpenseFromFinance(expenseId) {
+  try {
+    const res = await fetch(`${SUPA_URL}/rest/v1/app_state?key=eq.finance&select=data`, { headers: SB_RH });
+    let bundle = {};
+    if (res.ok) { const rows = await res.json(); if (rows.length && rows[0].data) bundle = rows[0].data; }
+    if (Array.isArray(bundle[FIN_EXP])) {
+      bundle[FIN_EXP] = bundle[FIN_EXP].filter(e => e.id !== expenseId);
+    }
+    bundle[FIN_INC] = ls(FIN_INC);
+    await fetch(`${SUPA_URL}/rest/v1/app_state?on_conflict=key`, {
+      method: 'POST', headers: SB_H,
+      body: JSON.stringify({ key: 'finance', data: bundle, updated_at: new Date().toISOString() })
+    });
+  } catch(e) { console.warn('[finance expense remove]', e.message); }
+}
+
 // ── State ─────────────────────────────────────────────────────────
 let _editingDealId  = null;
 let _editingPayId   = null;
@@ -637,6 +678,7 @@ let brandChart      = null;
 const _delConfirm   = {};
 const _vidDelConf   = {};
 const _payDelConf   = {};
+const _edPayDelConf = {};
 let _ehTooltipTimer = null;
 let _ehPeriod       = 'month';
 let _view           = 'list';
@@ -658,10 +700,11 @@ async function init() {
   try {
     const bundle = await fetchFromCloud();
     if (bundle) {
-      if (Array.isArray(bundle[LS_DEALS]))    lsSet(LS_DEALS,    bundle[LS_DEALS]);
-      if (Array.isArray(bundle[LS_PAYMENTS])) lsSet(LS_PAYMENTS, bundle[LS_PAYMENTS]);
-      if (Array.isArray(bundle[LS_VIDEOS]))   lsSet(LS_VIDEOS,   bundle[LS_VIDEOS]);
-      if (Array.isArray(bundle[LS_CV]))       lsSet(LS_CV,       bundle[LS_CV]);
+      if (Array.isArray(bundle[LS_DEALS]))           lsSet(LS_DEALS,           bundle[LS_DEALS]);
+      if (Array.isArray(bundle[LS_PAYMENTS]))        lsSet(LS_PAYMENTS,        bundle[LS_PAYMENTS]);
+      if (Array.isArray(bundle[LS_VIDEOS]))          lsSet(LS_VIDEOS,          bundle[LS_VIDEOS]);
+      if (Array.isArray(bundle[LS_CV]))              lsSet(LS_CV,              bundle[LS_CV]);
+      if (Array.isArray(bundle[LS_EDITOR_PAYMENTS])) lsSet(LS_EDITOR_PAYMENTS, bundle[LS_EDITOR_PAYMENTS]);
     } else {
       const hasLocal = ls(LS_DEALS).length || ls(LS_PAYMENTS).length || ls(LS_VIDEOS).length || ls(LS_CV).length;
       if (hasLocal) pushToCloud().catch(() => {});
@@ -679,6 +722,7 @@ function render() {
   renderPayments();
   renderSummary();
   renderEditorCosts();
+  renderEditorPaymentHistory();
   renderEarningsHistory();
   if (_view === 'calendar') renderCalendar();
 }
@@ -1326,16 +1370,43 @@ function toggleCVEditor() {
 // ══════════════════════════════════════════════════════════════════
 // SECTION 3b — EDITOR COSTS SUMMARY
 // ══════════════════════════════════════════════════════════════════
+function getEditorResetAt() {
+  const payments = ls(LS_EDITOR_PAYMENTS);
+  if (!payments.length) return null;
+  return payments.slice().sort((a, b) => b.paid_at.localeCompare(a.paid_at))[0].paid_at;
+}
+
+function getAccumulatedEditorVideos() {
+  const resetAt = getEditorResetAt();
+  return ls(LS_VIDEOS).filter(v => {
+    if (!v.editor_cost || Number(v.editor_cost) <= 0) return false;
+    if (!resetAt) return true;
+    return (v.created_at || '') > resetAt;
+  });
+}
+
 function renderEditorCosts() {
   const el = document.getElementById('editorCostContent');
   if (!el) return;
-  const thisMonth  = monthOf(todayVan());
-  const monthLabel = new Date(thisMonth + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  const videos = ls(LS_VIDEOS).filter(v => monthOf(v.date) === thisMonth && v.editor_cost != null && Number(v.editor_cost) > 0);
+  const resetAt = getEditorResetAt();
+  let cycleLabel;
+  if (resetAt) {
+    const since = new Date(resetAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Vancouver' });
+    cycleLabel = `EDITOR COSTS — Since ${since}`;
+  } else {
+    cycleLabel = 'EDITOR COSTS — All Time';
+  }
+
+  const videos = getAccumulatedEditorVideos();
 
   if (!videos.length) {
-    el.innerHTML = '<div class="empty-state">No editor costs logged this month.</div>';
+    el.innerHTML = `
+      <div class="sec-label" style="margin-bottom:10px">${esc(cycleLabel)}</div>
+      <div class="empty-state" style="margin-top:0">No editor costs in this cycle.</div>
+      <div style="margin-top:12px">
+        <button class="c-btn sm" disabled style="opacity:0.35;cursor:default">Paid Editor</button>
+      </div>`;
     return;
   }
 
@@ -1358,14 +1429,100 @@ function renderEditorCosts() {
     </div>`).join('');
 
   el.innerHTML = `
-    <div class="sec-label" style="margin-bottom:10px">EDITOR COSTS — ${esc(monthLabel)}</div>
+    <div class="sec-label" style="margin-bottom:10px">${esc(cycleLabel)}</div>
     <div class="summary-grid">
-      <div class="summary-stat" style="grid-column:1/-1">
-        <div class="summary-stat-label">Total spent this month</div>
-        <div class="summary-stat-value" style="color:var(--bad)">$${total.toFixed(2)}</div>
+      <div class="summary-stat" style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div class="summary-stat-label">Total spent this cycle</div>
+          <div class="summary-stat-value" style="color:var(--bad)">$${total.toFixed(2)}</div>
+        </div>
+        <button class="c-btn sm primary" onclick="payEditor()">Paid Editor</button>
       </div>
       ${brandRows}
     </div>`;
+}
+
+async function payEditor() {
+  const videos = getAccumulatedEditorVideos();
+  const total  = videos.reduce((s, v) => s + Number(v.editor_cost), 0);
+  if (total <= 0) return;
+
+  const date = todayVan();
+  const fmt  = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  if (!confirm(`Mark $${total.toFixed(2)} as paid to editor on ${fmt}?\n\nThis will:\n• Add a $${total.toFixed(2)} expense on the Finance page\n• Reset the running total to $0\n\nThe reset cannot be undone.`)) return;
+
+  const expenseId = uid();
+  const paymentId = uid();
+  const paidAt    = new Date().toISOString();
+
+  const payments = ls(LS_EDITOR_PAYMENTS);
+  payments.push({ id: paymentId, date, amount: total, finance_expense_id: expenseId, paid_at: paidAt });
+  lsSet(LS_EDITOR_PAYMENTS, payments);
+
+  renderEditorCosts();
+  renderEditorPaymentHistory();
+
+  syncState('syncing', 'syncing…');
+  try {
+    await sbUpsert();
+    await addEditorExpenseToFinance({ id: expenseId, desc: `Editor payment — ${fmt}`, amount: total, date, tag: 'Editor' });
+    syncState('ok', 'synced');
+  } catch { syncState('err', 'sync err'); }
+}
+
+function renderEditorPaymentHistory() {
+  const section = document.getElementById('editorPayHistorySection');
+  const list    = document.getElementById('editorPayHistoryList');
+  if (!section || !list) return;
+
+  const payments = ls(LS_EDITOR_PAYMENTS).slice().sort((a, b) => b.paid_at.localeCompare(a.paid_at));
+  if (!payments.length) { section.style.display = 'none'; return; }
+
+  section.style.display = '';
+  list.innerHTML = payments.map(p => `
+    <div class="payment-item" id="edpay-${esc(p.id)}" style="margin-bottom:8px">
+      <div class="payment-item-body">
+        <div class="payment-item-title" style="color:var(--bad)">−$${Number(p.amount).toFixed(2)}</div>
+        <div class="payment-item-sub">Editor payment</div>
+      </div>
+      <div class="payment-item-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        <div class="payment-item-date">${esc(p.date)}</div>
+        <button class="c-btn sm danger" id="edpdel-${esc(p.id)}" onclick="confirmDeleteEditorPayment('${esc(p.id)}')">Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+function confirmDeleteEditorPayment(id) {
+  const btn = document.getElementById('edpdel-' + id);
+  if (!btn) return;
+  if (_edPayDelConf[id]) {
+    clearTimeout(_edPayDelConf[id]);
+    delete _edPayDelConf[id];
+    deleteEditorPayment(id);
+  } else {
+    btn.textContent = 'Sure?';
+    btn.classList.add('confirming');
+    _edPayDelConf[id] = setTimeout(() => {
+      if (btn) { btn.textContent = 'Delete'; btn.classList.remove('confirming'); }
+      delete _edPayDelConf[id];
+    }, 3000);
+  }
+}
+
+async function deleteEditorPayment(id) {
+  const payment = ls(LS_EDITOR_PAYMENTS).find(p => p.id === id);
+  if (!payment) return;
+
+  lsSet(LS_EDITOR_PAYMENTS, ls(LS_EDITOR_PAYMENTS).filter(p => p.id !== id));
+  renderEditorPaymentHistory();
+  renderEditorCosts();
+
+  syncState('syncing', 'syncing…');
+  try {
+    await sbUpsert();
+    if (payment.finance_expense_id) await removeEditorExpenseFromFinance(payment.finance_expense_id);
+    syncState('ok', 'synced');
+  } catch { syncState('err', 'sync err'); }
 }
 
 // ══════════════════════════════════════════════════════════════════
