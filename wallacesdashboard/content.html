@@ -1450,15 +1450,16 @@ async function payEditor() {
 
   const date = todayVan();
   const fmt  = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  if (!confirm(`Mark $${total.toFixed(2)} as paid to editor on ${fmt}?\n\nThis will:\n• Add a $${total.toFixed(2)} expense on the Finance page\n• Reset the running total to $0\n\nThe reset cannot be undone.`)) return;
+  if (!confirm(`Mark $${total.toFixed(2)} as paid to editor on ${fmt}?\n\nThis will:\n• Add a $${total.toFixed(2)} expense on the Finance page\n• Reset the running total to $0\n\nDelete this entry from Payment History to undo.`)) return;
 
-  const expenseId = uid();
-  const paymentId = uid();
-  const paidAt    = new Date().toISOString();
+  const prevResetAt = getEditorResetAt();
+  const expenseId   = uid();
+  const paymentId   = uid();
+  const paidAt      = new Date().toISOString();
 
   localStorage.setItem(LS_EDITOR_RESET_AT, paidAt);
   const payments = ls(LS_EDITOR_PAYMENTS);
-  payments.push({ id: paymentId, date, amount: total, finance_expense_id: expenseId, paid_at: paidAt });
+  payments.push({ id: paymentId, date, amount: total, finance_expense_id: expenseId, paid_at: paidAt, prev_reset_at: prevResetAt });
   lsSet(LS_EDITOR_PAYMENTS, payments);
 
   renderEditorCosts();
@@ -1480,18 +1481,24 @@ function renderEditorPaymentHistory() {
   const payments = ls(LS_EDITOR_PAYMENTS).slice().sort((a, b) => b.paid_at.localeCompare(a.paid_at));
   if (!payments.length) { section.style.display = 'none'; return; }
 
+  const newestId = payments[0].id;
   section.style.display = '';
-  list.innerHTML = payments.map(p => `
+  list.innerHTML = payments.map(p => {
+    const isNewest = p.id === newestId;
+    const note = isNewest ? '' : '<div style="font-size:10px;color:var(--text-4);margin-top:3px">Deleting won\'t undo its reset</div>';
+    return `
     <div class="payment-item" id="edpay-${esc(p.id)}" style="margin-bottom:8px">
       <div class="payment-item-body">
         <div class="payment-item-title" style="color:var(--bad)">−$${Number(p.amount).toFixed(2)}</div>
         <div class="payment-item-sub">Editor payment</div>
+        ${note}
       </div>
       <div class="payment-item-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
         <div class="payment-item-date">${esc(p.date)}</div>
         <button class="c-btn sm danger" id="edpdel-${esc(p.id)}" onclick="confirmDeleteEditorPayment('${esc(p.id)}')">Delete</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function confirmDeleteEditorPayment(id) {
@@ -1502,7 +1509,9 @@ function confirmDeleteEditorPayment(id) {
     delete _edPayDelConf[id];
     deleteEditorPayment(id);
   } else {
-    btn.textContent = 'Sure?';
+    const payments = ls(LS_EDITOR_PAYMENTS).slice().sort((a, b) => b.paid_at.localeCompare(a.paid_at));
+    const isNewest = payments.length && payments[0].id === id;
+    btn.textContent = isNewest ? 'Sure?' : 'Sure? (no undo)';
     btn.classList.add('confirming');
     _edPayDelConf[id] = setTimeout(() => {
       if (btn) { btn.textContent = 'Delete'; btn.classList.remove('confirming'); }
@@ -1512,10 +1521,21 @@ function confirmDeleteEditorPayment(id) {
 }
 
 async function deleteEditorPayment(id) {
-  const payment = ls(LS_EDITOR_PAYMENTS).find(p => p.id === id);
+  const allPayments = ls(LS_EDITOR_PAYMENTS);
+  const payment = allPayments.find(p => p.id === id);
   if (!payment) return;
 
-  lsSet(LS_EDITOR_PAYMENTS, ls(LS_EDITOR_PAYMENTS).filter(p => p.id !== id));
+  const sorted   = allPayments.slice().sort((a, b) => b.paid_at.localeCompare(a.paid_at));
+  const isNewest = sorted.length && sorted[0].id === id;
+
+  lsSet(LS_EDITOR_PAYMENTS, allPayments.filter(p => p.id !== id));
+
+  if (isNewest) {
+    const prev = payment.prev_reset_at;
+    if (prev) localStorage.setItem(LS_EDITOR_RESET_AT, prev);
+    else      localStorage.removeItem(LS_EDITOR_RESET_AT);
+  }
+
   renderEditorPaymentHistory();
   renderEditorCosts();
 
