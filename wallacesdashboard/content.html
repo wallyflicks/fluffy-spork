@@ -707,7 +707,10 @@ async function init() {
       if (Array.isArray(bundle[LS_VIDEOS]))          lsSet(LS_VIDEOS,          bundle[LS_VIDEOS]);
       if (Array.isArray(bundle[LS_CV]))              lsSet(LS_CV,              bundle[LS_CV]);
       if (Array.isArray(bundle[LS_EDITOR_PAYMENTS])) lsSet(LS_EDITOR_PAYMENTS, bundle[LS_EDITOR_PAYMENTS]);
-      if (bundle[LS_EDITOR_RESET_AT]) localStorage.setItem(LS_EDITOR_RESET_AT, bundle[LS_EDITOR_RESET_AT]);
+      if (LS_EDITOR_RESET_AT in bundle) {
+        if (bundle[LS_EDITOR_RESET_AT]) localStorage.setItem(LS_EDITOR_RESET_AT, bundle[LS_EDITOR_RESET_AT]);
+        else localStorage.removeItem(LS_EDITOR_RESET_AT);
+      }
     } else {
       const hasLocal = ls(LS_DEALS).length || ls(LS_PAYMENTS).length || ls(LS_VIDEOS).length || ls(LS_CV).length;
       if (hasLocal) pushToCloud().catch(() => {});
