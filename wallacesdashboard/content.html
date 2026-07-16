@@ -1689,10 +1689,6 @@ function buildMonthlyData() {
       total: 0, videos: 0
     });
   }
-  ls(LS_PAYMENTS).forEach(p => {
-    const m = months.find(m => m.key === p.date.slice(0,7));
-    if (m) m.total += Number(p.amount);
-  });
   ls(LS_VIDEOS).filter(v => v.status === 'Approved').forEach(v => {
     const m = months.find(m => m.key === v.date.slice(0,7));
     if (m) { m.total += Number(v.total); m.videos++; }
@@ -1717,11 +1713,6 @@ function buildWeeklyData() {
       total: 0, videos: 0
     });
   }
-  ls(LS_PAYMENTS).forEach(p => {
-    const ms = dateToMs(p.date);
-    const w  = weeks.find(w => ms >= w.sunMs && ms <= w.satMs);
-    if (w) w.total += Number(p.amount);
-  });
   ls(LS_VIDEOS).filter(v => v.status === 'Approved').forEach(v => {
     const ms = dateToMs(v.date);
     const w  = weeks.find(w => ms >= w.sunMs && ms <= w.satMs);
@@ -1743,10 +1734,6 @@ function buildDailyData() {
       total: 0, videos: 0
     });
   }
-  ls(LS_PAYMENTS).forEach(p => {
-    const d = days.find(d => d.key === p.date);
-    if (d) d.total += Number(p.amount);
-  });
   ls(LS_VIDEOS).filter(v => v.status === 'Approved').forEach(v => {
     const d = days.find(d => d.key === v.date);
     if (d) { d.total += Number(v.total); d.videos++; }
@@ -1756,11 +1743,6 @@ function buildDailyData() {
 
 function buildYearlyData() {
   const years = {};
-  ls(LS_PAYMENTS).forEach(p => {
-    const y = p.date.slice(0,4);
-    if (!years[y]) years[y] = { key: y, label: y, fullLabel: y, total: 0, videos: 0 };
-    years[y].total += Number(p.amount);
-  });
   ls(LS_VIDEOS).filter(v => v.status === 'Approved').forEach(v => {
     const y = v.date.slice(0,4);
     if (!years[y]) years[y] = { key: y, label: y, fullLabel: y, total: 0, videos: 0 };
