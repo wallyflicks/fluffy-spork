@@ -343,7 +343,16 @@ select.c-input option { background: #1a1a1c; }
     <!-- SECTION 3 — EARNINGS SUMMARY -->
     <div>
       <div class="sec-divider"><span>Earnings Summary</span></div>
-      <p style="font-size:11px;color:var(--text-3);margin:0 0 10px;">Estimated from logged videos — not yet received</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <p style="font-size:11px;color:var(--text-3);margin:0">Estimated from logged videos — not yet received</p>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:10px">
+          <div class="period-toggle" style="margin-bottom:0;width:auto">
+            <button class="pt-btn active" id="earCurUSD" onclick="setEarningsCurrency('USD')">USD</button>
+            <button class="pt-btn" id="earCurCAD" onclick="setEarningsCurrency('CAD')">CAD</button>
+          </div>
+          <span id="fxRateLabel" style="font-size:10px;color:var(--text-4);white-space:nowrap"></span>
+        </div>
+      </div>
       <div class="c-card">
         <div class="summary-grid">
           <div class="summary-stat">
@@ -681,9 +690,11 @@ const _delConfirm   = {};
 const _vidDelConf   = {};
 const _payDelConf   = {};
 const _edPayDelConf = {};
-let _ehTooltipTimer = null;
-let _ehPeriod       = 'month';
-let _view           = 'list';
+let _ehTooltipTimer   = null;
+let _ehPeriod         = 'month';
+let _view             = 'list';
+let _earningsCurrency = 'USD';
+let _fxRate           = null;
 
 // Calendar state
 const _vanNow  = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
@@ -694,9 +705,44 @@ let _calMonth  = _vanNow.getMonth();
 let _cvEditId         = null;
 let _cvDeleteConfirm  = false;
 
+// ── USD/CAD exchange rate (cached daily in localStorage) ──────────
+const FX_LS_KEY = 'content_fx_usd_cad';
+
+async function ensureFxRate() {
+  const cached = JSON.parse(localStorage.getItem(FX_LS_KEY) || 'null');
+  if (cached && cached.date === todayVan()) {
+    _fxRate = cached.rate;
+  } else {
+    try {
+      const resp = await fetch('https://api.frankfurter.app/latest?from=USD&to=CAD');
+      const json = await resp.json();
+      _fxRate = json.rates.CAD;
+      localStorage.setItem(FX_LS_KEY, JSON.stringify({ rate: _fxRate, date: todayVan() }));
+    } catch {
+      _fxRate = (cached && cached.rate) || 1.38;
+    }
+  }
+  updateFxLabel();
+  if (_earningsCurrency === 'CAD') { renderSummary(); renderEarningsHistory(); }
+}
+
+function updateFxLabel() {
+  const el = document.getElementById('fxRateLabel');
+  if (el && _fxRate) el.textContent = `1 USD = ${_fxRate.toFixed(4)} CAD`;
+}
+
+function setEarningsCurrency(cur) {
+  _earningsCurrency = cur;
+  document.getElementById('earCurUSD').classList.toggle('active', cur === 'USD');
+  document.getElementById('earCurCAD').classList.toggle('active', cur === 'CAD');
+  renderSummary();
+  renderEarningsHistory();
+}
+
 // ── Init ──────────────────────────────────────────────────────────
 async function init() {
   document.getElementById('payDate').value = todayVan();
+  ensureFxRate();
   syncState('syncing', 'syncing…');
 
   try {
@@ -1556,9 +1602,10 @@ async function deleteEditorPayment(id) {
 function renderSummary() {
   const videos    = ls(LS_VIDEOS).filter(v => v.status === 'Approved');
   const thisMonth = monthOf(todayVan());
+  const rate      = (_earningsCurrency === 'CAD' && _fxRate) ? _fxRate : 1;
 
-  const monthAmt = videos.filter(v => monthOf(v.date) === thisMonth).reduce((s,v) => s + Number(v.total), 0);
-  const totalAmt = videos.reduce((s,v) => s + Number(v.total), 0);
+  const monthAmt = videos.filter(v => monthOf(v.date) === thisMonth).reduce((s,v) => s + Number(v.total), 0) * rate;
+  const totalAmt = videos.reduce((s,v) => s + Number(v.total), 0) * rate;
   const avgAmt   = videos.length ? totalAmt / videos.length : 0;
 
   document.getElementById('earningsMonth').textContent   = '$' + monthAmt.toFixed(2);
@@ -1567,7 +1614,7 @@ function renderSummary() {
   document.getElementById('earningsCount').textContent   = videos.length;
 
   const byBrand = {};
-  videos.forEach(v => { byBrand[v.brand_name] = (byBrand[v.brand_name] || 0) + Number(v.total); });
+  videos.forEach(v => { byBrand[v.brand_name] = (byBrand[v.brand_name] || 0) + Number(v.total) * rate; });
   const entries = Object.entries(byBrand).sort((a,b) => b[1] - a[1]);
   const canvas  = document.getElementById('brandChart');
   const empty   = document.getElementById('chartEmpty');
@@ -1731,7 +1778,7 @@ const EH_PERIOD_LABELS = {
 
 function setEHPeriod(period) {
   _ehPeriod = period;
-  document.querySelectorAll('.pt-btn').forEach(b =>
+  document.querySelectorAll('.pt-btn[data-period]').forEach(b =>
     b.classList.toggle('active', b.dataset.period === period)
   );
   const lbl = document.getElementById('ehPeriodLabel');
@@ -1743,10 +1790,12 @@ function renderEarningsHistory() {
   const container = document.getElementById('earningsHistoryChart');
   if (!container) return;
 
-  const data = _ehPeriod === 'week' ? buildWeeklyData() :
-               _ehPeriod === 'day'  ? buildDailyData()  :
-               _ehPeriod === 'year' ? buildYearlyData()  :
-               buildMonthlyData();
+  const rawData = _ehPeriod === 'week' ? buildWeeklyData() :
+                  _ehPeriod === 'day'  ? buildDailyData()  :
+                  _ehPeriod === 'year' ? buildYearlyData()  :
+                  buildMonthlyData();
+  const fxRate = (_earningsCurrency === 'CAD' && _fxRate) ? _fxRate : 1;
+  const data   = fxRate === 1 ? rawData : rawData.map(m => ({ ...m, total: m.total * fxRate }));
 
   const hasData = data.some(m => m.total > 0);
   const emptyEl = document.getElementById('ehEmpty');
