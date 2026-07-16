@@ -400,11 +400,17 @@ select.c-input option { background: #1a1a1c; }
     <div>
       <div class="sec-divider"><span>Earnings History</span></div>
       <div class="c-card">
-        <div class="sec-label" id="ehPeriodLabel" style="margin-bottom:8px">Last 6 months — UGC total</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div class="sec-label" id="ehPeriodLabel" style="margin:0">Last 7 days — UGC total</div>
+          <div class="period-toggle" style="margin-bottom:0;width:auto">
+            <button class="pt-btn active" id="ehCurUSD" onclick="setEarningsCurrency('USD')">USD</button>
+            <button class="pt-btn" id="ehCurCAD" onclick="setEarningsCurrency('CAD')">CAD</button>
+          </div>
+        </div>
         <div class="period-toggle">
-          <button class="pt-btn" data-period="day"   onclick="setEHPeriod('day')">Day</button>
+          <button class="pt-btn active" data-period="day"   onclick="setEHPeriod('day')">Day</button>
           <button class="pt-btn" data-period="week"  onclick="setEHPeriod('week')">Week</button>
-          <button class="pt-btn active" data-period="month" onclick="setEHPeriod('month')">Month</button>
+          <button class="pt-btn" data-period="month" onclick="setEHPeriod('month')">Month</button>
           <button class="pt-btn" data-period="year"  onclick="setEHPeriod('year')">Year</button>
         </div>
         <div id="earningsHistoryChart" class="eh-wrap">
@@ -691,7 +697,7 @@ const _vidDelConf   = {};
 const _payDelConf   = {};
 const _edPayDelConf = {};
 let _ehTooltipTimer   = null;
-let _ehPeriod         = 'month';
+let _ehPeriod         = 'day';
 let _view             = 'list';
 let _earningsCurrency = 'USD';
 let _fxRate           = null;
@@ -733,8 +739,8 @@ function updateFxLabel() {
 
 function setEarningsCurrency(cur) {
   _earningsCurrency = cur;
-  document.getElementById('earCurUSD').classList.toggle('active', cur === 'USD');
-  document.getElementById('earCurCAD').classList.toggle('active', cur === 'CAD');
+  ['earCurUSD', 'ehCurUSD'].forEach(id => document.getElementById(id).classList.toggle('active', cur === 'USD'));
+  ['earCurCAD', 'ehCurCAD'].forEach(id => document.getElementById(id).classList.toggle('active', cur === 'CAD'));
   renderSummary();
   renderEarningsHistory();
 }
