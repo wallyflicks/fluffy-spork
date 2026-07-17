@@ -262,6 +262,35 @@ select.c-input option { background: #1a1a1c; }
     </div>
   </div>
 
+  <!-- EDITOR TIME WIDGET -->
+  <div class="c-card" style="padding:14px 16px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="display:flex;align-items:center">
+          <div id="editorIconDay" style="display:flex;align-items:center;color:var(--warn)">
+            <i data-lucide="sun" style="width:18px;height:18px"></i>
+          </div>
+          <div id="editorIconNight" style="display:none;align-items:center;color:var(--info)">
+            <i data-lucide="moon" style="width:18px;height:18px"></i>
+          </div>
+        </div>
+        <div>
+          <div id="editorTimeClock" style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;line-height:1">--:--:--</div>
+          <div id="editorTimezoneLabel" style="font-size:10px;color:var(--text-3);margin-top:3px;letter-spacing:0.02em">Editor time — UTC+7</div>
+        </div>
+      </div>
+      <button class="c-btn sm" onclick="toggleEditorTzPicker()" style="padding:7px;width:32px;height:32px;flex-shrink:0" aria-label="Change editor timezone">
+        <i data-lucide="settings-2" style="width:14px;height:14px;pointer-events:none"></i>
+      </button>
+    </div>
+    <div id="editorTzPicker" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+      <div class="c-field">
+        <label>Editor's timezone</label>
+        <select class="c-input" id="editorTzSelect" onchange="saveEditorTimezone(Number(this.value))"></select>
+      </div>
+    </div>
+  </div>
+
   <!-- List / Calendar toggle -->
   <div class="view-toggle">
     <button class="view-toggle-btn active" data-view="list" onclick="setView('list')">List</button>
@@ -593,6 +622,7 @@ const FIN_INC  = 'finance_income';
 const FIN_EXP  = 'finance_expenses';
 const LS_EDITOR_PAYMENTS = 'ugc_editor_payments';
 const LS_EDITOR_RESET_AT = 'ugc_editor_reset_at'; // ISO timestamp, set on pay, never cleared on delete
+const LS_EDITOR_TZ       = 'ugc_editor_tz';       // UTC hour offset (integer), e.g. 7 for UTC+7
 
 // ── Sync indicator ────────────────────────────────────────────────
 const syncDot   = document.getElementById('syncDot');
@@ -624,7 +654,8 @@ async function pushToCloud() {
     [LS_VIDEOS]:          ls(LS_VIDEOS),
     [LS_CV]:              ls(LS_CV),
     [LS_EDITOR_PAYMENTS]: ls(LS_EDITOR_PAYMENTS),
-    [LS_EDITOR_RESET_AT]: localStorage.getItem(LS_EDITOR_RESET_AT) || null
+    [LS_EDITOR_RESET_AT]: localStorage.getItem(LS_EDITOR_RESET_AT) || null,
+    [LS_EDITOR_TZ]:       _editorTzOffset
   };
   const res = await fetch(`${SUPA_URL}/rest/v1/app_state?on_conflict=key`, {
     method: 'POST', headers: SB_H,
@@ -701,6 +732,7 @@ let _ehPeriod         = 'day';
 let _view             = 'list';
 let _earningsCurrency = 'USD';
 let _fxRate           = null;
+let _editorTzOffset   = localStorage.getItem(LS_EDITOR_TZ) !== null ? Number(localStorage.getItem(LS_EDITOR_TZ)) : 7;
 
 // Calendar state
 const _vanNow  = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
@@ -745,6 +777,58 @@ function setEarningsCurrency(cur) {
   renderEarningsHistory();
 }
 
+// ── Editor Time ───────────────────────────────────────────────────
+function initEditorTzSelect() {
+  const sel = document.getElementById('editorTzSelect');
+  if (!sel) return;
+  sel.innerHTML = '';
+  for (let h = -12; h <= 14; h++) {
+    const opt = document.createElement('option');
+    opt.value = h;
+    opt.textContent = h === 0 ? 'UTC±0' : (h > 0 ? `UTC+${h}` : `UTC${h}`);
+    if (h === _editorTzOffset) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+function updateEditorTimezoneLabel() {
+  const el = document.getElementById('editorTimezoneLabel');
+  if (!el) return;
+  el.textContent = `Editor time — UTC${_editorTzOffset >= 0 ? '+' : ''}${_editorTzOffset}`;
+}
+
+function updateEditorClock() {
+  const now   = new Date();
+  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+  const ed    = new Date(utcMs + _editorTzOffset * 3600000);
+  const h = ed.getUTCHours(), m = ed.getUTCMinutes(), s = ed.getUTCSeconds();
+
+  const clockEl = document.getElementById('editorTimeClock');
+  if (clockEl) clockEl.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+
+  const isDay   = h >= 6 && h < 20;
+  const dayEl   = document.getElementById('editorIconDay');
+  const nightEl = document.getElementById('editorIconNight');
+  if (dayEl)   dayEl.style.display   = isDay ? 'flex' : 'none';
+  if (nightEl) nightEl.style.display = isDay ? 'none' : 'flex';
+}
+
+function toggleEditorTzPicker() {
+  const p = document.getElementById('editorTzPicker');
+  if (!p) return;
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+async function saveEditorTimezone(offset) {
+  _editorTzOffset = Number(offset);
+  localStorage.setItem(LS_EDITOR_TZ, _editorTzOffset);
+  updateEditorTimezoneLabel();
+  updateEditorClock();
+  syncState('syncing', 'syncing…');
+  try { await pushToCloud(); syncState('ok', 'synced'); }
+  catch { syncState('err', 'sync err'); }
+}
+
 // ── Init ──────────────────────────────────────────────────────────
 async function init() {
   document.getElementById('payDate').value = todayVan();
@@ -762,6 +846,14 @@ async function init() {
       if (LS_EDITOR_RESET_AT in bundle) {
         if (bundle[LS_EDITOR_RESET_AT]) localStorage.setItem(LS_EDITOR_RESET_AT, bundle[LS_EDITOR_RESET_AT]);
         else localStorage.removeItem(LS_EDITOR_RESET_AT);
+      }
+      if (LS_EDITOR_TZ in bundle && bundle[LS_EDITOR_TZ] !== null && bundle[LS_EDITOR_TZ] !== undefined) {
+        _editorTzOffset = Number(bundle[LS_EDITOR_TZ]);
+        localStorage.setItem(LS_EDITOR_TZ, _editorTzOffset);
+        const sel = document.getElementById('editorTzSelect');
+        if (sel) sel.value = _editorTzOffset;
+        updateEditorTimezoneLabel();
+        updateEditorClock();
       }
     } else {
       const hasLocal = ls(LS_DEALS).length || ls(LS_PAYMENTS).length || ls(LS_VIDEOS).length || ls(LS_CV).length;
@@ -2167,6 +2259,10 @@ document.addEventListener('scroll', () => {
 }, { passive: true });
 
 // ── Boot ──────────────────────────────────────────────────────────
+initEditorTzSelect();
+updateEditorTimezoneLabel();
+updateEditorClock();
+setInterval(updateEditorClock, 1000);
 init();
 </script>
 </body>
