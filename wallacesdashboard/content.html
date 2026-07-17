@@ -263,27 +263,30 @@ select.c-input option { background: #1a1a1c; }
   </div>
 
   <!-- EDITOR TIME WIDGET -->
-  <div class="c-card" style="padding:14px 16px">
+  <div class="c-card" style="padding:10px 14px">
     <div style="display:flex;align-items:center;justify-content:space-between">
-      <div style="display:flex;align-items:center;gap:12px">
+      <div style="display:flex;align-items:center;gap:9px">
         <div style="display:flex;align-items:center">
           <div id="editorIconDay" style="display:flex;align-items:center;color:var(--warn)">
-            <i data-lucide="sun" style="width:18px;height:18px"></i>
+            <i data-lucide="sun" style="width:15px;height:15px"></i>
           </div>
           <div id="editorIconNight" style="display:none;align-items:center;color:var(--info)">
-            <i data-lucide="moon" style="width:18px;height:18px"></i>
+            <i data-lucide="moon" style="width:15px;height:15px"></i>
           </div>
         </div>
         <div>
-          <div id="editorTimeClock" style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;line-height:1">--:--:--</div>
-          <div id="editorTimezoneLabel" style="font-size:10px;color:var(--text-3);margin-top:3px;letter-spacing:0.02em">Editor time — UTC+7</div>
+          <div style="display:flex;align-items:baseline;gap:7px">
+            <span id="editorTimeClock" style="font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-0.01em;line-height:1">--:-- --</span>
+            <span id="editorDateLabel" style="font-size:12px;font-weight:500;color:var(--text-2);line-height:1">—</span>
+          </div>
+          <div id="editorTimezoneLabel" style="font-size:10px;color:var(--text-3);margin-top:2px;letter-spacing:0.02em">Editor time — UTC+7</div>
         </div>
       </div>
-      <button class="c-btn sm" onclick="toggleEditorTzPicker()" style="padding:7px;width:32px;height:32px;flex-shrink:0" aria-label="Change editor timezone">
-        <i data-lucide="settings-2" style="width:14px;height:14px;pointer-events:none"></i>
+      <button class="c-btn sm" onclick="toggleEditorTzPicker()" style="padding:5px;width:28px;height:28px;flex-shrink:0" aria-label="Change editor timezone">
+        <i data-lucide="settings-2" style="width:13px;height:13px;pointer-events:none"></i>
       </button>
     </div>
-    <div id="editorTzPicker" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+    <div id="editorTzPicker" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
       <div class="c-field">
         <label>Editor's timezone</label>
         <select class="c-input" id="editorTzSelect" onchange="saveEditorTimezone(Number(this.value))"></select>
@@ -801,10 +804,17 @@ function updateEditorClock() {
   const now   = new Date();
   const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
   const ed    = new Date(utcMs + _editorTzOffset * 3600000);
-  const h = ed.getUTCHours(), m = ed.getUTCMinutes(), s = ed.getUTCSeconds();
+  const h = ed.getUTCHours(), m = ed.getUTCMinutes();
 
+  const h12  = h % 12 || 12;
+  const ampm = h < 12 ? 'AM' : 'PM';
   const clockEl = document.getElementById('editorTimeClock');
-  if (clockEl) clockEl.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  if (clockEl) clockEl.textContent = `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+
+  const days  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dateEl = document.getElementById('editorDateLabel');
+  if (dateEl) dateEl.textContent = `${days[ed.getUTCDay()]}, ${months[ed.getUTCMonth()]} ${ed.getUTCDate()}`;
 
   const isDay   = h >= 6 && h < 20;
   const dayEl   = document.getElementById('editorIconDay');
