@@ -1690,7 +1690,8 @@ img, video, canvas, svg { max-width: 100%; }
 
       <div id="workoutHistoryList" style="margin-top:10px;display:flex;flex-direction:column;gap:6px"></div>
 
-      <div id="workoutCalendar" style="margin-top:18px"></div>
+      <div id="restPatternCard" style="margin-top:18px"></div>
+      <div id="workoutCalendar" style="margin-top:10px"></div>
     </div>
 
   </div>
@@ -2200,6 +2201,7 @@ img, video, canvas, svg { max-width: 100%; }
     renderRx(); renderStats(); renderSparkline(); renderHistory();
     renderTodaysWorkout();
     renderWorkoutHistory();
+    renderRestPattern();
     renderWorkoutCalendar();
     // Pre-fill weight input with last logged weight (or starting weight)
     const ex = getCurrentEx();
@@ -2405,6 +2407,66 @@ img, video, canvas, svg { max-width: 100%; }
 
     container.innerHTML = '';
     cards.forEach(c => container.appendChild(c));
+  }
+
+  function renderRestPattern() {
+    const wrap = document.getElementById('restPatternCard');
+    if (!wrap) return;
+
+    const workoutDays = logsByDay();
+    const todayKey = wtDateKey(new Date());
+
+    // Sorted unique workout day keys, ascending
+    const dayKeys = Object.keys(workoutDays)
+      .filter(dk => workoutDays[dk] && workoutDays[dk].length)
+      .sort();
+
+    // Current rest streak: days since last workout (0 if today has a session)
+    let restStreak = '—';
+    if (dayKeys.length) {
+      if (workoutDays[todayKey] && workoutDays[todayKey].length) {
+        restStreak = 0;
+      } else {
+        const today = wtParseKey(todayKey);
+        const lastKey = dayKeys[dayKeys.length - 1];
+        const lastDay = wtParseKey(lastKey);
+        restStreak = Math.round((today - lastDay) / 86400000);
+      }
+    }
+
+    // Avg days between sessions: last 30 days (or all-time if span < 30d)
+    let avgGap = '—';
+    if (dayKeys.length >= 2) {
+      const firstDay = wtParseKey(dayKeys[0]);
+      const lastDay  = wtParseKey(dayKeys[dayKeys.length - 1]);
+      const spanDays = Math.round((lastDay - firstDay) / 86400000);
+      let window = dayKeys;
+      if (spanDays >= 30) {
+        const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
+        const cutKey = wtDateKey(cutoff);
+        window = dayKeys.filter(dk => dk >= cutKey);
+      }
+      if (window.length >= 2) {
+        let totalGap = 0;
+        for (let i = 1; i < window.length; i++) {
+          totalGap += Math.round((wtParseKey(window[i]) - wtParseKey(window[i - 1])) / 86400000);
+        }
+        avgGap = (totalGap / (window.length - 1)).toFixed(1);
+      }
+    }
+
+    const restUnit = typeof restStreak === 'number' ? (restStreak === 1 ? 'day' : 'days') : '';
+    wrap.innerHTML = '<div class="po-sub-title">Rest Pattern</div>'
+      + '<div class="po-stats-row" style="grid-template-columns:repeat(2,1fr)">'
+      + '<div class="po-stat-box">'
+      + '<div class="po-stat-label">Rest streak</div>'
+      + '<div class="po-stat-val">' + restStreak + (restUnit ? '<span class="po-unit">' + restUnit + '</span>' : '') + '</div>'
+      + '</div>'
+      + '<div class="po-stat-box">'
+      + '<div class="po-stat-label">Avg days between sessions</div>'
+      + '<div class="po-stat-val">' + avgGap + (avgGap !== '—' ? '<span class="po-unit">days</span>' : '') + '</div>'
+      + '</div>'
+      + '</div>';
   }
 
   // Calendar state — which month is the user browsing
@@ -2649,6 +2711,7 @@ img, video, canvas, svg { max-width: 100%; }
     saveDoneDays(doneDays);
     renderTodaysWorkout();
     renderWorkoutHistory();
+    renderRestPattern();
     renderWorkoutCalendar();
   });
 
