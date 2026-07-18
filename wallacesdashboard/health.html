@@ -566,6 +566,20 @@ body {
 .targets-preview-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; padding: 3px 0; color: var(--text-2); }
 .targets-preview-row + .targets-preview-row { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; }
 .targets-preview-val { font-family: var(--font-mono); font-weight: 700; color: var(--good); }
+.targets-hint { font-size: 10px; color: var(--text-4); margin-top: 4px; line-height: 1.4; }
+
+/* ── Bulk Progress card ── */
+.bulk-card { margin-top: -6px; }
+.bulk-card-title { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-3); margin-bottom: 14px; }
+.bulk-stat-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: var(--text-2); padding: 7px 0; border-bottom: 1px solid var(--border); }
+.bulk-stat-row:last-of-type { border-bottom: none; }
+.bulk-stat-lbl { font-size: 11px; color: var(--text-3); }
+.bulk-stat-val { font-family: var(--font-mono); font-weight: 700; color: var(--text-1); font-size: 13px; }
+.bulk-verdict { font-size: 13px; color: var(--text-2); padding: 10px 0 4px; line-height: 1.5; }
+.bulk-apply-btn { margin-top: 12px; width: 100%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; color: var(--text-1); font-family: inherit; font-size: 13px; font-weight: 600; padding: 11px; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background 0.15s; }
+.bulk-apply-btn:hover { background: rgba(255,255,255,0.10); }
+.bulk-apply-btn:disabled { opacity: 0.38; cursor: default; }
+.bulk-offset-note { font-size: 11px; color: var(--text-3); margin-top: 8px; font-family: var(--font-mono); }
 </style>
 </head>
 <body>
@@ -743,11 +757,22 @@ body {
           <option value="300">Gain weight (+300 kcal/day)</option>
         </select>
       </div>
+      <div id="trBulkRow" class="targets-field" style="margin-top:10px;display:none">
+        <label class="targets-lbl" for="trTargetGain">Target weekly gain (lb/week)</label>
+        <input type="number" class="targets-inp" id="trTargetGain" step="0.05" min="0.1" max="1.5" placeholder="0.35">
+        <div class="targets-hint">clean bulk: 0.25–0.5 lb/week — faster typically means more fat gain</div>
+      </div>
       <div class="targets-preview" id="targetsPreview"></div>
       <div style="display:flex;justify-content:flex-end;margin-top:14px">
         <button class="nutr-btn primary" id="trSaveBtn" style="flex:none;padding:10px 18px;font-size:13px">Save Targets</button>
       </div>
     </div>
+  </div>
+
+  <!-- Bulk Progress card — visible only when goal = Gain weight -->
+  <div class="card bulk-card" id="bulkCard" style="display:none">
+    <div class="bulk-card-title">Bulk Progress</div>
+    <div id="bulkContent"></div>
   </div>
 
 </div>
@@ -2579,7 +2604,7 @@ body {
       ? 10 * wKg + 6.25 * h - 5 * age + 5
       : 10 * wKg + 6.25 * h - 5 * age - 161;
     return {
-      cal: Math.round(bmr * activity + goalAdj),
+      cal: Math.round(bmr * activity + goalAdj + (profile.calOffset || 0)),
       pro: Math.round(wKg * 2.2 * 0.8)  // 0.8g per lb bodyweight
     };
   }
@@ -2591,6 +2616,7 @@ body {
     PRO_GOAL = result.pro;
     $('targetsComputed').textContent = CAL_GOAL + ' kcal · ' + PRO_GOAL + 'g protein';
     renderNutrition();
+    syncBulkVisibility();
   }
 
   function updatePreview() {
@@ -2616,7 +2642,16 @@ body {
     if (_nutrProfile.sex) $('trSex').value = _nutrProfile.sex;
     if (_nutrProfile.activity) $('trActivity').value = _nutrProfile.activity;
     if (_nutrProfile.goal != null) $('trGoal').value = _nutrProfile.goal;
+    $('trTargetGain').value = _nutrProfile.targetWeeklyGain != null ? _nutrProfile.targetWeeklyGain : 0.35;
+    syncBulkVisibility();
     updatePreview();
+  }
+
+  function syncBulkVisibility() {
+    const isGain = $('trGoal').value === '300';
+    $('trBulkRow').style.display = isGain ? '' : 'none';
+    const bulkCard = $('bulkCard');
+    if (bulkCard) bulkCard.style.display = isGain ? '' : 'none';
   }
 
   $('targetsToggle').addEventListener('click', () => {
@@ -2631,18 +2666,123 @@ body {
     $(id).addEventListener('input', updatePreview);
     $(id).addEventListener('change', updatePreview);
   });
+  $('trGoal').addEventListener('change', syncBulkVisibility);
 
   $('trSaveBtn').addEventListener('click', () => {
     const h = parseFloat($('trHeight').value);
     const age = parseFloat($('trAge').value);
     const sex = $('trSex').value;
     if (!h || !age || !sex) { toast('Please fill in height, age, and sex.', true); return; }
-    saveProfile({ heightCm: h, age, sex, activity: $('trActivity').value, goal: $('trGoal').value });
+    const targetWeeklyGain = parseFloat($('trTargetGain').value) || 0.35;
+    saveProfile({ heightCm: h, age, sex, activity: $('trActivity').value, goal: $('trGoal').value, targetWeeklyGain, calOffset: (_nutrProfile && _nutrProfile.calOffset) || 0 });
     applyTargets();
     $('targetsBody').style.display = 'none';
     $('targetsChevron').classList.remove('open');
     toast('Targets saved!');
   });
+
+  /* ── Bulk Progress ── */
+  let _weightHistory = [];
+
+  async function fetchWeightHistory() {
+    try {
+      const res = await fetch(SUPA_URL_N + '/rest/v1/weight_logs?select=date,weight,unit&order=date.asc&limit=60', { headers: SUPA_H_N });
+      if (!res.ok) return;
+      const rows = await res.json();
+      if (Array.isArray(rows)) _weightHistory = rows;
+    } catch {}
+    renderBulkProgress();
+  }
+
+  function weightRatePerWeek(entries) {
+    // Linear regression over {x: days-from-first, y: lbs} → returns lbs/week
+    const pts = entries.map(e => {
+      const lbs = (e.unit === 'lbs' || e.unit === 'lb') ? e.weight : e.weight * 2.20462;
+      const x = Math.round((new Date(e.date) - new Date(entries[0].date)) / 86400000);
+      return { x, y: lbs };
+    });
+    const n = pts.length;
+    const sumX  = pts.reduce((s, p) => s + p.x, 0);
+    const sumY  = pts.reduce((s, p) => s + p.y, 0);
+    const sumXY = pts.reduce((s, p) => s + p.x * p.y, 0);
+    const sumX2 = pts.reduce((s, p) => s + p.x * p.x, 0);
+    const denom = n * sumX2 - sumX * sumX;
+    if (!denom) return 0;
+    return ((n * sumXY - sumX * sumY) / denom) * 7;
+  }
+
+  function renderBulkProgress() {
+    const content = $('bulkContent');
+    if (!content) return;
+    if (!_nutrProfile || String(_nutrProfile.goal) !== '300') return;
+
+    const entries = _weightHistory.slice();
+    if (entries.length < 3) {
+      content.innerHTML = '<div style="font-size:13px;color:var(--text-3);padding:4px 0">Log more weigh-ins to get a bulk rate estimate.</div>';
+      return;
+    }
+
+    // Require at least 14-day span
+    const spanDays = Math.round((new Date(entries[entries.length - 1].date) - new Date(entries[0].date)) / 86400000);
+    if (spanDays < 14) {
+      content.innerHTML = '<div style="font-size:13px;color:var(--text-3);padding:4px 0">Log more weigh-ins to get a bulk rate estimate — need at least 2 weeks of data.</div>';
+      return;
+    }
+
+    // Use last 21 days of entries for the rate calculation
+    const cutDate = new Date(); cutDate.setDate(cutDate.getDate() - 21);
+    const cutStr  = cutDate.toISOString().slice(0, 10);
+    const window  = entries.filter(e => e.date >= cutStr);
+    const rateEntries = window.length >= 3 ? window : entries;
+
+    const actualRate  = weightRatePerWeek(rateEntries);
+    const targetRate  = parseFloat((_nutrProfile && _nutrProfile.targetWeeklyGain) || 0.35);
+    const gap         = targetRate - actualRate;           // positive = gaining too slow
+    const calDelta    = Math.round(gap * 500);             // kcal/day needed
+    const absCalDelta = Math.abs(calDelta);
+    const currentOffset = (_nutrProfile && _nutrProfile.calOffset) || 0;
+
+    const rateStr   = (actualRate >= 0 ? '+' : '') + actualRate.toFixed(2) + ' lb/week';
+    const targetStr = targetRate.toFixed(2) + ' lb/week';
+
+    let verdictText;
+    if (Math.abs(gap) < 0.05) {
+      verdictText = 'On track — gaining at target rate.';
+    } else if (gap > 0) {
+      verdictText = 'Gaining ' + actualRate.toFixed(2) + ' lb/week — below your ' + targetRate.toFixed(2) + ' lb/week target. Try adding ~' + absCalDelta + ' kcal/day.';
+    } else {
+      verdictText = 'Gaining ' + actualRate.toFixed(2) + ' lb/week — above your ' + targetRate.toFixed(2) + ' lb/week target. Try cutting ~' + absCalDelta + ' kcal/day.';
+    }
+
+    const alreadyApplied = currentOffset === calDelta;
+    const applyLabel = alreadyApplied
+      ? 'Adjustment applied (' + (calDelta >= 0 ? '+' : '') + calDelta + ' kcal/day)'
+      : (calDelta >= 0 ? 'Add ' : 'Remove ') + absCalDelta + ' kcal/day to calorie target';
+
+    const offsetNote = currentOffset !== 0
+      ? '<div class="bulk-offset-note">Current offset: ' + (currentOffset > 0 ? '+' : '') + currentOffset + ' kcal/day applied to target</div>'
+      : '';
+
+    content.innerHTML =
+      '<div class="bulk-stat-row"><span class="bulk-stat-lbl">Actual rate (' + rateEntries.length + ' weigh-ins)</span><span class="bulk-stat-val">' + rateStr + '</span></div>'
+      + '<div class="bulk-stat-row"><span class="bulk-stat-lbl">Target rate</span><span class="bulk-stat-val">' + targetStr + '</span></div>'
+      + '<div class="bulk-verdict">' + verdictText + '</div>'
+      + (Math.abs(gap) >= 0.05
+          ? '<button class="bulk-apply-btn" id="bulkApplyBtn"' + (alreadyApplied ? ' disabled' : '') + '>' + applyLabel + '</button>'
+          : '')
+      + offsetNote;
+
+    const applyBtn = $('bulkApplyBtn');
+    if (applyBtn && !alreadyApplied) {
+      applyBtn.addEventListener('click', () => {
+        const updated = Object.assign({}, _nutrProfile, { calOffset: calDelta });
+        saveProfile(updated);
+        applyTargets();
+        renderBulkProgress();
+        toast((calDelta >= 0 ? '+' : '') + calDelta + ' kcal/day applied to calorie target');
+      });
+    }
+  }
 
   /* ── Boot ── */
   renderNutrition();     // immediate render from localStorage cache
@@ -2654,7 +2794,8 @@ body {
   populateTargetsForm();
   applyTargets();
   fetchLatestWeight();
-  loadProfileRemote();
+  loadProfileRemote().then(() => { syncBulkVisibility(); renderBulkProgress(); });
+  fetchWeightHistory();
 
 })();
 </script>
