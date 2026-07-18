@@ -938,6 +938,26 @@ img, video, canvas, svg { max-width: 100%; }
 .wh-card-total { font-size: 11px; color: var(--text-3); font-family: var(--font-mono); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
 .wh-rest { color: var(--text-4); font-style: italic; }
 
+/* ── Workout Calendar ─────────────────────────────────────── */
+.gym-cal-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+.gym-cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.gym-cal-title { font-size: 12px; font-weight: 700; color: var(--text-1); font-family: var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; }
+.gym-cal-nav-btns { display: flex; gap: 6px; }
+.gym-cal-btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; color: var(--text-2); font-size: 13px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.gym-cal-btn:hover { background: rgba(255,255,255,0.10); }
+.gym-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.gym-cal-day-hdr { text-align: center; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; color: var(--text-4); padding: 2px 0 6px; text-transform: uppercase; }
+.gym-cal-cell { min-height: 36px; border-radius: 6px; padding: 3px 2px 2px; border: 1px solid transparent; cursor: default; transition: background 0.12s, border-color 0.12s; background: rgba(255,255,255,0.02); display: flex; flex-direction: column; align-items: center; gap: 3px; overflow: hidden; }
+.gym-cal-cell.has-workout { background: rgba(110,231,183,0.12); border-color: rgba(110,231,183,0.22); cursor: pointer; }
+.gym-cal-cell.has-workout:hover { background: rgba(110,231,183,0.20); border-color: rgba(110,231,183,0.38); }
+.gym-cal-cell.is-today { border-color: rgba(110,231,183,0.50) !important; }
+.gym-cal-cell.other-month { opacity: 0.28; cursor: default; }
+.gym-cal-cell.other-month:hover { background: rgba(255,255,255,0.02); border-color: transparent; }
+.gym-cal-num { font-size: 9px; font-weight: 600; color: var(--text-3); line-height: 1; }
+.gym-cal-cell.has-workout .gym-cal-num { color: var(--good); }
+.gym-cal-cell.is-today .gym-cal-num { color: var(--good); font-weight: 800; }
+.gym-cal-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--good); }
+
 /* ============================================================
    WEIGHT TRACKER + PROGRESS PHOTOS — scoped under .wt-* so the
    styles can't leak into the rest of the app.
@@ -1669,6 +1689,8 @@ img, video, canvas, svg { max-width: 100%; }
       </div>
 
       <div id="workoutHistoryList" style="margin-top:10px;display:flex;flex-direction:column;gap:6px"></div>
+
+      <div id="workoutCalendar" style="margin-top:18px"></div>
     </div>
 
   </div>
@@ -2178,6 +2200,7 @@ img, video, canvas, svg { max-width: 100%; }
     renderRx(); renderStats(); renderSparkline(); renderHistory();
     renderTodaysWorkout();
     renderWorkoutHistory();
+    renderWorkoutCalendar();
     // Pre-fill weight input with last logged weight (or starting weight)
     const ex = getCurrentEx();
     if (ex && !ex.bw) {
@@ -2331,15 +2354,6 @@ img, video, canvas, svg { max-width: 100%; }
       days.push({ dk, d });
     }
 
-    // Delete logs older than 7 days from state
-    const cutoff = days[days.length - 1].dk;
-    let pruned = false;
-    Object.entries(state.logs).forEach(([exId, arr]) => {
-      const filtered = arr.filter(l => (l.date ? wtDateKey(new Date(l.date)) : l.date.slice(0,10)) >= cutoff);
-      if (filtered.length !== arr.length) { state.logs[exId] = filtered; pruned = true; }
-    });
-    if (pruned) saveState();
-
     const cards = days.map(({ dk, d }, i) => {
       const sets = all[dk] || [];
       const isDone = !!doneDays[dk];
@@ -2349,6 +2363,7 @@ img, video, canvas, svg { max-width: 100%; }
 
       const div = document.createElement('div');
       div.className = 'wh-card';
+      div.dataset.date = dk;
 
       if (!sets.length) {
         // Rest day — muted card, not expandable
@@ -2390,6 +2405,95 @@ img, video, canvas, svg { max-width: 100%; }
 
     container.innerHTML = '';
     cards.forEach(c => container.appendChild(c));
+  }
+
+  // Calendar state — which month is the user browsing
+  const _gymCalNow = new Date();
+  let gymCalYear  = _gymCalNow.getFullYear();
+  let gymCalMonth = _gymCalNow.getMonth(); // 0-based
+
+  function renderWorkoutCalendar() {
+    const wrap = document.getElementById('workoutCalendar');
+    if (!wrap) return;
+
+    const workoutDays = logsByDay(); // {dateKey: [{ex,log}...]}
+    const todayKey = wtDateKey(new Date());
+    const MONS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const DAY_HDRS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+    const firstOfMonth = new Date(gymCalYear, gymCalMonth, 1);
+    const daysInMonth  = new Date(gymCalYear, gymCalMonth + 1, 0).getDate();
+    const startDow = firstOfMonth.getDay(); // 0=Sun
+
+    let html = '<div class="gym-cal-wrap">'
+      + '<div class="gym-cal-nav">'
+      + '<span class="gym-cal-title">' + MONS[gymCalMonth] + ' ' + gymCalYear + '</span>'
+      + '<div class="gym-cal-nav-btns">'
+      + '<button class="gym-cal-btn" id="gymCalPrev" aria-label="Previous month">&#8249;</button>'
+      + '<button class="gym-cal-btn" id="gymCalNext" aria-label="Next month">&#8250;</button>'
+      + '</div>'
+      + '</div>'
+      + '<div class="gym-cal-grid">'
+      + DAY_HDRS.map(h => '<div class="gym-cal-day-hdr">' + h + '</div>').join('');
+
+    // Leading blanks from previous month
+    const prevMonthDays = new Date(gymCalYear, gymCalMonth, 0).getDate();
+    for (let i = startDow - 1; i >= 0; i--) {
+      html += '<div class="gym-cal-cell other-month"><span class="gym-cal-num">' + (prevMonthDays - i) + '</span></div>';
+    }
+
+    // Days of this month
+    for (let d = 1; d <= daysInMonth; d++) {
+      const mm = String(gymCalMonth + 1).padStart(2, '0');
+      const dd = String(d).padStart(2, '0');
+      const dk = gymCalYear + '-' + mm + '-' + dd;
+      const hasWorkout = !!(workoutDays[dk] && workoutDays[dk].length);
+      const isToday = dk === todayKey;
+      let cls = 'gym-cal-cell';
+      if (hasWorkout) cls += ' has-workout';
+      if (isToday)    cls += ' is-today';
+      const dot = hasWorkout ? '<span class="gym-cal-dot"></span>' : '';
+      html += '<div class="' + cls + '" data-date="' + dk + '"><span class="gym-cal-num">' + d + '</span>' + dot + '</div>';
+    }
+
+    // Trailing blanks
+    const totalCells = startDow + daysInMonth;
+    const trailing = (7 - (totalCells % 7)) % 7;
+    for (let i = 1; i <= trailing; i++) {
+      html += '<div class="gym-cal-cell other-month"><span class="gym-cal-num">' + i + '</span></div>';
+    }
+
+    html += '</div></div>';
+    wrap.innerHTML = html;
+
+    // Tap a workout day → scroll to matching wh-card (or today's workout)
+    wrap.querySelectorAll('.gym-cal-cell.has-workout').forEach(cell => {
+      cell.addEventListener('click', () => {
+        const dk = cell.dataset.date;
+        if (!dk) return;
+        if (dk === todayKey) {
+          const todayEl = document.getElementById('poTw');
+          if (todayEl) todayEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return;
+        }
+        const card = document.querySelector('#workoutHistoryList .wh-card[data-date="' + dk + '"]');
+        if (card) {
+          card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          if (!card.classList.contains('open')) card.classList.add('open');
+        }
+      });
+    });
+
+    document.getElementById('gymCalPrev').addEventListener('click', () => {
+      gymCalMonth--;
+      if (gymCalMonth < 0) { gymCalMonth = 11; gymCalYear--; }
+      renderWorkoutCalendar();
+    });
+    document.getElementById('gymCalNext').addEventListener('click', () => {
+      gymCalMonth++;
+      if (gymCalMonth > 11) { gymCalMonth = 0; gymCalYear++; }
+      renderWorkoutCalendar();
+    });
   }
 
   function getAnalyticsLogs() {
@@ -2545,6 +2649,7 @@ img, video, canvas, svg { max-width: 100%; }
     saveDoneDays(doneDays);
     renderTodaysWorkout();
     renderWorkoutHistory();
+    renderWorkoutCalendar();
   });
 
   // ============================================================
