@@ -1293,6 +1293,24 @@
       }, SYNC_DEBOUNCE_MS);
     }
 
+    async function syncKeyNow(key) {
+      if (!syncReady) return;
+      clearTimeout(syncTimers[key]);
+      setSyncState('syncing', 'saving…');
+      try {
+        const goals = memCache[key];
+        if (!goals || !goals.length) {
+          await sbDeleteGoals(key.slice(6));
+        } else {
+          await sbUpsertGoals(key.slice(6), goals);
+        }
+        setSyncState('ok', 'synced');
+      } catch (err) {
+        console.error('Supabase sync error:', err.message, err);
+        setSyncState('err', 'sync failed');
+      }
+    }
+
     // ─── STORAGE LAYER ────────────────────────────────────────────────────────
     function storeGet(key) {
       if (memCache[key] !== undefined) return memCache[key];
@@ -1600,6 +1618,7 @@
         const goals = getGoalsFor(key);
         goals.splice(index, 1);
         saveGoalsFor(key, goals);
+        syncKeyNow(key);
         loadLists();
       });
 
