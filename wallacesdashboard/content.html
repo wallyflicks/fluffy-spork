@@ -418,8 +418,8 @@ select.c-input option { background: #1a1a1c; }
         <p style="font-size:11px;color:var(--text-3);margin:0">Estimated from logged videos — not yet received</p>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:10px">
           <div class="period-toggle" style="margin-bottom:0;width:auto">
-            <button class="pt-btn active" id="earCurUSD" onclick="setEarningsCurrency('USD')">USD</button>
-            <button class="pt-btn" id="earCurCAD" onclick="setEarningsCurrency('CAD')">CAD</button>
+            <button class="pt-btn" id="earCurUSD" onclick="setEarningsCurrency('USD')">USD</button>
+            <button class="pt-btn active" id="earCurCAD" onclick="setEarningsCurrency('CAD')">CAD</button>
           </div>
           <span id="fxRateLabel" style="font-size:10px;color:var(--text-4);white-space:nowrap"></span>
         </div>
@@ -474,8 +474,8 @@ select.c-input option { background: #1a1a1c; }
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
           <div class="sec-label" id="ehPeriodLabel" style="margin:0">Last 7 days — UGC total</div>
           <div class="period-toggle" style="margin-bottom:0;width:auto">
-            <button class="pt-btn active" id="ehCurUSD" onclick="setEarningsCurrency('USD')">USD</button>
-            <button class="pt-btn" id="ehCurCAD" onclick="setEarningsCurrency('CAD')">CAD</button>
+            <button class="pt-btn" id="ehCurUSD" onclick="setEarningsCurrency('USD')">USD</button>
+            <button class="pt-btn active" id="ehCurCAD" onclick="setEarningsCurrency('CAD')">CAD</button>
           </div>
         </div>
         <div class="period-toggle">
@@ -688,6 +688,7 @@ const LS_EDITOR_PAYMENTS = 'ugc_editor_payments';
 const LS_EDITOR_RESET_AT = 'ugc_editor_reset_at'; // ISO timestamp, set on pay, never cleared on delete
 const LS_EDITOR_TZ       = 'ugc_editor_tz';       // UTC hour offset (integer), e.g. 7 for UTC+7
 const LS_BUFFER_KEY      = 'buffer_api_key';
+const LS_MIGRATED_TO_CAD = 'content_migrated_cad_v1'; // one-time flag: v.total is now stored in CAD
 
 // ── Sync indicator ────────────────────────────────────────────────
 const syncDot   = document.getElementById('syncDot');
@@ -796,7 +797,7 @@ const _edPayDelConf = {};
 let _ehTooltipTimer   = null;
 let _ehPeriod         = 'day';
 let _view             = 'list';
-let _earningsCurrency = 'USD';
+let _earningsCurrency = 'CAD';
 let _fxRate           = null;
 let _editorTzOffset   = localStorage.getItem(LS_EDITOR_TZ) !== null ? Number(localStorage.getItem(LS_EDITOR_TZ)) : 7;
 
@@ -832,12 +833,18 @@ async function ensureFxRate() {
     }
   }
   updateFxLabel();
-  if (_earningsCurrency === 'CAD') { renderSummary(); renderEarningsHistory(); }
+  renderSummary(); renderEarningsHistory();
 }
 
 function updateFxLabel() {
   const el = document.getElementById('fxRateLabel');
   if (el && _fxRate) el.textContent = `1 USD = ${_fxRate.toFixed(4)} CAD`;
+}
+
+// Convert an amount from a deal's native currency to CAD
+function dealToCad(amount, dealCurrency) {
+  if ((dealCurrency || 'CAD') === 'CAD') return amount;
+  return amount * (_fxRate || 1.38);
 }
 
 function setEarningsCurrency(cur) {
@@ -907,6 +914,34 @@ async function saveEditorTimezone(offset) {
   catch { syncState('err', 'sync err'); }
 }
 
+// ── One-time migration: recompute v.total in CAD for USD deals ────
+function migrateVideosToCad() {
+  if (localStorage.getItem(LS_MIGRATED_TO_CAD)) return;
+  const fx     = _fxRate || 1.38;
+  const videos = ls(LS_VIDEOS);
+  const deals  = ls(LS_DEALS);
+  let changed  = false;
+  videos.forEach(v => {
+    const deal = deals.find(d => d.id === v.deal_id);
+    if (!deal || (deal.currency || 'CAD') === 'CAD') return;
+    // USD deal: flat_rate/bonus/view_bonus were in USD, editor_cost in CAD
+    const flat = Number(v.flat_rate);
+    const vb   = Number(v.view_bonus || 0);
+    const mb   = Number(v.bonus || 0);
+    const ec   = Number(v.editor_cost || 0);
+    v.flat_rate  = flat * fx;
+    v.view_bonus = vb   * fx;
+    v.bonus      = mb   * fx;
+    v.total      = v.flat_rate + v.view_bonus + v.bonus - ec;
+    changed = true;
+  });
+  if (changed) {
+    lsSet(LS_VIDEOS, videos);
+    sbUpsert().catch(() => {});
+  }
+  localStorage.setItem(LS_MIGRATED_TO_CAD, '1');
+}
+
 // ── Init ──────────────────────────────────────────────────────────
 async function init() {
   document.getElementById('payDate').value = todayVan();
@@ -942,9 +977,11 @@ async function init() {
       const hasLocal = ls(LS_DEALS).length || ls(LS_PAYMENTS).length || ls(LS_VIDEOS).length || ls(LS_CV).length;
       if (hasLocal) pushToCloud().catch(() => {});
     }
+    migrateVideosToCad();
     syncState('ok', 'synced');
   } catch(e) {
     console.log('CONTENT SUPABASE ERROR:', e);
+    migrateVideosToCad();
     syncState('err', 'offline');
   }
   render();
@@ -1016,7 +1053,7 @@ function renderDeals() {
           </div>
           <div class="deal-stats">
             <span>Videos this month: <b>${vtm}</b></span>
-            <span>Total earned: <span class="g">$${earned.toFixed(2)}</span></span>
+            <span>Total earned: <span class="g">CAD $${earned.toFixed(2)}</span></span>
           </div>
         </div>
         <div class="deal-card-actions">
@@ -1067,9 +1104,9 @@ function renderDeals() {
               oninput="calcVideoTotal('${esc(d.id)}')">
           </div>
           <div class="vlog-total-row c-form-span">
-            Flat <b style="color:var(--text-1)">$${flat.toFixed(2)}</b>
+            Flat <b style="color:var(--text-1)">${esc(d.currency||'CAD')} $${flat.toFixed(2)}</b>
             + bonus <b style="color:var(--warn)" id="vld-tmb-${esc(d.id)}">$0.00</b>
-            = <b style="color:var(--good)">$<span id="vld-total-${esc(d.id)}">${flat.toFixed(2)}</span></b>
+            = CAD <b style="color:var(--good)">$<span id="vld-total-${esc(d.id)}">${dealToCad(flat, d.currency).toFixed(2)}</span></b>
           </div>
           <div class="c-form-span" style="display:flex;gap:8px">
             <button class="c-btn primary" style="flex:1" onclick="saveVideo('${esc(d.id)}')">✓ Confirm</button>
@@ -1197,7 +1234,7 @@ function calcVideoTotal(dealId) {
   const usedEditor = document.getElementById('vld-editor-' + dealId)?.checked || false;
   const editorCost = usedEditor ? (parseFloat(document.getElementById('vld-editor-cost-' + dealId)?.value) || 3.00) : 0;
   const flat       = Number(deal.rate_per_video);
-  const total      = flat + manBonus - editorCost;
+  const total      = dealToCad(flat + manBonus, deal.currency) - editorCost;
   const tmbEl      = document.getElementById('vld-tmb-' + dealId);
   if (tmbEl) tmbEl.textContent = '$' + manBonus.toFixed(2);
   const totEl      = document.getElementById('vld-total-' + dealId);
@@ -1215,11 +1252,13 @@ async function saveVideo(dealId) {
   const usedEditor = document.getElementById('vld-editor-' + dealId)?.checked || false;
   const editorCost = usedEditor ? (parseFloat(document.getElementById('vld-editor-cost-' + dealId)?.value) || 3.00) : null;
   const flat       = Number(deal.rate_per_video);
-  const total      = flat + manBonus - (usedEditor ? editorCost : 0);
+  const flatCad    = dealToCad(flat, deal.currency);
+  const bonusCad   = dealToCad(manBonus, deal.currency);
+  const total      = flatCad + bonusCad - (usedEditor ? editorCost : 0);
 
   const row = {
     id: uid(), deal_id: dealId, brand_name: deal.brand_name,
-    date, status, flat_rate: flat, view_bonus: 0, views_earned: 0, bonus: manBonus, total, notes,
+    date, status, flat_rate: flatCad, view_bonus: 0, views_earned: 0, bonus: bonusCad, total, notes,
     editor_cost: editorCost,
     created_at: new Date().toISOString()
   };
@@ -1305,17 +1344,18 @@ function closeVBForm(videoId) {
 function calcVBPreview(videoId, dealId) {
   const deal  = ls(LS_DEALS).find(d => d.id === dealId);
   if (!deal) return;
-  const views = parseFloat(document.getElementById('vbf-views-' + videoId)?.value) || 0;
-  const bonus = (views / 1000) * (Number(deal.view_bonus_rate) || 0);
-  const el    = document.getElementById('vbf-calc-' + videoId);
-  if (el) el.textContent = views > 0 ? `= $${bonus.toFixed(2)} view bonus` : '';
+  const views     = parseFloat(document.getElementById('vbf-views-' + videoId)?.value) || 0;
+  const rawBonus  = (views / 1000) * (Number(deal.view_bonus_rate) || 0);
+  const bonusCad  = dealToCad(rawBonus, deal.currency);
+  const el        = document.getElementById('vbf-calc-' + videoId);
+  if (el) el.textContent = views > 0 ? `= CAD $${bonusCad.toFixed(2)} view bonus` : '';
 }
 
 async function saveViewBonus(videoId, dealId) {
   const deal = ls(LS_DEALS).find(d => d.id === dealId);
   if (!deal) return;
-  const views     = parseFloat(document.getElementById('vbf-views-' + videoId)?.value) || 0;
-  const viewBonus = (views / 1000) * (Number(deal.view_bonus_rate) || 0);
+  const views        = parseFloat(document.getElementById('vbf-views-' + videoId)?.value) || 0;
+  const viewBonusCad = dealToCad((views / 1000) * (Number(deal.view_bonus_rate) || 0), deal.currency);
 
   const videos = ls(LS_VIDEOS);
   const idx    = videos.findIndex(v => v.id === videoId);
@@ -1323,8 +1363,8 @@ async function saveViewBonus(videoId, dealId) {
   videos[idx] = {
     ...videos[idx],
     views_earned: views,
-    view_bonus:   viewBonus,
-    total: Number(videos[idx].flat_rate) + viewBonus + Number(videos[idx].bonus || 0) - Number(videos[idx].editor_cost || 0)
+    view_bonus:   viewBonusCad,
+    total: Number(videos[idx].flat_rate) + viewBonusCad + Number(videos[idx].bonus || 0) - Number(videos[idx].editor_cost || 0)
   };
   lsSet(LS_VIDEOS, videos);
 
@@ -1783,7 +1823,7 @@ async function deleteEditorPayment(id) {
 function renderSummary() {
   const videos    = ls(LS_VIDEOS).filter(v => v.status === 'Approved');
   const thisMonth = monthOf(todayVan());
-  const rate      = (_earningsCurrency === 'CAD' && _fxRate) ? _fxRate : 1;
+  const rate      = (_earningsCurrency === 'USD' && _fxRate) ? (1 / _fxRate) : 1;
 
   const monthAmt = videos.filter(v => monthOf(v.date) === thisMonth).reduce((s,v) => s + Number(v.total), 0) * rate;
   const totalAmt = videos.reduce((s,v) => s + Number(v.total), 0) * rate;
@@ -1957,7 +1997,7 @@ function renderEarningsHistory() {
                   _ehPeriod === 'day'  ? buildDailyData()  :
                   _ehPeriod === 'year' ? buildYearlyData()  :
                   buildMonthlyData();
-  const fxRate = (_earningsCurrency === 'CAD' && _fxRate) ? _fxRate : 1;
+  const fxRate = (_earningsCurrency === 'USD' && _fxRate) ? (1 / _fxRate) : 1;
   const data   = fxRate === 1 ? rawData : rawData.map(m => ({ ...m, total: m.total * fxRate }));
 
   const hasData = data.some(m => m.total > 0);
@@ -2238,9 +2278,9 @@ async function saveCVVideo() {
   const deal = hasBrand ? ls(LS_DEALS).find(d => d.brand_name === brand) : null;
 
   if (deal) {
-    const logDate  = postDate || todayVan();
+    const logDate      = postDate || todayVan();
     const editorDeduct = usedEditor ? (editorCost || 0) : 0;
-    const netTotal = Number(deal.rate_per_video) - editorDeduct;
+    const netTotal     = dealToCad(Number(deal.rate_per_video), deal.currency) - editorDeduct;
     const videos   = ls(LS_VIDEOS);
 
     if (isPosted) {
@@ -2250,7 +2290,7 @@ async function saveCVVideo() {
         const vRow = {
           id: uid(), deal_id: deal.id, brand_name: deal.brand_name,
           date: logDate, status: 'Approved',
-          flat_rate: Number(deal.rate_per_video),
+          flat_rate: dealToCad(Number(deal.rate_per_video), deal.currency),
           view_bonus: 0, views_earned: 0, bonus: 0,
           total: netTotal, notes: title,
           editor_cost: usedEditor ? editorCost : null,
@@ -2265,7 +2305,7 @@ async function saveCVVideo() {
         if (idx >= 0) {
           videos[idx] = { ...videos[idx],
             deal_id: deal.id, brand_name: deal.brand_name,
-            date: logDate, flat_rate: Number(deal.rate_per_video),
+            date: logDate, flat_rate: dealToCad(Number(deal.rate_per_video), deal.currency),
             total: netTotal, editor_cost: usedEditor ? editorCost : null, notes: title
           };
           lsSet(LS_VIDEOS, videos);

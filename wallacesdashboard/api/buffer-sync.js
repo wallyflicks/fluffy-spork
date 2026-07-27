@@ -170,6 +170,15 @@ module.exports = async function handler(req, res) {
   const deals = bundle['ugc_deals']      || [];
   const vanDate = getVancouverDate();
 
+  // Fetch live fx rate for USD→CAD conversion (totals stored in CAD)
+  let usdCadRate = 1.38;
+  try {
+    const fxRes = await fetch('https://api.frankfurter.app/latest?from=USD&to=CAD');
+    if (fxRes.ok) { const fxJson = await fxRes.json(); usdCadRate = fxJson.rates.CAD || 1.38; }
+  } catch { /* use fallback */ }
+  const dealToCad = (amount, currency) =>
+    (currency || 'CAD') === 'USD' ? amount * usdCadRate : amount;
+
   const linked = cvs.filter(v => v.buffer_post_id && v.status !== 'Posted');
   let promoted = 0;
   let changed  = false;
@@ -200,14 +209,15 @@ module.exports = async function handler(req, res) {
 
     const usedEditor   = !!(v.used_editor || (v.cv_editor_cost != null && Number(v.cv_editor_cost) > 0));
     const editorDeduct = usedEditor ? (Number(v.cv_editor_cost) || 3.0) : 0;
-    const netTotal     = Number(deal.rate_per_video) - editorDeduct;
+    const flatCad      = dealToCad(Number(deal.rate_per_video), deal.currency);
+    const netTotal     = flatCad - editorDeduct;
     const logDate      = v.post_date || vanDate;
     const newId        = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
     vids.push({
       id: newId, deal_id: deal.id, brand_name: deal.brand_name,
       date: logDate, status: 'Approved',
-      flat_rate: Number(deal.rate_per_video),
+      flat_rate: flatCad,
       view_bonus: 0, views_earned: 0, bonus: 0,
       total: netTotal, notes: v.title || '',
       editor_cost: usedEditor ? (Number(v.cv_editor_cost) || 3.0) : null,
