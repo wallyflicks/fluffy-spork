@@ -199,6 +199,15 @@ select.c-input option { background: #1a1a1c; }
 .sync-dot.err     { background: var(--bad); }
 @keyframes pulseDot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
 
+/* Buffer picker */
+.buffer-post-item {
+  padding: 10px 12px; border-radius: 9px;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  cursor: pointer; margin-bottom: 6px;
+  transition: background 0.12s, border-color 0.12s;
+}
+.buffer-post-item:hover { background: rgba(255,255,255,0.07); border-color: rgba(110,231,183,0.3); }
+
 .modal-overlay {
   position: fixed; inset: 0; z-index: 10000;
   background: rgba(0,0,0,0.7);
@@ -291,6 +300,36 @@ select.c-input option { background: #1a1a1c; }
         <label>Editor's timezone</label>
         <select class="c-input" id="editorTzSelect" onchange="saveEditorTimezone(Number(this.value))"></select>
       </div>
+    </div>
+  </div>
+
+  <!-- BUFFER SETTINGS -->
+  <div class="c-card" style="padding:10px 14px" id="bufferSettingsCard">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:9px">
+        <div id="bufferDot" class="sync-dot" style="width:6px;height:6px;flex-shrink:0"></div>
+        <div>
+          <span style="font-size:13px;font-weight:600">Buffer</span>
+          <span id="bufferStatusLabel" style="font-size:11px;color:var(--text-3);margin-left:7px">Not connected</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button class="c-btn sm" id="bufferSyncBtn" onclick="syncBufferNow(this)" style="display:none">Sync now</button>
+        <button class="c-btn sm" onclick="toggleBufferSettings()" style="padding:5px;width:28px;height:28px;flex-shrink:0" aria-label="Buffer settings">
+          <i data-lucide="key" style="width:13px;height:13px;pointer-events:none"></i>
+        </button>
+      </div>
+    </div>
+    <div id="bufferSettingsPanel" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+      <div class="c-field">
+        <label>Buffer Personal API Key</label>
+        <div style="display:flex;gap:6px">
+          <input class="c-input" type="password" id="bufferApiKeyInput" placeholder="Paste your Buffer API key…" style="flex:1">
+          <button class="c-btn sm primary" onclick="saveBufferKey()">Save</button>
+        </div>
+        <div style="font-size:10px;color:var(--text-4);margin-top:5px">Get from buffer.com → Settings → API → Personal access token</div>
+      </div>
+      <button class="c-btn sm danger" id="bufferClearBtn" onclick="clearBufferKey()" style="display:none;margin-top:8px">Remove key</button>
     </div>
   </div>
 
@@ -578,11 +617,33 @@ select.c-input option { background: #1a1a1c; }
           <label>Editor cost (CAD$)</label>
           <input class="c-input" type="number" id="cvEditorCost" value="3.00" min="0" step="0.01">
         </div>
+        <div class="c-field c-form-span" id="bufferLinkSection" style="display:none">
+          <label>Buffer Post</label>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div id="bufferLinkDisplay" style="flex:1;font-size:12px;color:var(--text-3);line-height:1.4;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Not linked</div>
+            <button class="c-btn sm" onclick="openBufferPicker()" style="flex-shrink:0">Link</button>
+            <button class="c-btn sm danger" id="bufferUnlinkBtn" onclick="unlinkBufferPost()" style="display:none;flex-shrink:0">Unlink</button>
+          </div>
+        </div>
         <div class="c-form-span" style="display:flex;gap:8px;margin-top:4px">
           <button class="c-btn primary" style="flex:1" onclick="saveCVVideo()">Save Video</button>
           <button class="c-btn danger" id="cvDeleteBtn" onclick="confirmDeleteCVVideo()" style="display:none">Delete</button>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- BUFFER PICKER MODAL -->
+<div class="modal-overlay" id="bufferPickerModal">
+  <div class="modal-sheet">
+    <div class="modal-hdr">
+      <div class="modal-title">Link Buffer Post</div>
+      <button class="modal-close" onclick="closeBufferPicker()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="bufferPickerStatus" style="font-size:12px;color:var(--text-3);margin-bottom:10px">Loading…</div>
+      <div id="bufferPickerList"></div>
     </div>
   </div>
 </div>
@@ -626,6 +687,7 @@ const FIN_EXP  = 'finance_expenses';
 const LS_EDITOR_PAYMENTS = 'ugc_editor_payments';
 const LS_EDITOR_RESET_AT = 'ugc_editor_reset_at'; // ISO timestamp, set on pay, never cleared on delete
 const LS_EDITOR_TZ       = 'ugc_editor_tz';       // UTC hour offset (integer), e.g. 7 for UTC+7
+const LS_BUFFER_KEY      = 'buffer_api_key';
 
 // ── Sync indicator ────────────────────────────────────────────────
 const syncDot   = document.getElementById('syncDot');
@@ -658,7 +720,8 @@ async function pushToCloud() {
     [LS_CV]:              ls(LS_CV),
     [LS_EDITOR_PAYMENTS]: ls(LS_EDITOR_PAYMENTS),
     [LS_EDITOR_RESET_AT]: localStorage.getItem(LS_EDITOR_RESET_AT) || null,
-    [LS_EDITOR_TZ]:       _editorTzOffset
+    [LS_EDITOR_TZ]:       _editorTzOffset,
+    [LS_BUFFER_KEY]:      localStorage.getItem(LS_BUFFER_KEY) || null
   };
   const res = await fetch(`${SUPA_URL}/rest/v1/app_state?on_conflict=key`, {
     method: 'POST', headers: SB_H,
@@ -745,6 +808,11 @@ let _calMonth  = _vanNow.getMonth();
 // Content video modal state
 let _cvEditId         = null;
 let _cvDeleteConfirm  = false;
+
+// Buffer state (per-CV-modal session)
+let _pendingBufferPostId   = null;
+let _pendingBufferPostText = '';
+let _pendingBufferPostDate = '';
 
 // ── USD/CAD exchange rate (cached daily in localStorage) ──────────
 const FX_LS_KEY = 'content_fx_usd_cad';
@@ -864,6 +932,11 @@ async function init() {
         if (sel) sel.value = _editorTzOffset;
         updateEditorTimezoneLabel();
         updateEditorClock();
+      }
+      if (LS_BUFFER_KEY in bundle) {
+        if (bundle[LS_BUFFER_KEY]) localStorage.setItem(LS_BUFFER_KEY, bundle[LS_BUFFER_KEY]);
+        else localStorage.removeItem(LS_BUFFER_KEY);
+        updateBufferStatus();
       }
     } else {
       const hasLocal = ls(LS_DEALS).length || ls(LS_PAYMENTS).length || ls(LS_VIDEOS).length || ls(LS_CV).length;
@@ -2045,9 +2118,11 @@ function renderCalendar() {
     const cardsHtml = dayVids.map(v => {
       const dotCls = statusDotClass(v.status);
       const label  = esc(v.title) + (v.brand ? ' · ' + esc(v.brand) : '');
+      const bufInd = v.buffer_post_id ? `<span style="font-size:7px;color:rgba(110,231,183,0.5);flex-shrink:0;margin-left:1px;line-height:1">B</span>` : '';
       return `<div class="cv-card" onclick="openCVModalEdit('${esc(v.id)}',event)">` +
         `<div class="cv-dot ${dotCls}"></div>` +
         `<div class="cv-card-label">${label}</div>` +
+        bufInd +
         `</div>`;
     }).join('');
 
@@ -2083,6 +2158,9 @@ function openCVModal(dateStr, e) {
   if (e && e.target && e.target.closest('.cv-card')) return;
   _cvEditId        = null;
   _cvDeleteConfirm = false;
+  _pendingBufferPostId   = null;
+  _pendingBufferPostText = '';
+  _pendingBufferPostDate = '';
   populateCVBrandSelect();
   document.getElementById('cvModalTitle').textContent   = 'New Video';
   document.getElementById('cvTitle').value              = '';
@@ -2095,6 +2173,8 @@ function openCVModal(dateStr, e) {
   document.getElementById('cvEditorCostWrap').style.display = 'none';
   document.getElementById('cvEditorCost').value         = '3.00';
   document.getElementById('cvDeleteBtn').style.display  = 'none';
+  updateBufferLinkDisplay();
+  showBufferLinkIfConnected();
   document.getElementById('cvModal').classList.add('open');
   setTimeout(() => document.getElementById('cvTitle').focus(), 100);
 }
@@ -2105,6 +2185,9 @@ function openCVModalEdit(id, e) {
   _cvDeleteConfirm = false;
   const v = ls(LS_CV).find(v => v.id === id);
   if (!v) return;
+  _pendingBufferPostId   = v.buffer_post_id   || null;
+  _pendingBufferPostText = v.buffer_post_text  || '';
+  _pendingBufferPostDate = v.buffer_post_date  || '';
   populateCVBrandSelect();
   const hasEditor = !!(v.used_editor || (v.cv_editor_cost != null && Number(v.cv_editor_cost) > 0));
   document.getElementById('cvModalTitle').textContent       = 'Edit Video';
@@ -2119,6 +2202,8 @@ function openCVModalEdit(id, e) {
   document.getElementById('cvEditorCost').value             = hasEditor ? String(v.cv_editor_cost) : '3.00';
   const delBtn = document.getElementById('cvDeleteBtn');
   if (delBtn) { delBtn.style.display = ''; delBtn.textContent = 'Delete'; delBtn.classList.remove('confirming'); }
+  updateBufferLinkDisplay();
+  showBufferLinkIfConnected();
   document.getElementById('cvModal').classList.add('open');
 }
 
@@ -2204,7 +2289,10 @@ async function saveCVVideo() {
     notes, script,
     video_log_id: videoLogId,
     used_editor:  usedEditor,
-    cv_editor_cost: usedEditor ? editorCost : null,
+    cv_editor_cost:    usedEditor ? editorCost : null,
+    buffer_post_id:    _pendingBufferPostId   || null,
+    buffer_post_text:  _pendingBufferPostText  || null,
+    buffer_post_date:  _pendingBufferPostDate  || null,
     created_at:   existing?.created_at || new Date().toISOString()
   };
 
@@ -2254,12 +2342,210 @@ async function confirmDeleteCVVideo() {
   catch { syncState('err', 'sync err'); }
 }
 
+// ══════════════════════════════════════════════════════════════════
+// BUFFER INTEGRATION
+// ══════════════════════════════════════════════════════════════════
+
+function getBufferKey() { return localStorage.getItem(LS_BUFFER_KEY) || ''; }
+
+function updateBufferStatus() {
+  const key = getBufferKey();
+  const dot = document.getElementById('bufferDot');
+  const lbl = document.getElementById('bufferStatusLabel');
+  const syncBtn = document.getElementById('bufferSyncBtn');
+  const clearBtn = document.getElementById('bufferClearBtn');
+  if (dot) dot.className = 'sync-dot ' + (key ? 'ok' : '');
+  if (lbl) lbl.textContent = key ? 'Connected' : 'Not connected';
+  if (syncBtn) syncBtn.style.display = key ? '' : 'none';
+  if (clearBtn) clearBtn.style.display = key ? '' : 'none';
+}
+
+function showBufferLinkIfConnected() {
+  const section = document.getElementById('bufferLinkSection');
+  if (section) section.style.display = getBufferKey() ? '' : 'none';
+}
+
+function toggleBufferSettings() {
+  const p = document.getElementById('bufferSettingsPanel');
+  if (!p) return;
+  const open = p.style.display !== 'none';
+  p.style.display = open ? 'none' : 'block';
+  if (!open) {
+    const inp = document.getElementById('bufferApiKeyInput');
+    if (inp) { inp.value = getBufferKey(); inp.focus(); }
+  }
+}
+
+async function saveBufferKey() {
+  const inp = document.getElementById('bufferApiKeyInput');
+  const key = inp ? inp.value.trim() : '';
+  if (key) localStorage.setItem(LS_BUFFER_KEY, key);
+  else localStorage.removeItem(LS_BUFFER_KEY);
+  const panel = document.getElementById('bufferSettingsPanel');
+  if (panel) panel.style.display = 'none';
+  updateBufferStatus();
+  syncState('syncing', 'syncing…');
+  try { await pushToCloud(); syncState('ok', 'synced'); }
+  catch { syncState('err', 'sync err'); }
+}
+
+async function clearBufferKey() {
+  if (!confirm('Remove your Buffer API key?')) return;
+  localStorage.removeItem(LS_BUFFER_KEY);
+  const inp = document.getElementById('bufferApiKeyInput');
+  if (inp) inp.value = '';
+  updateBufferStatus();
+  syncState('syncing', 'syncing…');
+  try { await pushToCloud(); syncState('ok', 'synced'); }
+  catch { syncState('err', 'sync err'); }
+}
+
+async function syncBufferNow(btn) {
+  const orig = btn.textContent;
+  btn.textContent = 'Syncing…';
+  btn.disabled = true;
+  try {
+    const r    = await fetch('/api/buffer-sync?mode=sync');
+    const data = await r.json();
+    if (data.promoted > 0) {
+      const bundle = await fetchFromCloud();
+      if (bundle) {
+        if (Array.isArray(bundle[LS_CV]))     lsSet(LS_CV,     bundle[LS_CV]);
+        if (Array.isArray(bundle[LS_VIDEOS])) lsSet(LS_VIDEOS, bundle[LS_VIDEOS]);
+        render();
+      }
+      btn.textContent = `Promoted ${data.promoted}!`;
+    } else if (data.skipped === 'no_key' || data.error === 'no_key') {
+      btn.textContent = 'No key';
+    } else {
+      btn.textContent = 'Up to date';
+    }
+  } catch {
+    btn.textContent = 'Error';
+  }
+  setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2500);
+}
+
+// Buffer link display inside CV modal
+function updateBufferLinkDisplay() {
+  const display   = document.getElementById('bufferLinkDisplay');
+  const unlinkBtn = document.getElementById('bufferUnlinkBtn');
+  if (!display) return;
+  if (_pendingBufferPostId) {
+    const raw     = _pendingBufferPostText || '';
+    const preview = raw.slice(0, 70) + (raw.length > 70 ? '…' : '');
+    display.textContent = preview || _pendingBufferPostDate || _pendingBufferPostId;
+    display.style.color = 'var(--text-1)';
+    if (unlinkBtn) unlinkBtn.style.display = '';
+  } else {
+    display.textContent = 'Not linked';
+    display.style.color = 'var(--text-3)';
+    if (unlinkBtn) unlinkBtn.style.display = 'none';
+  }
+}
+
+function unlinkBufferPost() {
+  _pendingBufferPostId   = null;
+  _pendingBufferPostText = '';
+  _pendingBufferPostDate = '';
+  updateBufferLinkDisplay();
+}
+
+// Buffer post picker
+let _bufferPosts = []; // cached for current picker session
+
+async function openBufferPicker() {
+  document.getElementById('bufferPickerModal').classList.add('open');
+  const statusEl = document.getElementById('bufferPickerStatus');
+  const listEl   = document.getElementById('bufferPickerList');
+  if (statusEl) statusEl.textContent = 'Loading posts from Buffer…';
+  if (listEl)   listEl.innerHTML = '';
+  _bufferPosts = [];
+
+  try {
+    const r    = await fetch('/api/buffer-sync?mode=posts');
+    const data = await r.json();
+
+    if (!data.ok) {
+      if (statusEl) statusEl.textContent = data.error === 'no_key'
+        ? 'Save your Buffer API key first (use the key button above).'
+        : 'Buffer error: ' + (data.error || 'unknown');
+      return;
+    }
+
+    _bufferPosts = data.posts || [];
+    if (!_bufferPosts.length) {
+      if (statusEl) statusEl.textContent = 'No posts found in your Buffer account.';
+      return;
+    }
+
+    // Sort: upcoming scheduled first (soonest), then recent sent (newest first)
+    _bufferPosts.sort((a, b) => {
+      const aS = a.status === 'sent', bS = b.status === 'sent';
+      if (!aS && bS) return -1;
+      if (aS && !bS) return 1;
+      const aD = a.scheduledAt || '', bD = b.scheduledAt || '';
+      return aS ? bD.localeCompare(aD) : aD.localeCompare(bD);
+    });
+
+    if (statusEl) statusEl.textContent =
+      `${_bufferPosts.length} post${_bufferPosts.length !== 1 ? 's' : ''} — tap to link`;
+
+    if (listEl) {
+      listEl.innerHTML = _bufferPosts.map((p, i) => {
+        const dateStr = p.scheduledAt
+          ? new Date(p.scheduledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          : '—';
+        const statusColor = p.status === 'sent' ? 'var(--good)' : p.status === 'scheduled' ? 'var(--warn)' : 'var(--text-3)';
+        const preview = (p.text || '').slice(0, 90) + ((p.text || '').length > 90 ? '…' : '');
+        return `<div class="buffer-post-item" data-idx="${i}">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+            <span style="font-size:9px;font-weight:700;color:${statusColor};text-transform:uppercase">${esc(p.status)}</span>
+            <span style="font-size:11px;color:var(--text-3)">${esc(dateStr)}</span>
+            ${p.channel ? `<span style="font-size:10px;color:var(--text-4)">· ${esc(p.channel)}</span>` : ''}
+          </div>
+          <div style="font-size:12px;color:var(--text-1);line-height:1.4">${preview ? esc(preview) : '<em style="color:var(--text-4)">No caption</em>'}</div>
+        </div>`;
+      }).join('');
+    }
+  } catch (err) {
+    if (statusEl) statusEl.textContent = 'Failed to load: ' + err.message;
+  }
+}
+
+function closeBufferPicker() {
+  document.getElementById('bufferPickerModal').classList.remove('open');
+}
+
+// Delegated click handler on the picker list (avoids inline onclick with user text)
+document.addEventListener('DOMContentLoaded', () => {
+  const listEl = document.getElementById('bufferPickerList');
+  if (listEl) {
+    listEl.addEventListener('click', e => {
+      const item = e.target.closest('.buffer-post-item');
+      if (!item) return;
+      const idx  = parseInt(item.dataset.idx, 10);
+      const post = _bufferPosts[idx];
+      if (!post) return;
+      const dateStr = post.scheduledAt
+        ? new Date(post.scheduledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : '';
+      _pendingBufferPostId   = post.id;
+      _pendingBufferPostText = post.text || '';
+      _pendingBufferPostDate = dateStr;
+      updateBufferLinkDisplay();
+      closeBufferPicker();
+    });
+  }
+});
+
 // ── Modal dismiss ─────────────────────────────────────────────────
 document.getElementById('dealModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeDealModal(); });
 document.getElementById('cvModal').addEventListener('click',   e => { if (e.target === e.currentTarget) closeCVModal(); });
+document.getElementById('bufferPickerModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeBufferPicker(); });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeDealModal(); closeCVModal(); }
+  if (e.key === 'Escape') { closeDealModal(); closeCVModal(); closeBufferPicker(); }
 });
 
 // ── Hide tooltip on scroll/tap outside ───────────────────────────
@@ -2273,6 +2559,7 @@ initEditorTzSelect();
 updateEditorTimezoneLabel();
 updateEditorClock();
 setInterval(updateEditorClock, 1000);
+updateBufferStatus();
 init();
 </script>
 </body>
