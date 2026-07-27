@@ -16,7 +16,7 @@
     },
     {
       "path": "/api/buffer-sync",
-      "schedule": "0 */4 * * *"
+      "schedule": "0 16 * * *"
     }
   ],
   "rewrites": [
