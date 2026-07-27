@@ -94,7 +94,8 @@ select.c-input option { background: #1a1a1c; }
 .deal-card-name { font-size: 15px; font-weight: 700; color: var(--text-1); }
 .deal-card-rate { font-size: 13px; font-weight: 600; color: var(--good); margin-top: 3px; font-variant-numeric: tabular-nums; }
 .deal-card-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 7px; align-items: center; }
-.deal-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.deal-card-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+.deal-card-actions-btns { display: flex; gap: 6px; }
 .deal-notes { font-size: 11px; color: var(--text-3); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); line-height: 1.5; }
 .deal-stats { font-size: 11px; color: var(--text-3); margin-top: 7px; display: flex; gap: 14px; flex-wrap: wrap; }
 .deal-stats b { color: var(--text-1); }
@@ -833,12 +834,20 @@ async function ensureFxRate() {
     }
   }
   updateFxLabel();
+  updateDealCardRates();
   renderSummary(); renderEarningsHistory();
 }
 
 function updateFxLabel() {
   const el = document.getElementById('fxRateLabel');
   if (el && _fxRate) el.textContent = `1 USD = ${_fxRate.toFixed(4)} CAD`;
+}
+
+function updateDealCardRates() {
+  ls(LS_DEALS).forEach(d => {
+    const el = document.getElementById('dcr-' + d.id);
+    if (el) el.textContent = 'CAD $' + dealToCad(Number(d.rate_per_video), d.currency).toFixed(2) + ' / video';
+  });
 }
 
 // Convert an amount from a deal's native currency to CAD
@@ -1044,7 +1053,7 @@ function renderDeals() {
       <div class="deal-card-top">
         <div class="deal-card-info">
           <div class="deal-card-name">${esc(d.brand_name)}</div>
-          <div class="deal-card-rate">${esc(d.currency||'CAD')} $${flat.toFixed(2)} / video</div>
+          <div class="deal-card-rate" id="dcr-${esc(d.id)}">CAD $${dealToCad(flat, d.currency).toFixed(2)} / video</div>
           <div class="deal-card-meta">
             <span class="c-tag ${(d.status||'active').toLowerCase()}">${esc(d.status||'Active')}</span>
             <span class="c-tag ${(d.currency||'CAD').toLowerCase()}">${esc(d.currency||'CAD')}</span>
@@ -1057,8 +1066,11 @@ function renderDeals() {
           </div>
         </div>
         <div class="deal-card-actions">
-          <button class="c-btn sm" onclick="openEditDeal('${esc(d.id)}')">Edit</button>
-          <button class="c-btn sm danger" id="deld-${esc(d.id)}" onclick="confirmDeleteDeal('${esc(d.id)}')">Delete</button>
+          ${(d.currency||'CAD') !== 'CAD' ? `<div style="font-size:10px;color:var(--text-4);text-align:right">${esc(d.currency)} $${flat.toFixed(2)}/video</div>` : ''}
+          <div class="deal-card-actions-btns">
+            <button class="c-btn sm" onclick="openEditDeal('${esc(d.id)}')">Edit</button>
+            <button class="c-btn sm danger" id="deld-${esc(d.id)}" onclick="confirmDeleteDeal('${esc(d.id)}')">Delete</button>
+          </div>
         </div>
       </div>
       ${d.notes ? `<div class="deal-notes">${esc(d.notes)}</div>` : ''}
@@ -1434,7 +1446,7 @@ document.getElementById('addDealBtn').addEventListener('click', () => {
   document.getElementById('dealModalTitle').textContent = 'Add Deal';
   document.getElementById('dealBrand').value     = '';
   document.getElementById('dealRate').value      = '';
-  document.getElementById('dealCurrency').value  = 'CAD';
+  document.getElementById('dealCurrency').value  = 'USD';
   document.getElementById('dealViewBonus').value = '1.00';
   document.getElementById('dealSchedule').value  = 'Monthly';
   document.getElementById('dealStatus').value    = 'Active';
