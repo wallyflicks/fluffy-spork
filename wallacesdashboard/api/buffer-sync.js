@@ -22,7 +22,11 @@ async function bufferGql(apiKey, query, variables = {}) {
     },
     body: JSON.stringify({ query, variables }),
   });
-  if (!res.ok) throw new Error('Buffer API HTTP ' + res.status);
+  if (!res.ok) {
+    let body = '';
+    try { body = await res.text(); } catch {}
+    throw new Error(`Buffer API HTTP ${res.status}: ${body.slice(0, 500)}`);
+  }
   const json = await res.json();
   if (json.errors && json.errors.length) {
     throw new Error('Buffer GQL: ' + json.errors.map(e => e.message).join('; '));
@@ -51,6 +55,8 @@ async function getBufferApiKey(req) {
 
 // Fetch posts for the dashboard picker (scheduled + recent sent)
 async function fetchBufferPostsForPicker(apiKey) {
+  let lastError = 'Could not fetch Buffer posts — check API key permissions.';
+
   // Strategy 1: top-level posts query
   try {
     const data = await bufferGql(apiKey, `query {
@@ -76,6 +82,7 @@ async function fetchBufferPostsForPicker(apiKey) {
       }));
     }
   } catch (e) {
+    lastError = e.message;
     console.warn('[buffer-sync] top-level posts query failed:', e.message);
   }
 
@@ -106,10 +113,11 @@ async function fetchBufferPostsForPicker(apiKey) {
     }
     if (posts.length) return posts;
   } catch (e) {
+    lastError = e.message;
     console.warn('[buffer-sync] channel strategy failed:', e.message);
   }
 
-  throw new Error('Could not fetch Buffer posts — check API key permissions.');
+  throw new Error(lastError);
 }
 
 // Check whether a specific post ID has been sent
