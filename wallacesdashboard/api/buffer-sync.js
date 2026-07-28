@@ -30,7 +30,12 @@ async function bufferGql(apiKey, query, variables = {}) {
   return json.data;
 }
 
-async function getBufferApiKey() {
+// Client may pass key via x-buffer-key header (avoids Supabase round-trip and
+// works immediately after saving, before pushToCloud completes). Cron path has
+// no client so falls back to reading from the Supabase bundle.
+async function getBufferApiKey(req) {
+  const fromHeader = req && (req.headers['x-buffer-key'] || '');
+  if (fromHeader) return fromHeader;
   try {
     const res = await fetch(
       `${SUPA_URL}/rest/v1/app_state?key=eq.content&select=data`,
@@ -125,11 +130,11 @@ async function checkBufferPostStatus(apiKey, postId) {
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-buffer-key');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const mode = (req.query && req.query.mode) || 'sync';
-  const apiKey = await getBufferApiKey();
+  const apiKey = await getBufferApiKey(req);
 
   // ── posts mode: list Buffer posts for the picker UI ──────────────
   if (mode === 'posts') {

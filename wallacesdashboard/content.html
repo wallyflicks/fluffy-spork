@@ -315,6 +315,7 @@ select.c-input option { background: #1a1a1c; }
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:6px">
+        <span id="bufferSyncedLabel" style="display:none;font-size:10px;color:var(--text-4)"></span>
         <button class="c-btn sm" id="bufferSyncBtn" onclick="syncBufferNow(this)" style="display:none">Sync now</button>
         <button class="c-btn sm" onclick="toggleBufferSettings()" style="padding:5px;width:28px;height:28px;flex-shrink:0" aria-label="Buffer settings">
           <i data-lucide="key" style="width:13px;height:13px;pointer-events:none"></i>
@@ -2457,7 +2458,9 @@ async function syncBufferNow(btn) {
   btn.textContent = 'Syncing…';
   btn.disabled = true;
   try {
-    const r    = await fetch('/api/buffer-sync?mode=sync');
+    const r    = await fetch('/api/buffer-sync?mode=sync', {
+      headers: { 'x-buffer-key': getBufferKey() }
+    });
     const data = await r.json();
     if (data.promoted > 0) {
       const bundle = await fetchFromCloud();
@@ -2467,10 +2470,17 @@ async function syncBufferNow(btn) {
         render();
       }
       btn.textContent = `Promoted ${data.promoted}!`;
-    } else if (data.skipped === 'no_key' || data.error === 'no_key') {
+    } else if (!data.ok && (data.skipped === 'no_key' || data.error === 'no_key')) {
       btn.textContent = 'No key';
     } else {
       btn.textContent = 'Up to date';
+    }
+    // Update last-synced label
+    const lbl = document.getElementById('bufferSyncedLabel');
+    if (lbl) {
+      const now = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Vancouver' });
+      lbl.textContent = `Synced ${now}`;
+      lbl.style.display = '';
     }
   } catch {
     btn.textContent = 'Error';
@@ -2515,7 +2525,9 @@ async function openBufferPicker() {
   _bufferPosts = [];
 
   try {
-    const r    = await fetch('/api/buffer-sync?mode=posts');
+    const r    = await fetch('/api/buffer-sync?mode=posts', {
+      headers: { 'x-buffer-key': getBufferKey() }
+    });
     const data = await r.json();
 
     if (!data.ok) {
