@@ -13,10 +13,6 @@
     {
       "path": "/api/push-cron",
       "schedule": "0 15 * * *"
-    },
-    {
-      "path": "/api/buffer-sync",
-      "schedule": "0 16 * * *"
     }
   ],
   "rewrites": [
