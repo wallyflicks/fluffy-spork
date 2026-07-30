@@ -1039,10 +1039,6 @@
     .ic-modal-header { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 20px 0; }
     .ic-modal-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px 20px; display: flex; flex-direction: column; gap: 14px; }
     .ic-modal-footer { flex-shrink: 0; padding: 12px 20px calc(20px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(255,255,255,0.07); }
-    /* Setup modal: short form, no inner scroll needed — let the outer modal
-       scroll so the native date picker calendar isn't clipped by overflow:hidden */
-    #icSetupModal .ic-modal { overflow-y: auto; -webkit-overflow-scrolling: touch; }
-    #icSetupModal .ic-modal-body { overflow: visible; flex: none; }
     .ic-modal-title { font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0; }
     .ic-modal-close { background: transparent; border: none; color: var(--text-tertiary); cursor: pointer; padding: 4px; display: flex; align-items: center; border-radius: 6px; }
     .ic-modal-close:hover { color: var(--text-primary); }
@@ -2508,11 +2504,11 @@
           </div>
           <div class="ic-field">
             <label class="ic-label" for="icSetupStart">Start Date</label>
-            <input class="ic-input" id="icSetupStart" type="date">
+            <input class="ic-input" id="icSetupStart" type="text" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off">
           </div>
           <div class="ic-field ic-form-full">
             <label class="ic-label" for="icSetupEnd">End Date <span style="color:var(--danger)">*</span></label>
-            <input class="ic-input" id="icSetupEnd" type="date">
+            <input class="ic-input" id="icSetupEnd" type="text" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off">
           </div>
         </div>
         <div id="icSetupError" style="font-size:12px;color:var(--danger);display:none"></div>
@@ -2855,12 +2851,16 @@
   async function saveChallenge() {
     const name      = document.getElementById('icSetupName').value.trim() || 'Income Challenge';
     const goal      = parseFloat(document.getElementById('icSetupGoal').value);
-    const startDate = document.getElementById('icSetupStart').value;
-    const endDate   = document.getElementById('icSetupEnd').value;
+    const startDate = document.getElementById('icSetupStart').value.trim();
+    const endDate   = document.getElementById('icSetupEnd').value.trim();
     const errEl     = document.getElementById('icSetupError');
-    if (!endDate)               { errEl.textContent = 'End date is required.';                    errEl.style.display = ''; return; }
-    if (endDate <= startDate)   { errEl.textContent = 'End date must be after start date.';       errEl.style.display = ''; return; }
-    if (!goal || goal <= 0)     { errEl.textContent = 'Please enter a valid goal amount.';        errEl.style.display = ''; return; }
+    const dateRe    = /^\d{4}-\d{2}-\d{2}$/;
+    if (!goal || goal <= 0)          { errEl.textContent = 'Please enter a valid goal amount.';              errEl.style.display = ''; return; }
+    if (!startDate)                  { errEl.textContent = 'Start date is required.';                        errEl.style.display = ''; return; }
+    if (!dateRe.test(startDate))     { errEl.textContent = 'Start date must be YYYY-MM-DD (e.g. 2026-08-01).'; errEl.style.display = ''; return; }
+    if (!endDate)                    { errEl.textContent = 'End date is required.';                          errEl.style.display = ''; return; }
+    if (!dateRe.test(endDate))       { errEl.textContent = 'End date must be YYYY-MM-DD (e.g. 2026-12-31).';  errEl.style.display = ''; return; }
+    if (endDate <= startDate)        { errEl.textContent = 'End date must be after start date.';             errEl.style.display = ''; return; }
     challenge = { name, goal, startDate, endDate };
     closeSetupModal();
     icRender();
