@@ -1039,6 +1039,10 @@
     .ic-modal-header { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 20px 0; }
     .ic-modal-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px 20px; display: flex; flex-direction: column; gap: 14px; }
     .ic-modal-footer { flex-shrink: 0; padding: 12px 20px calc(20px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(255,255,255,0.07); }
+    /* Setup modal: short form, no inner scroll needed — let the outer modal
+       scroll so the native date picker calendar isn't clipped by overflow:hidden */
+    #icSetupModal .ic-modal { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    #icSetupModal .ic-modal-body { overflow: visible; flex: none; }
     .ic-modal-title { font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0; }
     .ic-modal-close { background: transparent; border: none; color: var(--text-tertiary); cursor: pointer; padding: 4px; display: flex; align-items: center; border-radius: 6px; }
     .ic-modal-close:hover { color: var(--text-primary); }
