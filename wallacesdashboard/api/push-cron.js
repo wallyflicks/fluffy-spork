@@ -297,6 +297,71 @@ module.exports = async function handler(req, res) {
     console.warn('[push-cron] Done→Posted transition failed:', e.message);
   }
 
+  // Income challenge pace notification — fires at 8 AM Vancouver if challenge is active
+  let challengeNotif = null;
+  if (van.hour === 8 && van.minute === 0) {
+    try {
+      const icRes = await fetch(SUPA_URL + '/rest/v1/app_state?key=eq.income_challenge&select=data', { headers: SB_HEADERS });
+      if (icRes.ok) {
+        const icRows = await icRes.json();
+        if (icRows.length && icRows[0].data) {
+          const icData = icRows[0].data;
+          const ch     = icData.challenge;
+          if (ch && ch.startDate && ch.endDate && ch.goal) {
+            const startDate = ch.startDate;
+            const endDate   = ch.endDate;
+            const goal      = Number(ch.goal);
+            if (vanDate >= startDate && vanDate <= endDate && goal > 0) {
+              let ugcTotal = 0;
+              try {
+                const ctRes = await fetch(SUPA_URL + '/rest/v1/app_state?key=eq.content&select=data', { headers: SB_HEADERS });
+                if (ctRes.ok) {
+                  const ctRows = await ctRes.json();
+                  if (ctRows.length && ctRows[0].data) {
+                    ugcTotal = (ctRows[0].data.ugc_videos || [])
+                      .filter(v => v.status === 'Approved' && v.date >= startDate && v.date <= endDate)
+                      .reduce((s, v) => s + Number(v.total || 0), 0);
+                  }
+                }
+              } catch {}
+
+              const otherTotal = (Array.isArray(icData.otherIncome) ? icData.otherIncome : [])
+                .filter(e => e.date >= startDate && e.date <= endDate)
+                .reduce((s, e) => s + Number(e.amount || 0), 0);
+
+              const total         = ugcTotal + otherTotal;
+              const startMs       = new Date(startDate + 'T12:00:00').getTime();
+              const endMs         = new Date(endDate   + 'T12:00:00').getTime();
+              const todayMs       = new Date(vanDate   + 'T12:00:00').getTime();
+              const totalDays     = Math.max(1, Math.round((endMs - startMs) / 86400000));
+              const daysElapsed   = Math.max(1, Math.round((todayMs - startMs) / 86400000));
+              const daysRemaining = Math.max(0, Math.round((endMs - todayMs) / 86400000));
+              const expected      = (goal / totalDays) * daysElapsed;
+              const diff          = total - expected;
+              const needPerDay    = daysRemaining > 0 ? Math.ceil(Math.max(0, goal - total) / daysRemaining) : 0;
+
+              if (diff >= 0) {
+                const ahead = Math.round(diff / daysElapsed);
+                challengeNotif = {
+                  tag:   'challengePace',
+                  title: 'Income Challenge — on track',
+                  body:  `You're $${ahead}/day ahead of pace. Need $${needPerDay} today to stay ahead.`,
+                };
+              } else {
+                const behind = Math.round(Math.abs(diff) / daysElapsed);
+                challengeNotif = {
+                  tag:   'challengePace',
+                  title: 'Income Challenge — behind pace',
+                  body:  `You're $${behind}/day behind pace. Need $${needPerDay} today to catch up.`,
+                };
+              }
+            }
+          }
+        }
+      }
+    } catch (e) { console.warn('[push-cron] income challenge check failed:', e.message); }
+  }
+
   const r = await fetch(SUPA_URL + '/rest/v1/push_subscriptions?select=*', { headers: SB_HEADERS });
   if (!r.ok) {
     const detail = await r.text();
@@ -315,6 +380,9 @@ module.exports = async function handler(req, res) {
     }
 
     const notifications = getNotificationsToFire(settings, van.hour, van.minute, journalDoneToday, workoutDoneToday);
+
+    // Challenge pace (always-on, computed once above)
+    if (challengeNotif) notifications.push(challengeNotif);
 
     // Subscription renewal reminders (always-on, not behind a toggle)
     if (subRenewals.length > 0) {

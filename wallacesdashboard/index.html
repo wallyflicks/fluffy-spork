@@ -1001,7 +1001,8 @@
     .ic-amounts { display: flex; align-items: baseline; gap: 6px; margin-bottom: 12px; }
     .ic-amount-value { font-size: 36px; font-weight: 700; letter-spacing: -0.04em; font-family: var(--mono); line-height: 1; color: var(--text-primary); }
     .ic-amount-goal { font-size: 16px; color: var(--text-tertiary); font-family: var(--mono); }
-    .ic-progress-bar-wrap { background: rgba(255,255,255,0.06); border-radius: 999px; height: 8px; overflow: hidden; margin-bottom: 14px; }
+    .ic-progress-bar-wrap { background: rgba(255,255,255,0.06); border-radius: 999px; height: 8px; overflow: hidden; margin-bottom: 14px; position: relative; }
+    .ic-target-marker { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,0.35); transform: translateX(-50%); pointer-events: none; border-radius: 1px; }
     .ic-progress-bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #6BE3A4, #4BB788); transition: width 0.5s ease; min-width: 3px; }
     .ic-progress-bar-fill.over { background: linear-gradient(90deg, #F2C063, #E0A030); }
     .ic-stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
@@ -1036,6 +1037,40 @@
     .ic-setup-btn { padding: 9px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: var(--text-primary); font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
     .ic-setup-btn:hover { background: rgba(255,255,255,0.10); }
     .ic-setup-btn svg { width: 14px; height: 14px; }
+    /* Pace indicator (below stats) */
+    .ic-pace-main { border-radius: 12px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .ic-pace-main.ahead { background: rgba(107,227,164,0.08); border: 1px solid rgba(107,227,164,0.15); }
+    .ic-pace-main.behind { background: rgba(255,107,107,0.08); border: 1px solid rgba(255,107,107,0.15); }
+    .ic-pace-main.neutral { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+    .ic-pace-main-icon { flex-shrink: 0; display: flex; }
+    .ic-pace-main-icon svg { width: 16px; height: 16px; }
+    .ic-pace-main.ahead .ic-pace-main-icon { color: var(--success); }
+    .ic-pace-main.behind .ic-pace-main-icon { color: var(--danger); }
+    .ic-pace-main.neutral .ic-pace-main-icon { color: var(--text-tertiary); }
+    .ic-pace-main-rate { font-size: 15px; font-weight: 700; font-family: var(--mono); line-height: 1.1; }
+    .ic-pace-main.ahead .ic-pace-main-rate { color: var(--success); }
+    .ic-pace-main.behind .ic-pace-main-rate { color: var(--danger); }
+    .ic-pace-main.neutral .ic-pace-main-rate { color: var(--text-secondary); }
+    .ic-pace-main-desc { font-size: 10px; color: var(--text-tertiary); margin-top: 2px; }
+    /* Milestones */
+    .ic-milestone-banner { border-radius: 12px; padding: 12px 14px; background: rgba(107,227,164,0.09); border: 1px solid rgba(107,227,164,0.22); margin-bottom: 12px; }
+    .ic-milestone-banner-title { font-size: 13px; font-weight: 700; color: var(--success); margin: 0 0 2px; }
+    .ic-milestone-banner-sub { font-size: 11px; color: rgba(107,227,164,0.65); margin: 0; }
+    .ic-milestone-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .ic-milestone-badge { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 20px; background: rgba(107,227,164,0.07); color: rgba(107,227,164,0.55); border: 1px solid rgba(107,227,164,0.14); }
+    /* Trend chart */
+    .ic-trend { border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; margin-bottom: 14px; }
+    .ic-trend-label { font-size: 9px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px; }
+    .ic-trend-canvas-wrap { height: 80px; }
+    /* Stacked source bar */
+    .ic-stacked { border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; margin-bottom: 14px; }
+    .ic-stacked-label { font-size: 9px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px; }
+    .ic-stacked-bar { height: 10px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; display: flex; margin-bottom: 10px; }
+    .ic-stacked-seg { height: 100%; transition: width 0.4s ease; }
+    .ic-stacked-empty { font-size: 11px; color: var(--text-tertiary); margin: 0 0 0; }
+    .ic-stacked-legend { display: flex; gap: 14px; flex-wrap: wrap; }
+    .ic-stacked-legend-row { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-secondary); }
+    .ic-stacked-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     /* ─── IC Modals ─────────────────────────────────────────────────── */
     .ic-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.72); backdrop-filter: blur(8px); z-index: 10000; display: flex; align-items: flex-end; justify-content: center; }
     .ic-modal { background: #111113; border: 1px solid rgba(255,255,255,0.10); border-top: 1px solid rgba(255,255,255,0.15); border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; max-height: calc(100vh - 68px); max-height: calc(100dvh - 68px); overflow: hidden; display: flex; flex-direction: column; }
@@ -2605,8 +2640,9 @@
   const LS_IC = 'ic_bundle_v1';
 
   // ── State ─────────────────────────────────────────────────────────
-  let challenge   = null; // { name, goal, startDate, endDate }
-  let otherIncome = [];   // [{ id, amount, date, category, description, client, loggedToFinance, created_at }]
+  let challenge    = null; // { name, goal, startDate, endDate, milestones_reached }
+  let otherIncome  = [];   // [{ id, amount, date, category, description, client, loggedToFinance, created_at }]
+  let icTrendChart = null; // Chart.js cumulative trend instance
 
   // ── Helpers ───────────────────────────────────────────────────────
   function icUid()    { return 'ic_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
@@ -2703,6 +2739,7 @@
     if (!card) return;
 
     if (!challenge || !challenge.endDate) {
+      if (icTrendChart) { icTrendChart.destroy(); icTrendChart = null; }
       card.innerHTML = `
         <div class="ic-no-challenge">
           <p class="ic-no-challenge-text">No active challenge. Set a goal to start tracking your income.</p>
@@ -2713,47 +2750,109 @@
       return;
     }
 
-    const today  = icToday();
-    const start  = challenge.startDate;
-    const end    = challenge.endDate;
-    const goal   = Number(challenge.goal) || 10000;
-    const name   = challenge.name || 'Income Challenge';
-    const ended  = today > end;
+    const today   = icToday();
+    const start   = challenge.startDate;
+    const end     = challenge.endDate;
+    const goal    = Number(challenge.goal) || 10000;
+    const name    = challenge.name || 'Income Challenge';
+    const ended   = today > end;
     const started = today >= start;
 
     const ugcAmt   = ugcInRange(start, end);
     const otherAmt = otherInRange(start, end);
     const total    = ugcAmt + otherAmt;
 
-    const startMs   = new Date(start + 'T12:00:00').getTime();
-    const endMs     = new Date(end   + 'T12:00:00').getTime();
-    const todayMs   = new Date(today + 'T12:00:00').getTime();
-    const daysElapsed   = Math.max(1, Math.round((todayMs - startMs) / 86400000));
-    const daysRemaining = Math.max(0, Math.round((endMs   - todayMs) / 86400000));
+    const startMs       = new Date(start + 'T12:00:00').getTime();
+    const endMs         = new Date(end   + 'T12:00:00').getTime();
+    const todayMs       = new Date(today + 'T12:00:00').getTime();
+    const totalDays     = Math.max(1, Math.round((endMs - startMs) / 86400000));
+    const rawElapsed    = Math.round((todayMs - startMs) / 86400000);
+    const notStarted    = rawElapsed <= 0;
+    const daysElapsed   = Math.max(1, rawElapsed);
+    const daysRemaining = Math.max(0, Math.round((endMs - todayMs) / 86400000));
 
-    const actualPace   = started ? total / daysElapsed : 0;
-    const requiredPace = daysRemaining > 0 ? (goal - total) / daysRemaining : 0;
-    const paceDiff     = actualPace - requiredPace;
+    // Linear pace for target marker + pace indicator
+    const linearPace   = goal / totalDays;
+    const expected     = linearPace * daysElapsed;
+    const expectedPct  = Math.min(99.5, goal > 0 ? expected / goal * 100 : 0);
+    const paceDiffRate = (!notStarted && started) ? (total - expected) / daysElapsed : 0;
+    const actualPace   = (!notStarted && started) ? total / daysElapsed : 0;
+    const requiredPace = daysRemaining > 0 ? Math.max(0, (goal - total) / daysRemaining) : 0;
     const pct          = Math.min(100, goal > 0 ? total / goal * 100 : 0);
 
-    const bDiv     = total || 1;
+    // Milestone detection — track which thresholds have been crossed
+    const MILESTONES = [25, 50, 75, 100];
+    let milestonesSaveNeeded = false;
+    let freshMilestone = 0;
+    if (started && !notStarted) {
+      if (!challenge.milestones_reached) challenge.milestones_reached = {};
+      MILESTONES.forEach(m => {
+        if (pct >= m && !challenge.milestones_reached[m]) {
+          challenge.milestones_reached[m] = today;
+          milestonesSaveNeeded = true;
+        }
+        if (challenge.milestones_reached[m] === today && m > freshMilestone) freshMilestone = m;
+      });
+    }
+
+    // ── Pace indicator HTML ───────────────────────────────────────
+    let paceHtml = '';
+    if (notStarted || !started) {
+      paceHtml = `<div class="ic-pace-main neutral"><span class="ic-pace-main-icon"><i data-lucide="clock"></i></span><div><div class="ic-pace-main-rate">Starts ${start}</div><div class="ic-pace-main-desc">Challenge hasn't started yet</div></div></div>`;
+    } else if (ended) {
+      paceHtml = `<div class="ic-pace-main neutral"><span class="ic-pace-main-icon"><i data-lucide="flag"></i></span><div><div class="ic-pace-main-rate">Challenge ended</div><div class="ic-pace-main-desc">${icFmt(Math.round(total))} earned total</div></div></div>`;
+    } else if (total >= goal) {
+      paceHtml = `<div class="ic-pace-main ahead"><span class="ic-pace-main-icon"><i data-lucide="trending-up"></i></span><div><div class="ic-pace-main-rate">Goal reached</div><div class="ic-pace-main-desc">${icFmt(Math.round(total - goal))} over target</div></div></div>`;
+    } else {
+      const sign = paceDiffRate >= 0 ? '+' : '-';
+      const cls  = paceDiffRate >= -0.50 ? 'ahead' : 'behind';
+      const icon = paceDiffRate >= -0.50 ? 'trending-up' : 'trending-down';
+      const desc = (paceDiffRate >= -0.50 ? 'ahead of pace' : 'behind pace') + (requiredPace > 0 ? ' · ' + icFmtD(requiredPace) + '/day needed' : '');
+      paceHtml = `<div class="ic-pace-main ${cls}"><span class="ic-pace-main-icon"><i data-lucide="${icon}"></i></span><div><div class="ic-pace-main-rate">${sign}${icFmtD(Math.abs(paceDiffRate))}/day</div><div class="ic-pace-main-desc">${desc}</div></div></div>`;
+    }
+
+    // ── Milestone HTML ────────────────────────────────────────────
+    const milestoneMsg = {
+      25:  ['Quarter of the way',  icFmt(Math.round(goal * 0.75)) + ' still to go.'],
+      50:  ['Halfway there',       icFmt(Math.round(goal * 0.50)) + ' still to go.'],
+      75:  ['Three quarters done', icFmt(Math.round(goal * 0.25)) + ' left — final stretch.'],
+      100: ['Goal reached',        icFmt(goal) + ' earned — challenge complete.'],
+    };
+    let milestoneBannerHtml = '';
+    let milestoneBadgesHtml = '';
+    if (challenge.milestones_reached) {
+      if (freshMilestone && milestoneMsg[freshMilestone]) {
+        const [t, s] = milestoneMsg[freshMilestone];
+        milestoneBannerHtml = `<div class="ic-milestone-banner"><p class="ic-milestone-banner-title">${t}</p><p class="ic-milestone-banner-sub">${s}</p></div>`;
+      }
+      const reached = MILESTONES.filter(m => challenge.milestones_reached[m]);
+      if (reached.length) {
+        milestoneBadgesHtml = `<div class="ic-milestone-badges">${reached.map(m => `<span class="ic-milestone-badge">${m}%</span>`).join('')}</div>`;
+      }
+    }
+
+    // ── Stacked bar HTML ──────────────────────────────────────────
+    const bDiv = total || 1;
     const ugcPct   = ugcAmt   / bDiv * 100;
     const otherPct = otherAmt / bDiv * 100;
-
-    let paceHtml = '';
-    if (ended) {
-      paceHtml = `<span class="ic-pace-chip neutral">Challenge ended · ${icFmt(Math.round(total))} earned</span>`;
-    } else if (!started) {
-      paceHtml = `<span class="ic-pace-chip neutral">Starts ${start}</span>`;
-    } else if (total >= goal) {
-      paceHtml = `<span class="ic-pace-chip ahead"><i data-lucide="trending-up"></i>Goal reached</span>`;
-    } else if (Math.abs(paceDiff) < 0.50) {
-      paceHtml = `<span class="ic-pace-chip neutral">On pace — ${icFmtD(requiredPace)}/day needed</span>`;
-    } else if (paceDiff > 0) {
-      paceHtml = `<span class="ic-pace-chip ahead"><i data-lucide="trending-up"></i>+${icFmtD(paceDiff)}/day ahead of pace</span>`;
+    let stackedHtml;
+    if (total <= 0) {
+      stackedHtml = `<div class="ic-stacked-bar"></div><p class="ic-stacked-empty">No income logged yet.</p>`;
     } else {
-      paceHtml = `<span class="ic-pace-chip behind"><i data-lucide="trending-down"></i>${icFmtD(paceDiff)}/day behind pace</span>`;
+      stackedHtml = `
+        <div class="ic-stacked-bar">
+          <div class="ic-stacked-seg" style="width:${ugcPct.toFixed(1)}%;background:#6BE3A4"></div>
+          <div class="ic-stacked-seg" style="width:${otherPct.toFixed(1)}%;background:#7dd3fc"></div>
+        </div>
+        <div class="ic-stacked-legend">
+          <div class="ic-stacked-legend-row"><span class="ic-stacked-dot" style="background:#6BE3A4"></span><span>UGC — ${icFmt(Math.round(ugcAmt))} (${Math.round(ugcAmt / total * 100)}%)</span></div>
+          <div class="ic-stacked-legend-row"><span class="ic-stacked-dot" style="background:#7dd3fc"></span><span>Other Income — ${icFmt(Math.round(otherAmt))} (${Math.round(otherAmt / total * 100)}%)</span></div>
+        </div>`;
     }
+
+    // Build trend data before destroying old chart
+    const trendData = icBuildTrend(start, end, today);
+    if (icTrendChart) { icTrendChart.destroy(); icTrendChart = null; }
 
     card.innerHTML = `
       <div class="ic-header">
@@ -2769,8 +2868,8 @@
       </div>
       <div class="ic-progress-bar-wrap">
         <div class="ic-progress-bar-fill${pct >= 100 ? ' over' : ''}" style="width:${pct.toFixed(1)}%"></div>
+        ${(started && !notStarted) ? `<div class="ic-target-marker" style="left:${expectedPct.toFixed(1)}%"></div>` : ''}
       </div>
-      ${paceHtml}
       <div class="ic-stats-row">
         <div class="ic-stat">
           <span class="ic-stat-label">Days Left</span>
@@ -2785,20 +2884,16 @@
           <span class="ic-stat-value">${(requiredPace > 0 && !ended) ? icFmtD(requiredPace) : '—'}</span>
         </div>
       </div>
-      <div class="ic-breakdown">
-        <div class="ic-breakdown-label">Sources</div>
-        <div class="ic-breakdown-bars">
-          <div class="ic-breakdown-row">
-            <span class="ic-brow-name">UGC</span>
-            <div class="ic-brow-bar-wrap"><div class="ic-brow-bar-fill ugc" style="width:${ugcPct.toFixed(1)}%"></div></div>
-            <span class="ic-brow-amount">${icFmt(Math.round(ugcAmt))}</span>
-          </div>
-          <div class="ic-breakdown-row">
-            <span class="ic-brow-name">Other</span>
-            <div class="ic-brow-bar-wrap"><div class="ic-brow-bar-fill other" style="width:${otherPct.toFixed(1)}%"></div></div>
-            <span class="ic-brow-amount">${icFmt(Math.round(otherAmt))}</span>
-          </div>
-        </div>
+      ${paceHtml}
+      ${milestoneBannerHtml}
+      ${milestoneBadgesHtml}
+      <div class="ic-trend">
+        <div class="ic-trend-label">Cumulative Progress</div>
+        <div class="ic-trend-canvas-wrap"><canvas id="icTrendCanvas"></canvas></div>
+      </div>
+      <div class="ic-stacked">
+        <div class="ic-stacked-label">Sources</div>
+        ${stackedHtml}
       </div>
       <div class="ic-log-btns">
         <button class="ic-log-btn" id="icLogOtherBtn"><i data-lucide="plus-circle"></i> Add Income</button>
@@ -2807,6 +2902,114 @@
     if (window.lucide) lucide.createIcons({ nodes: [card] });
     document.getElementById('icEditBtn').addEventListener('click', openSetupModal);
     document.getElementById('icLogOtherBtn').addEventListener('click', openOtherModal);
+    icDrawTrend(trendData);
+    if (milestonesSaveNeeded) { icSaveLocal(); icPush(); }
+  }
+
+  // ── Trend chart helpers ───────────────────────────────────────────
+  function icBuildTrend(start, end, today) {
+    const capDate = today <= end ? today : end;
+    const days = [];
+    const cur = new Date(start + 'T12:00:00');
+    const capMs = new Date(capDate + 'T12:00:00').getTime();
+    while (cur.getTime() <= capMs) {
+      days.push(cur.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' }));
+      cur.setDate(cur.getDate() + 1);
+    }
+    if (!days.length) return { labels: [], data: [] };
+
+    let ugcEntries = [];
+    try {
+      ugcEntries = JSON.parse(localStorage.getItem('ugc_videos') || '[]')
+        .filter(v => v.status === 'Approved' && v.date >= start && v.date <= end)
+        .map(v => ({ date: v.date, amount: Number(v.total || 0) }));
+    } catch {}
+    const allEntries = [
+      ...ugcEntries,
+      ...otherIncome.filter(e => e.date >= start && e.date <= end).map(e => ({ date: e.date, amount: Number(e.amount || 0) }))
+    ];
+
+    let cum = 0;
+    const data = days.map(d => {
+      allEntries.filter(e => e.date === d).forEach(e => { cum += e.amount; });
+      return Math.round(cum * 100) / 100;
+    });
+
+    const n = days.length;
+    const step = Math.max(1, Math.ceil(n / 5));
+    const labels = days.map((d, i) =>
+      (i === 0 || i === n - 1 || i % step === 0) ? d.slice(5).replace('-', '/') : ''
+    );
+    return { labels, data };
+  }
+
+  function icDrawTrend({ labels, data }) {
+    const canvas = document.getElementById('icTrendCanvas');
+    if (!canvas || !window.Chart) return;
+    if (!data.length || data.every(v => v === 0)) {
+      const wrap = canvas.parentElement;
+      if (wrap) wrap.innerHTML = '<p style="font-size:11px;color:var(--text-tertiary);margin:18px 0 0;text-align:center">No income logged yet.</p>';
+      return;
+    }
+    icTrendChart = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          borderColor: '#6BE3A4',
+          backgroundColor: 'rgba(107,227,164,0.07)',
+          borderWidth: 1.5,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 3,
+          pointHoverBackgroundColor: '#6BE3A4',
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            backgroundColor: 'rgba(14,14,16,0.95)',
+            borderColor: 'rgba(255,255,255,0.10)',
+            borderWidth: 1,
+            titleColor: 'rgba(255,255,255,0.40)',
+            titleFont: { size: 9 },
+            bodyColor: '#6BE3A4',
+            bodyFont: { size: 12, weight: '700' },
+            padding: 8,
+            callbacks: {
+              title: ctx => ctx[0]?.label || '',
+              label: ctx => '$' + Math.round(ctx.raw).toLocaleString('en-CA'),
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            border: { display: false },
+            ticks: { color: 'rgba(255,255,255,0.22)', font: { size: 9 }, maxRotation: 0, autoSkip: false }
+          },
+          y: {
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            border: { display: false },
+            beginAtZero: true,
+            ticks: {
+              color: 'rgba(255,255,255,0.22)',
+              font: { size: 9 },
+              maxTicksLimit: 4,
+              callback: v => v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'k' : '$' + v,
+            }
+          }
+        }
+      }
+    });
   }
 
   // ── Setup modal ───────────────────────────────────────────────────
