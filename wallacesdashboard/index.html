@@ -989,6 +989,83 @@
     }
     .age-edit-btn:hover { opacity: 1; }
     .age-edit-btn svg { width: 11px; height: 11px; }
+
+    /* ─── Income Challenge ─────────────────────────────────────────── */
+    .ic-card { padding: 20px 22px 18px; }
+    .ic-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .ic-title-row { display: flex; flex-direction: column; gap: 3px; }
+    .ic-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-tertiary); margin: 0; }
+    .ic-name { font-size: 17px; font-weight: 700; color: var(--text-primary); margin: 0; }
+    .ic-edit-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: var(--text-secondary); font-size: 11px; font-weight: 600; padding: 5px 10px; cursor: pointer; font-family: var(--sans); white-space: nowrap; flex-shrink: 0; }
+    .ic-edit-btn:hover { background: rgba(255,255,255,0.09); }
+    .ic-amounts { display: flex; align-items: baseline; gap: 6px; margin-bottom: 12px; }
+    .ic-amount-value { font-size: 36px; font-weight: 700; letter-spacing: -0.04em; font-family: var(--mono); line-height: 1; color: var(--text-primary); }
+    .ic-amount-goal { font-size: 16px; color: var(--text-tertiary); font-family: var(--mono); }
+    .ic-progress-bar-wrap { background: rgba(255,255,255,0.06); border-radius: 999px; height: 8px; overflow: hidden; margin-bottom: 14px; }
+    .ic-progress-bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #6BE3A4, #4BB788); transition: width 0.5s ease; min-width: 3px; }
+    .ic-progress-bar-fill.over { background: linear-gradient(90deg, #F2C063, #E0A030); }
+    .ic-stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .ic-stat { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 10px 10px 8px; display: flex; flex-direction: column; gap: 3px; }
+    .ic-stat-label { font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-tertiary); }
+    .ic-stat-value { font-size: 14px; font-weight: 700; font-family: var(--mono); color: var(--text-primary); line-height: 1.1; }
+    .ic-pace-chip { font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; margin-bottom: 14px; }
+    .ic-pace-chip svg { width: 12px; height: 12px; }
+    .ic-pace-chip.ahead { background: rgba(107,227,164,0.12); color: var(--success); }
+    .ic-pace-chip.behind { background: rgba(255,107,107,0.12); color: var(--danger); }
+    .ic-pace-chip.neutral { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
+    .ic-breakdown { border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; }
+    .ic-breakdown-label { font-size: 9px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px; }
+    .ic-breakdown-bars { display: flex; flex-direction: column; gap: 6px; }
+    .ic-breakdown-row { display: grid; grid-template-columns: 90px 1fr auto; align-items: center; gap: 8px; }
+    .ic-brow-name { font-size: 11px; color: var(--text-secondary); }
+    .ic-brow-bar-wrap { background: rgba(255,255,255,0.06); border-radius: 999px; height: 5px; overflow: hidden; }
+    .ic-brow-bar-fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
+    .ic-brow-bar-fill.ugc { background: #6BE3A4; }
+    .ic-brow-bar-fill.photo { background: #7dd3fc; }
+    .ic-brow-bar-fill.market { background: #a78bfa; }
+    .ic-brow-amount { font-size: 11px; font-weight: 700; font-family: var(--mono); color: var(--text-secondary); white-space: nowrap; }
+    .ic-log-btns { display: flex; gap: 8px; margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; }
+    .ic-log-btn { flex: 1; padding: 8px 10px; border-radius: 10px; border: 1px dashed rgba(255,255,255,0.18); background: transparent; color: var(--text-secondary); font-family: var(--sans); font-size: 11px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; transition: background 0.15s, color 0.15s; }
+    .ic-log-btn:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+    .ic-log-btn svg { width: 12px; height: 12px; }
+    .ic-no-challenge { text-align: center; padding: 24px 0 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .ic-no-challenge-text { font-size: 13px; color: var(--text-tertiary); margin: 0; }
+    .ic-setup-btn { padding: 9px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: var(--text-primary); font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .ic-setup-btn:hover { background: rgba(255,255,255,0.10); }
+    .ic-setup-btn svg { width: 14px; height: 14px; }
+    /* ─── IC Modals ─────────────────────────────────────────────────── */
+    .ic-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.72); backdrop-filter: blur(8px); z-index: 9000; display: flex; align-items: flex-end; justify-content: center; }
+    .ic-modal { background: #111113; border: 1px solid rgba(255,255,255,0.10); border-top: 1px solid rgba(255,255,255,0.15); border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 14px; }
+    .ic-modal-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .ic-modal-title { font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0; }
+    .ic-modal-close { background: transparent; border: none; color: var(--text-tertiary); cursor: pointer; padding: 4px; display: flex; align-items: center; border-radius: 6px; }
+    .ic-modal-close:hover { color: var(--text-primary); }
+    .ic-modal-close svg { width: 18px; height: 18px; }
+    .ic-field { display: flex; flex-direction: column; gap: 5px; }
+    .ic-label { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-tertiary); }
+    .ic-input { padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); color: var(--text-primary); font-family: var(--sans); font-size: 13px; width: 100%; -webkit-appearance: none; color-scheme: dark; }
+    .ic-input:focus { outline: none; border-color: rgba(107,227,164,0.4); }
+    .ic-input::placeholder { color: rgba(255,255,255,0.25); }
+    select.ic-input { cursor: pointer; }
+    select.ic-input option { background: #1a1a1c; }
+    .ic-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .ic-form-full { grid-column: 1 / -1; }
+    .ic-btn { padding: 10px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: var(--text-primary); font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.15s; }
+    .ic-btn:hover { background: rgba(255,255,255,0.10); }
+    .ic-btn.primary { background: var(--success); color: #000; border-color: transparent; }
+    .ic-btn.primary:hover { background: #5fd4a6; }
+    .ic-btn.full { width: 100%; }
+    .ic-log-list { display: flex; flex-direction: column; gap: 6px; }
+    .ic-log-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; }
+    .ic-log-row-info { flex: 1; min-width: 0; }
+    .ic-log-row-name { font-size: 13px; color: var(--text-primary); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ic-log-row-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 1px; }
+    .ic-log-row-amount { font-size: 14px; font-weight: 700; font-family: var(--mono); color: var(--success); white-space: nowrap; }
+    .ic-log-del { background: transparent; border: none; color: var(--text-tertiary); cursor: pointer; padding: 4px 6px; border-radius: 6px; font-size: 18px; line-height: 1; flex-shrink: 0; }
+    .ic-log-del:hover { color: var(--danger); }
+    .ic-log-empty { font-size: 12px; color: var(--text-tertiary); text-align: center; padding: 14px 0; font-style: italic; }
+    .ic-section-divider { font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-tertiary); display: flex; align-items: center; gap: 8px; }
+    .ic-section-divider::before, .ic-section-divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.06); }
   </style>
 </head>
 <body>
@@ -1037,6 +1114,14 @@
         <p class="score-quote-author" id="scoreQuoteAuthor"></p>
       </div>
     </section>
+
+    <!-- ── Income Challenge ── -->
+    <div class="section">
+      <div class="section-title">Income Challenge</div>
+      <section class="gm-card ic-card" id="incomeChallengeCard">
+        <!-- populated by icRender() -->
+      </section>
+    </div>
 
     <div class="section">
       <div class="section-title">To Do List</div>
@@ -2398,6 +2483,119 @@
   })();
   </script>
 
+  <!-- Income Challenge: Setup Modal -->
+  <div id="icSetupModal" class="ic-modal-backdrop" style="display:none" role="dialog" aria-modal="true">
+    <div class="ic-modal">
+      <div class="ic-modal-header">
+        <p class="ic-modal-title" id="icSetupModalTitle">New Challenge</p>
+        <button class="ic-modal-close" id="icSetupClose" aria-label="Close"><i data-lucide="x"></i></button>
+      </div>
+      <div class="ic-form-grid">
+        <div class="ic-field ic-form-full">
+          <label class="ic-label" for="icSetupName">Challenge Name</label>
+          <input class="ic-input" id="icSetupName" type="text" placeholder="Income Challenge" autocomplete="off">
+        </div>
+        <div class="ic-field">
+          <label class="ic-label" for="icSetupGoal">Goal (CAD $)</label>
+          <input class="ic-input" id="icSetupGoal" type="number" min="1" step="100" placeholder="10000">
+        </div>
+        <div class="ic-field">
+          <label class="ic-label" for="icSetupStart">Start Date</label>
+          <input class="ic-input" id="icSetupStart" type="date">
+        </div>
+        <div class="ic-field ic-form-full">
+          <label class="ic-label" for="icSetupEnd">End Date <span style="color:var(--danger)">*</span></label>
+          <input class="ic-input" id="icSetupEnd" type="date">
+        </div>
+      </div>
+      <div id="icSetupError" style="font-size:12px;color:var(--danger);display:none"></div>
+      <button class="ic-btn primary full" id="icSetupSave">Save Challenge</button>
+    </div>
+  </div>
+
+  <!-- Income Challenge: Photography Income Modal -->
+  <div id="icPhotoModal" class="ic-modal-backdrop" style="display:none" role="dialog" aria-modal="true">
+    <div class="ic-modal">
+      <div class="ic-modal-header">
+        <p class="ic-modal-title">Photography Income</p>
+        <button class="ic-modal-close" id="icPhotoClose" aria-label="Close"><i data-lucide="x"></i></button>
+      </div>
+      <div class="ic-section-divider">Add Entry</div>
+      <div class="ic-form-grid">
+        <div class="ic-field">
+          <label class="ic-label" for="icPhotoAmount">Amount (CAD)</label>
+          <input class="ic-input" id="icPhotoAmount" type="number" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="ic-field">
+          <label class="ic-label" for="icPhotoDate">Date</label>
+          <input class="ic-input" id="icPhotoDate" type="date">
+        </div>
+        <div class="ic-field">
+          <label class="ic-label" for="icPhotoClient">Client / Buyer</label>
+          <input class="ic-input" id="icPhotoClient" type="text" placeholder="Name" autocomplete="off">
+        </div>
+        <div class="ic-field">
+          <label class="ic-label" for="icPhotoCategory">Category</label>
+          <select class="ic-input" id="icPhotoCategory">
+            <option>Wedding</option>
+            <option>Portrait</option>
+            <option>Event</option>
+            <option>Product</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="ic-field ic-form-full">
+          <label class="ic-label" for="icPhotoDesc">Description</label>
+          <input class="ic-input" id="icPhotoDesc" type="text" placeholder="e.g. Engagement shoot at Stanley Park" autocomplete="off">
+        </div>
+      </div>
+      <button class="ic-btn primary full" id="icPhotoAdd">Add Entry</button>
+      <div class="ic-section-divider">History</div>
+      <div id="icPhotoList" class="ic-log-list"></div>
+    </div>
+  </div>
+
+  <!-- Income Challenge: Marketplace Income Modal -->
+  <div id="icMarketModal" class="ic-modal-backdrop" style="display:none" role="dialog" aria-modal="true">
+    <div class="ic-modal">
+      <div class="ic-modal-header">
+        <p class="ic-modal-title">Marketplace Income</p>
+        <button class="ic-modal-close" id="icMarketClose" aria-label="Close"><i data-lucide="x"></i></button>
+      </div>
+      <div class="ic-section-divider">Add Entry</div>
+      <div class="ic-form-grid">
+        <div class="ic-field">
+          <label class="ic-label" for="icMarketAmount">Amount (CAD)</label>
+          <input class="ic-input" id="icMarketAmount" type="number" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="ic-field">
+          <label class="ic-label" for="icMarketDate">Date</label>
+          <input class="ic-input" id="icMarketDate" type="date">
+        </div>
+        <div class="ic-field">
+          <label class="ic-label" for="icMarketItem">Item Sold</label>
+          <input class="ic-input" id="icMarketItem" type="text" placeholder="e.g. IKEA desk" autocomplete="off">
+        </div>
+        <div class="ic-field">
+          <label class="ic-label" for="icMarketCategory">Category</label>
+          <select class="ic-input" id="icMarketCategory">
+            <option>Furniture</option>
+            <option>Electronics</option>
+            <option>Clothing</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="ic-field ic-form-full">
+          <label class="ic-label" for="icMarketBuyer">Buyer (optional)</label>
+          <input class="ic-input" id="icMarketBuyer" type="text" placeholder="Name or leave blank" autocomplete="off">
+        </div>
+      </div>
+      <button class="ic-btn primary full" id="icMarketAdd">Add Entry</button>
+      <div class="ic-section-divider">History</div>
+      <div id="icMarketList" class="ic-log-list"></div>
+    </div>
+  </div>
+
   <nav class="tabbar" aria-label="Bottom navigation">
   <div class="tabbar-inner">
     <a href="index.html"    class="tabbar-link active" aria-current="page" aria-label="Main"><i data-lucide="home"></i></a>
@@ -2412,6 +2610,392 @@
 </nav>
 <script>if(window.lucide)lucide.createIcons();</script>
 <script src="cinematic.js" defer></script>
+
+<script>
+(function () {
+  'use strict';
+
+  const IC_URL = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
+  const IC_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
+  const IC_H = {
+    'Content-Type': 'application/json',
+    'apikey': IC_KEY,
+    'Authorization': 'Bearer ' + IC_KEY,
+    'Prefer': 'resolution=merge-duplicates',
+  };
+  const IC_H_R = { 'apikey': IC_KEY, 'Authorization': 'Bearer ' + IC_KEY };
+  const LS_IC = 'ic_bundle_v1';
+
+  // ── State ─────────────────────────────────────────────────────────
+  let challenge    = null; // { name, goal, startDate, endDate }
+  let photoIncome  = [];   // [{ id, amount, date, client, description, category }]
+  let marketIncome = [];   // [{ id, amount, date, item, buyer, category }]
+
+  // ── Helpers ───────────────────────────────────────────────────────
+  function icUid()    { return 'ic_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+  function icToday()  { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' }); }
+  function icEsc(s)   { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function icFmt(n)   { return '$' + Number(n).toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+  function icFmtD(n)  { return '$' + Math.abs(n).toFixed(0); }
+
+  // ── Persistence ───────────────────────────────────────────────────
+  function icSaveLocal() {
+    try { localStorage.setItem(LS_IC, JSON.stringify({ challenge, photoIncome, marketIncome })); } catch {}
+  }
+
+  function icLoadLocal() {
+    try {
+      const b = JSON.parse(localStorage.getItem(LS_IC) || 'null');
+      if (!b) return false;
+      challenge    = b.challenge    || null;
+      photoIncome  = Array.isArray(b.photoIncome)  ? b.photoIncome  : [];
+      marketIncome = Array.isArray(b.marketIncome) ? b.marketIncome : [];
+      return true;
+    } catch { return false; }
+  }
+
+  async function icPush() {
+    try {
+      await fetch(IC_URL + '/rest/v1/app_state?on_conflict=key', {
+        method: 'POST', headers: IC_H,
+        body: JSON.stringify({ key: 'income_challenge', data: { challenge, photoIncome, marketIncome }, updated_at: new Date().toISOString() })
+      });
+    } catch(e) { console.warn('[challenge] push failed:', e.message); }
+  }
+
+  async function icSave() {
+    icSaveLocal();
+    await icPush();
+  }
+
+  async function icLoad() {
+    icLoadLocal();
+    icRender();
+    try {
+      const res = await fetch(IC_URL + '/rest/v1/app_state?key=eq.income_challenge&select=data', { headers: IC_H_R });
+      if (res.ok) {
+        const rows = await res.json();
+        if (rows.length && rows[0].data) {
+          const d = rows[0].data;
+          if (d.challenge !== undefined)       challenge    = d.challenge;
+          if (Array.isArray(d.photoIncome))    photoIncome  = d.photoIncome;
+          if (Array.isArray(d.marketIncome))   marketIncome = d.marketIncome;
+          icSaveLocal();
+          icRender();
+        }
+      }
+    } catch(e) { console.warn('[challenge] load failed:', e.message); }
+  }
+
+  // ── Income sources ────────────────────────────────────────────────
+  function ugcInRange(start, end) {
+    try {
+      const vids = JSON.parse(localStorage.getItem('ugc_videos') || '[]');
+      return vids
+        .filter(v => v.status === 'Approved' && v.date >= start && v.date <= end)
+        .reduce((s, v) => s + Number(v.total || 0), 0);
+    } catch { return 0; }
+  }
+  function photoInRange(start, end) {
+    return photoIncome.filter(e => e.date >= start && e.date <= end).reduce((s,e) => s + Number(e.amount||0), 0);
+  }
+  function marketInRange(start, end) {
+    return marketIncome.filter(e => e.date >= start && e.date <= end).reduce((s,e) => s + Number(e.amount||0), 0);
+  }
+
+  // ── Render challenge card ─────────────────────────────────────────
+  function icRender() {
+    const card = document.getElementById('incomeChallengeCard');
+    if (!card) return;
+
+    if (!challenge || !challenge.endDate) {
+      card.innerHTML = `
+        <div class="ic-no-challenge">
+          <p class="ic-no-challenge-text">No active challenge. Set a goal to start tracking your income.</p>
+          <button class="ic-setup-btn" id="icNewBtn"><i data-lucide="target"></i> Set Challenge</button>
+        </div>`;
+      if (window.lucide) lucide.createIcons({ nodes: [card] });
+      document.getElementById('icNewBtn').addEventListener('click', openSetupModal);
+      return;
+    }
+
+    const today  = icToday();
+    const start  = challenge.startDate;
+    const end    = challenge.endDate;
+    const goal   = Number(challenge.goal) || 10000;
+    const name   = challenge.name || 'Income Challenge';
+    const ended  = today > end;
+    const started = today >= start;
+
+    const ugcAmt    = ugcInRange(start, end);
+    const photoAmt  = photoInRange(start, end);
+    const marketAmt = marketInRange(start, end);
+    const total     = ugcAmt + photoAmt + marketAmt;
+
+    const startMs   = new Date(start + 'T12:00:00').getTime();
+    const endMs     = new Date(end   + 'T12:00:00').getTime();
+    const todayMs   = new Date(today + 'T12:00:00').getTime();
+    const daysElapsed   = Math.max(1, Math.round((todayMs - startMs) / 86400000));
+    const daysRemaining = Math.max(0, Math.round((endMs   - todayMs) / 86400000));
+
+    const actualPace   = started ? total / daysElapsed : 0;
+    const requiredPace = daysRemaining > 0 ? (goal - total) / daysRemaining : 0;
+    const paceDiff     = actualPace - requiredPace;
+    const pct          = Math.min(100, goal > 0 ? total / goal * 100 : 0);
+
+    const bDiv     = total || 1;
+    const ugcPct   = ugcAmt   / bDiv * 100;
+    const photoPct = photoAmt / bDiv * 100;
+    const mktPct   = marketAmt / bDiv * 100;
+
+    let paceHtml = '';
+    if (ended) {
+      paceHtml = `<span class="ic-pace-chip neutral">Challenge ended · ${icFmt(Math.round(total))} earned</span>`;
+    } else if (!started) {
+      paceHtml = `<span class="ic-pace-chip neutral">Starts ${start}</span>`;
+    } else if (total >= goal) {
+      paceHtml = `<span class="ic-pace-chip ahead"><i data-lucide="trending-up"></i>Goal reached</span>`;
+    } else if (Math.abs(paceDiff) < 0.50) {
+      paceHtml = `<span class="ic-pace-chip neutral">On pace — ${icFmtD(requiredPace)}/day needed</span>`;
+    } else if (paceDiff > 0) {
+      paceHtml = `<span class="ic-pace-chip ahead"><i data-lucide="trending-up"></i>+${icFmtD(paceDiff)}/day ahead of pace</span>`;
+    } else {
+      paceHtml = `<span class="ic-pace-chip behind"><i data-lucide="trending-down"></i>${icFmtD(paceDiff)}/day behind pace</span>`;
+    }
+
+    card.innerHTML = `
+      <div class="ic-header">
+        <div class="ic-title-row">
+          <p class="ic-eyebrow">Income Challenge</p>
+          <p class="ic-name">${icEsc(name)}</p>
+        </div>
+        <button class="ic-edit-btn" id="icEditBtn">Edit</button>
+      </div>
+      <div class="ic-amounts">
+        <span class="ic-amount-value">${icFmt(Math.round(total))}</span>
+        <span class="ic-amount-goal">/ ${icFmt(goal)} CAD</span>
+      </div>
+      <div class="ic-progress-bar-wrap">
+        <div class="ic-progress-bar-fill${pct >= 100 ? ' over' : ''}" style="width:${pct.toFixed(1)}%"></div>
+      </div>
+      ${paceHtml}
+      <div class="ic-stats-row">
+        <div class="ic-stat">
+          <span class="ic-stat-label">Days Left</span>
+          <span class="ic-stat-value">${ended ? '0' : daysRemaining}</span>
+        </div>
+        <div class="ic-stat">
+          <span class="ic-stat-label">Avg/Day</span>
+          <span class="ic-stat-value">${icFmtD(actualPace)}</span>
+        </div>
+        <div class="ic-stat">
+          <span class="ic-stat-label">Need/Day</span>
+          <span class="ic-stat-value">${(requiredPace > 0 && !ended) ? icFmtD(requiredPace) : '—'}</span>
+        </div>
+      </div>
+      <div class="ic-breakdown">
+        <div class="ic-breakdown-label">Sources</div>
+        <div class="ic-breakdown-bars">
+          <div class="ic-breakdown-row">
+            <span class="ic-brow-name">UGC</span>
+            <div class="ic-brow-bar-wrap"><div class="ic-brow-bar-fill ugc" style="width:${ugcPct.toFixed(1)}%"></div></div>
+            <span class="ic-brow-amount">${icFmt(Math.round(ugcAmt))}</span>
+          </div>
+          <div class="ic-breakdown-row">
+            <span class="ic-brow-name">Photography</span>
+            <div class="ic-brow-bar-wrap"><div class="ic-brow-bar-fill photo" style="width:${photoPct.toFixed(1)}%"></div></div>
+            <span class="ic-brow-amount">${icFmt(Math.round(photoAmt))}</span>
+          </div>
+          <div class="ic-breakdown-row">
+            <span class="ic-brow-name">Marketplace</span>
+            <div class="ic-brow-bar-wrap"><div class="ic-brow-bar-fill market" style="width:${mktPct.toFixed(1)}%"></div></div>
+            <span class="ic-brow-amount">${icFmt(Math.round(marketAmt))}</span>
+          </div>
+        </div>
+      </div>
+      <div class="ic-log-btns">
+        <button class="ic-log-btn" id="icLogPhotoBtn"><i data-lucide="camera"></i> Photography</button>
+        <button class="ic-log-btn" id="icLogMarketBtn"><i data-lucide="shopping-bag"></i> Marketplace</button>
+      </div>`;
+
+    if (window.lucide) lucide.createIcons({ nodes: [card] });
+    document.getElementById('icEditBtn').addEventListener('click', openSetupModal);
+    document.getElementById('icLogPhotoBtn').addEventListener('click', openPhotoModal);
+    document.getElementById('icLogMarketBtn').addEventListener('click', openMarketModal);
+  }
+
+  // ── Setup modal ───────────────────────────────────────────────────
+  function openSetupModal() {
+    document.getElementById('icSetupModalTitle').textContent = challenge ? 'Edit Challenge' : 'New Challenge';
+    document.getElementById('icSetupName').value  = challenge ? challenge.name      : 'Income Challenge';
+    document.getElementById('icSetupGoal').value  = challenge ? challenge.goal      : '10000';
+    document.getElementById('icSetupStart').value = challenge ? challenge.startDate : icToday();
+    document.getElementById('icSetupEnd').value   = challenge ? challenge.endDate   : '';
+    document.getElementById('icSetupError').style.display = 'none';
+    const m = document.getElementById('icSetupModal');
+    m.style.display = 'flex';
+    if (window.lucide) lucide.createIcons({ nodes: [m] });
+  }
+  function closeSetupModal() { document.getElementById('icSetupModal').style.display = 'none'; }
+
+  async function saveChallenge() {
+    const name      = document.getElementById('icSetupName').value.trim() || 'Income Challenge';
+    const goal      = parseFloat(document.getElementById('icSetupGoal').value);
+    const startDate = document.getElementById('icSetupStart').value;
+    const endDate   = document.getElementById('icSetupEnd').value;
+    const errEl     = document.getElementById('icSetupError');
+    if (!endDate)               { errEl.textContent = 'End date is required.';                    errEl.style.display = ''; return; }
+    if (endDate <= startDate)   { errEl.textContent = 'End date must be after start date.';       errEl.style.display = ''; return; }
+    if (!goal || goal <= 0)     { errEl.textContent = 'Please enter a valid goal amount.';        errEl.style.display = ''; return; }
+    challenge = { name, goal, startDate, endDate };
+    closeSetupModal();
+    icRender();
+    await icSave();
+  }
+
+  // ── Photography modal ─────────────────────────────────────────────
+  function openPhotoModal() {
+    document.getElementById('icPhotoAmount').value   = '';
+    document.getElementById('icPhotoDate').value     = icToday();
+    document.getElementById('icPhotoClient').value   = '';
+    document.getElementById('icPhotoDesc').value     = '';
+    document.getElementById('icPhotoCategory').value = 'Wedding';
+    renderPhotoList();
+    const m = document.getElementById('icPhotoModal');
+    m.style.display = 'flex';
+    if (window.lucide) lucide.createIcons({ nodes: [m] });
+  }
+  function closePhotoModal() { document.getElementById('icPhotoModal').style.display = 'none'; }
+
+  async function addPhotoEntry() {
+    const amount      = parseFloat(document.getElementById('icPhotoAmount').value);
+    const date        = document.getElementById('icPhotoDate').value;
+    const client      = document.getElementById('icPhotoClient').value.trim();
+    const description = document.getElementById('icPhotoDesc').value.trim();
+    const category    = document.getElementById('icPhotoCategory').value;
+    if (!amount || !date) return;
+    photoIncome.unshift({ id: icUid(), amount, date, client, description, category, created_at: new Date().toISOString() });
+    document.getElementById('icPhotoAmount').value = '';
+    document.getElementById('icPhotoClient').value = '';
+    document.getElementById('icPhotoDesc').value   = '';
+    renderPhotoList();
+    icRender();
+    await icSave();
+  }
+
+  function renderPhotoList() {
+    const el = document.getElementById('icPhotoList');
+    if (!el) return;
+    if (!photoIncome.length) { el.innerHTML = '<div class="ic-log-empty">No photography income logged yet.</div>'; return; }
+    el.innerHTML = '';
+    photoIncome.forEach(e => {
+      const row = document.createElement('div');
+      row.className = 'ic-log-row';
+      const label = e.description || e.client || e.category || 'Photography';
+      row.innerHTML = `
+        <div class="ic-log-row-info">
+          <div class="ic-log-row-name">${icEsc(label)}</div>
+          <div class="ic-log-row-meta">${icEsc(e.date)} · ${icEsc(e.category)}${e.client ? ' · ' + icEsc(e.client) : ''}</div>
+        </div>
+        <span class="ic-log-row-amount">$${Number(e.amount).toFixed(2)}</span>
+        <button class="ic-log-del" aria-label="Delete">×</button>`;
+      row.querySelector('.ic-log-del').addEventListener('click', async () => {
+        photoIncome = photoIncome.filter(x => x.id !== e.id);
+        renderPhotoList();
+        icRender();
+        await icSave();
+      });
+      el.appendChild(row);
+    });
+  }
+
+  // ── Marketplace modal ─────────────────────────────────────────────
+  function openMarketModal() {
+    document.getElementById('icMarketAmount').value   = '';
+    document.getElementById('icMarketDate').value     = icToday();
+    document.getElementById('icMarketItem').value     = '';
+    document.getElementById('icMarketBuyer').value    = '';
+    document.getElementById('icMarketCategory').value = 'Furniture';
+    renderMarketList();
+    const m = document.getElementById('icMarketModal');
+    m.style.display = 'flex';
+    if (window.lucide) lucide.createIcons({ nodes: [m] });
+  }
+  function closeMarketModal() { document.getElementById('icMarketModal').style.display = 'none'; }
+
+  async function addMarketEntry() {
+    const amount   = parseFloat(document.getElementById('icMarketAmount').value);
+    const date     = document.getElementById('icMarketDate').value;
+    const item     = document.getElementById('icMarketItem').value.trim();
+    const buyer    = document.getElementById('icMarketBuyer').value.trim();
+    const category = document.getElementById('icMarketCategory').value;
+    if (!amount || !date) return;
+    marketIncome.unshift({ id: icUid(), amount, date, item, buyer, category, created_at: new Date().toISOString() });
+    document.getElementById('icMarketAmount').value = '';
+    document.getElementById('icMarketItem').value   = '';
+    document.getElementById('icMarketBuyer').value  = '';
+    renderMarketList();
+    icRender();
+    await icSave();
+  }
+
+  function renderMarketList() {
+    const el = document.getElementById('icMarketList');
+    if (!el) return;
+    if (!marketIncome.length) { el.innerHTML = '<div class="ic-log-empty">No marketplace income logged yet.</div>'; return; }
+    el.innerHTML = '';
+    marketIncome.forEach(e => {
+      const row = document.createElement('div');
+      row.className = 'ic-log-row';
+      const label = e.item || e.category || 'Item';
+      row.innerHTML = `
+        <div class="ic-log-row-info">
+          <div class="ic-log-row-name">${icEsc(label)}</div>
+          <div class="ic-log-row-meta">${icEsc(e.date)} · ${icEsc(e.category)}${e.buyer ? ' · ' + icEsc(e.buyer) : ''}</div>
+        </div>
+        <span class="ic-log-row-amount">$${Number(e.amount).toFixed(2)}</span>
+        <button class="ic-log-del" aria-label="Delete">×</button>`;
+      row.querySelector('.ic-log-del').addEventListener('click', async () => {
+        marketIncome = marketIncome.filter(x => x.id !== e.id);
+        renderMarketList();
+        icRender();
+        await icSave();
+      });
+      el.appendChild(row);
+    });
+  }
+
+  // ── Wire events ───────────────────────────────────────────────────
+  function icWire() {
+    document.getElementById('icSetupClose').addEventListener('click', closeSetupModal);
+    document.getElementById('icSetupSave').addEventListener('click', saveChallenge);
+    document.getElementById('icSetupModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeSetupModal(); });
+
+    document.getElementById('icPhotoClose').addEventListener('click', closePhotoModal);
+    document.getElementById('icPhotoAdd').addEventListener('click', addPhotoEntry);
+    document.getElementById('icPhotoModal').addEventListener('click', e => { if (e.target === e.currentTarget) closePhotoModal(); });
+
+    document.getElementById('icMarketClose').addEventListener('click', closeMarketModal);
+    document.getElementById('icMarketAdd').addEventListener('click', addMarketEntry);
+    document.getElementById('icMarketModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeMarketModal(); });
+
+    // Refresh UGC totals when returning from content.html
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) icRender(); });
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────
+  function icInit() {
+    icWire();
+    icLoad();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', icInit, { once: true });
+  } else {
+    icInit();
+  }
+})();
+</script>
 
 </body>
 </html>
