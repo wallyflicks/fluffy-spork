@@ -1034,9 +1034,11 @@
     .ic-setup-btn:hover { background: rgba(255,255,255,0.10); }
     .ic-setup-btn svg { width: 14px; height: 14px; }
     /* ─── IC Modals ─────────────────────────────────────────────────── */
-    .ic-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.72); backdrop-filter: blur(8px); z-index: 9000; display: flex; align-items: flex-end; justify-content: center; }
-    .ic-modal { background: #111113; border: 1px solid rgba(255,255,255,0.10); border-top: 1px solid rgba(255,255,255,0.15); border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 14px; }
-    .ic-modal-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .ic-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.72); backdrop-filter: blur(8px); z-index: 10000; display: flex; align-items: flex-end; justify-content: center; }
+    .ic-modal { background: #111113; border: 1px solid rgba(255,255,255,0.10); border-top: 1px solid rgba(255,255,255,0.15); border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; max-height: calc(100vh - 68px); max-height: calc(100dvh - 68px); overflow: hidden; display: flex; flex-direction: column; }
+    .ic-modal-header { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 20px 0; }
+    .ic-modal-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px 20px; display: flex; flex-direction: column; gap: 14px; }
+    .ic-modal-footer { flex-shrink: 0; padding: 12px 20px calc(20px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(255,255,255,0.07); }
     .ic-modal-title { font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0; }
     .ic-modal-close { background: transparent; border: none; color: var(--text-tertiary); cursor: pointer; padding: 4px; display: flex; align-items: center; border-radius: 6px; }
     .ic-modal-close:hover { color: var(--text-primary); }
@@ -2490,26 +2492,30 @@
         <p class="ic-modal-title" id="icSetupModalTitle">New Challenge</p>
         <button class="ic-modal-close" id="icSetupClose" aria-label="Close"><i data-lucide="x"></i></button>
       </div>
-      <div class="ic-form-grid">
-        <div class="ic-field ic-form-full">
-          <label class="ic-label" for="icSetupName">Challenge Name</label>
-          <input class="ic-input" id="icSetupName" type="text" placeholder="Income Challenge" autocomplete="off">
+      <div class="ic-modal-body">
+        <div class="ic-form-grid">
+          <div class="ic-field ic-form-full">
+            <label class="ic-label" for="icSetupName">Challenge Name</label>
+            <input class="ic-input" id="icSetupName" type="text" placeholder="Income Challenge" autocomplete="off">
+          </div>
+          <div class="ic-field">
+            <label class="ic-label" for="icSetupGoal">Goal (CAD $)</label>
+            <input class="ic-input" id="icSetupGoal" type="number" min="1" step="100" placeholder="10000">
+          </div>
+          <div class="ic-field">
+            <label class="ic-label" for="icSetupStart">Start Date</label>
+            <input class="ic-input" id="icSetupStart" type="date">
+          </div>
+          <div class="ic-field ic-form-full">
+            <label class="ic-label" for="icSetupEnd">End Date <span style="color:var(--danger)">*</span></label>
+            <input class="ic-input" id="icSetupEnd" type="date">
+          </div>
         </div>
-        <div class="ic-field">
-          <label class="ic-label" for="icSetupGoal">Goal (CAD $)</label>
-          <input class="ic-input" id="icSetupGoal" type="number" min="1" step="100" placeholder="10000">
-        </div>
-        <div class="ic-field">
-          <label class="ic-label" for="icSetupStart">Start Date</label>
-          <input class="ic-input" id="icSetupStart" type="date">
-        </div>
-        <div class="ic-field ic-form-full">
-          <label class="ic-label" for="icSetupEnd">End Date <span style="color:var(--danger)">*</span></label>
-          <input class="ic-input" id="icSetupEnd" type="date">
-        </div>
+        <div id="icSetupError" style="font-size:12px;color:var(--danger);display:none"></div>
       </div>
-      <div id="icSetupError" style="font-size:12px;color:var(--danger);display:none"></div>
-      <button class="ic-btn primary full" id="icSetupSave">Save Challenge</button>
+      <div class="ic-modal-footer">
+        <button class="ic-btn primary full" id="icSetupSave">Save Challenge</button>
+      </div>
     </div>
   </div>
 
@@ -2520,38 +2526,40 @@
         <p class="ic-modal-title">Photography Income</p>
         <button class="ic-modal-close" id="icPhotoClose" aria-label="Close"><i data-lucide="x"></i></button>
       </div>
-      <div class="ic-section-divider">Add Entry</div>
-      <div class="ic-form-grid">
-        <div class="ic-field">
-          <label class="ic-label" for="icPhotoAmount">Amount (CAD)</label>
-          <input class="ic-input" id="icPhotoAmount" type="number" min="0" step="0.01" placeholder="0.00">
+      <div class="ic-modal-body">
+        <div class="ic-section-divider">Add Entry</div>
+        <div class="ic-form-grid">
+          <div class="ic-field">
+            <label class="ic-label" for="icPhotoAmount">Amount (CAD)</label>
+            <input class="ic-input" id="icPhotoAmount" type="number" min="0" step="0.01" placeholder="0.00">
+          </div>
+          <div class="ic-field">
+            <label class="ic-label" for="icPhotoDate">Date</label>
+            <input class="ic-input" id="icPhotoDate" type="date">
+          </div>
+          <div class="ic-field">
+            <label class="ic-label" for="icPhotoClient">Client / Buyer</label>
+            <input class="ic-input" id="icPhotoClient" type="text" placeholder="Name" autocomplete="off">
+          </div>
+          <div class="ic-field">
+            <label class="ic-label" for="icPhotoCategory">Category</label>
+            <select class="ic-input" id="icPhotoCategory">
+              <option>Wedding</option>
+              <option>Portrait</option>
+              <option>Event</option>
+              <option>Product</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="ic-field ic-form-full">
+            <label class="ic-label" for="icPhotoDesc">Description</label>
+            <input class="ic-input" id="icPhotoDesc" type="text" placeholder="e.g. Engagement shoot at Stanley Park" autocomplete="off">
+          </div>
         </div>
-        <div class="ic-field">
-          <label class="ic-label" for="icPhotoDate">Date</label>
-          <input class="ic-input" id="icPhotoDate" type="date">
-        </div>
-        <div class="ic-field">
-          <label class="ic-label" for="icPhotoClient">Client / Buyer</label>
-          <input class="ic-input" id="icPhotoClient" type="text" placeholder="Name" autocomplete="off">
-        </div>
-        <div class="ic-field">
-          <label class="ic-label" for="icPhotoCategory">Category</label>
-          <select class="ic-input" id="icPhotoCategory">
-            <option>Wedding</option>
-            <option>Portrait</option>
-            <option>Event</option>
-            <option>Product</option>
-            <option>Other</option>
-          </select>
-        </div>
-        <div class="ic-field ic-form-full">
-          <label class="ic-label" for="icPhotoDesc">Description</label>
-          <input class="ic-input" id="icPhotoDesc" type="text" placeholder="e.g. Engagement shoot at Stanley Park" autocomplete="off">
-        </div>
+        <button class="ic-btn primary full" id="icPhotoAdd">Add Entry</button>
+        <div class="ic-section-divider">History</div>
+        <div id="icPhotoList" class="ic-log-list"></div>
       </div>
-      <button class="ic-btn primary full" id="icPhotoAdd">Add Entry</button>
-      <div class="ic-section-divider">History</div>
-      <div id="icPhotoList" class="ic-log-list"></div>
     </div>
   </div>
 
@@ -2562,37 +2570,39 @@
         <p class="ic-modal-title">Marketplace Income</p>
         <button class="ic-modal-close" id="icMarketClose" aria-label="Close"><i data-lucide="x"></i></button>
       </div>
-      <div class="ic-section-divider">Add Entry</div>
-      <div class="ic-form-grid">
-        <div class="ic-field">
-          <label class="ic-label" for="icMarketAmount">Amount (CAD)</label>
-          <input class="ic-input" id="icMarketAmount" type="number" min="0" step="0.01" placeholder="0.00">
+      <div class="ic-modal-body">
+        <div class="ic-section-divider">Add Entry</div>
+        <div class="ic-form-grid">
+          <div class="ic-field">
+            <label class="ic-label" for="icMarketAmount">Amount (CAD)</label>
+            <input class="ic-input" id="icMarketAmount" type="number" min="0" step="0.01" placeholder="0.00">
+          </div>
+          <div class="ic-field">
+            <label class="ic-label" for="icMarketDate">Date</label>
+            <input class="ic-input" id="icMarketDate" type="date">
+          </div>
+          <div class="ic-field">
+            <label class="ic-label" for="icMarketItem">Item Sold</label>
+            <input class="ic-input" id="icMarketItem" type="text" placeholder="e.g. IKEA desk" autocomplete="off">
+          </div>
+          <div class="ic-field">
+            <label class="ic-label" for="icMarketCategory">Category</label>
+            <select class="ic-input" id="icMarketCategory">
+              <option>Furniture</option>
+              <option>Electronics</option>
+              <option>Clothing</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="ic-field ic-form-full">
+            <label class="ic-label" for="icMarketBuyer">Buyer (optional)</label>
+            <input class="ic-input" id="icMarketBuyer" type="text" placeholder="Name or leave blank" autocomplete="off">
+          </div>
         </div>
-        <div class="ic-field">
-          <label class="ic-label" for="icMarketDate">Date</label>
-          <input class="ic-input" id="icMarketDate" type="date">
-        </div>
-        <div class="ic-field">
-          <label class="ic-label" for="icMarketItem">Item Sold</label>
-          <input class="ic-input" id="icMarketItem" type="text" placeholder="e.g. IKEA desk" autocomplete="off">
-        </div>
-        <div class="ic-field">
-          <label class="ic-label" for="icMarketCategory">Category</label>
-          <select class="ic-input" id="icMarketCategory">
-            <option>Furniture</option>
-            <option>Electronics</option>
-            <option>Clothing</option>
-            <option>Other</option>
-          </select>
-        </div>
-        <div class="ic-field ic-form-full">
-          <label class="ic-label" for="icMarketBuyer">Buyer (optional)</label>
-          <input class="ic-input" id="icMarketBuyer" type="text" placeholder="Name or leave blank" autocomplete="off">
-        </div>
+        <button class="ic-btn primary full" id="icMarketAdd">Add Entry</button>
+        <div class="ic-section-divider">History</div>
+        <div id="icMarketList" class="ic-log-list"></div>
       </div>
-      <button class="ic-btn primary full" id="icMarketAdd">Add Entry</button>
-      <div class="ic-section-divider">History</div>
-      <div id="icMarketList" class="ic-log-list"></div>
     </div>
   </div>
 
