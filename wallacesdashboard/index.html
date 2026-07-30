@@ -1021,8 +1021,11 @@
     .ic-brow-bar-wrap { background: rgba(255,255,255,0.06); border-radius: 999px; height: 5px; overflow: hidden; }
     .ic-brow-bar-fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
     .ic-brow-bar-fill.ugc { background: #6BE3A4; }
-    .ic-brow-bar-fill.photo { background: #7dd3fc; }
-    .ic-brow-bar-fill.market { background: #a78bfa; }
+    .ic-brow-bar-fill.other { background: #7dd3fc; }
+    .ic-log-row-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+    .ic-finance-btn { background: transparent; border: 1px solid rgba(107,227,164,0.3); color: var(--success); font-family: var(--sans); font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+    .ic-finance-btn:hover { background: rgba(107,227,164,0.1); }
+    .ic-logged-tag { font-size: 10px; font-weight: 700; color: var(--success); opacity: 0.65; white-space: nowrap; letter-spacing: 0.04em; }
     .ic-brow-amount { font-size: 11px; font-weight: 700; font-family: var(--mono); color: var(--text-secondary); white-space: nowrap; }
     .ic-log-btns { display: flex; gap: 8px; margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; }
     .ic-log-btn { flex: 1; padding: 8px 10px; border-radius: 10px; border: 1px dashed rgba(255,255,255,0.18); background: transparent; color: var(--text-secondary); font-family: var(--sans); font-size: 11px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; transition: background 0.15s, color 0.15s; }
@@ -2519,89 +2522,54 @@
     </div>
   </div>
 
-  <!-- Income Challenge: Photography Income Modal -->
-  <div id="icPhotoModal" class="ic-modal-backdrop" style="display:none" role="dialog" aria-modal="true">
+  <!-- Income Challenge: Other Income Modal -->
+  <div id="icOtherModal" class="ic-modal-backdrop" style="display:none" role="dialog" aria-modal="true">
     <div class="ic-modal">
       <div class="ic-modal-header">
-        <p class="ic-modal-title">Photography Income</p>
-        <button class="ic-modal-close" id="icPhotoClose" aria-label="Close"><i data-lucide="x"></i></button>
+        <p class="ic-modal-title">Other Income</p>
+        <button class="ic-modal-close" id="icOtherClose" aria-label="Close"><i data-lucide="x"></i></button>
       </div>
       <div class="ic-modal-body">
         <div class="ic-section-divider">Add Entry</div>
         <div class="ic-form-grid">
           <div class="ic-field">
-            <label class="ic-label" for="icPhotoAmount">Amount (CAD)</label>
-            <input class="ic-input" id="icPhotoAmount" type="number" min="0" step="0.01" placeholder="0.00">
+            <label class="ic-label" for="icOtherAmount">Amount (CAD)</label>
+            <input class="ic-input" id="icOtherAmount" type="number" min="0" step="0.01" placeholder="0.00">
           </div>
           <div class="ic-field">
-            <label class="ic-label" for="icPhotoDate">Date</label>
-            <input class="ic-input" id="icPhotoDate" type="date">
+            <label class="ic-label" for="icOtherDate">Date</label>
+            <input class="ic-input" id="icOtherDate" type="text" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off">
           </div>
           <div class="ic-field">
-            <label class="ic-label" for="icPhotoClient">Client / Buyer</label>
-            <input class="ic-input" id="icPhotoClient" type="text" placeholder="Name" autocomplete="off">
-          </div>
-          <div class="ic-field">
-            <label class="ic-label" for="icPhotoCategory">Category</label>
-            <select class="ic-input" id="icPhotoCategory">
-              <option>Wedding</option>
-              <option>Portrait</option>
-              <option>Event</option>
-              <option>Product</option>
-              <option>Other</option>
+            <label class="ic-label" for="icOtherCategory">Source / Category</label>
+            <select class="ic-input" id="icOtherCategory">
+              <option>Photography</option>
+              <option>Wedding Photography</option>
+              <option>Event Photography</option>
+              <option>Portrait Photography</option>
+              <option>Product Photography</option>
+              <option>Marketplace</option>
+              <option>Freelance</option>
+              <option value="__custom__">Custom...</option>
             </select>
           </div>
-          <div class="ic-field ic-form-full">
-            <label class="ic-label" for="icPhotoDesc">Description</label>
-            <input class="ic-input" id="icPhotoDesc" type="text" placeholder="e.g. Engagement shoot at Stanley Park" autocomplete="off">
-          </div>
-        </div>
-        <button class="ic-btn primary full" id="icPhotoAdd">Add Entry</button>
-        <div class="ic-section-divider">History</div>
-        <div id="icPhotoList" class="ic-log-list"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Income Challenge: Marketplace Income Modal -->
-  <div id="icMarketModal" class="ic-modal-backdrop" style="display:none" role="dialog" aria-modal="true">
-    <div class="ic-modal">
-      <div class="ic-modal-header">
-        <p class="ic-modal-title">Marketplace Income</p>
-        <button class="ic-modal-close" id="icMarketClose" aria-label="Close"><i data-lucide="x"></i></button>
-      </div>
-      <div class="ic-modal-body">
-        <div class="ic-section-divider">Add Entry</div>
-        <div class="ic-form-grid">
-          <div class="ic-field">
-            <label class="ic-label" for="icMarketAmount">Amount (CAD)</label>
-            <input class="ic-input" id="icMarketAmount" type="number" min="0" step="0.01" placeholder="0.00">
-          </div>
-          <div class="ic-field">
-            <label class="ic-label" for="icMarketDate">Date</label>
-            <input class="ic-input" id="icMarketDate" type="date">
-          </div>
-          <div class="ic-field">
-            <label class="ic-label" for="icMarketItem">Item Sold</label>
-            <input class="ic-input" id="icMarketItem" type="text" placeholder="e.g. IKEA desk" autocomplete="off">
-          </div>
-          <div class="ic-field">
-            <label class="ic-label" for="icMarketCategory">Category</label>
-            <select class="ic-input" id="icMarketCategory">
-              <option>Furniture</option>
-              <option>Electronics</option>
-              <option>Clothing</option>
-              <option>Other</option>
-            </select>
+          <div class="ic-field" id="icOtherCustomWrap" style="display:none">
+            <label class="ic-label" for="icOtherCustom">Custom Category</label>
+            <input class="ic-input" id="icOtherCustom" type="text" placeholder="Enter category" autocomplete="off">
           </div>
           <div class="ic-field ic-form-full">
-            <label class="ic-label" for="icMarketBuyer">Buyer (optional)</label>
-            <input class="ic-input" id="icMarketBuyer" type="text" placeholder="Name or leave blank" autocomplete="off">
+            <label class="ic-label" for="icOtherDesc">Description</label>
+            <input class="ic-input" id="icOtherDesc" type="text" placeholder="e.g. Engagement shoot at Stanley Park" autocomplete="off">
+          </div>
+          <div class="ic-field ic-form-full">
+            <label class="ic-label" for="icOtherClient">Client / Buyer (optional)</label>
+            <input class="ic-input" id="icOtherClient" type="text" placeholder="Name or leave blank" autocomplete="off">
           </div>
         </div>
-        <button class="ic-btn primary full" id="icMarketAdd">Add Entry</button>
+        <p class="ic-error" id="icOtherError" style="display:none"></p>
+        <button class="ic-btn primary full" id="icOtherAdd">Add Entry</button>
         <div class="ic-section-divider">History</div>
-        <div id="icMarketList" class="ic-log-list"></div>
+        <div id="icOtherList" class="ic-log-list"></div>
       </div>
     </div>
   </div>
@@ -2637,9 +2605,8 @@
   const LS_IC = 'ic_bundle_v1';
 
   // ── State ─────────────────────────────────────────────────────────
-  let challenge    = null; // { name, goal, startDate, endDate }
-  let photoIncome  = [];   // [{ id, amount, date, client, description, category }]
-  let marketIncome = [];   // [{ id, amount, date, item, buyer, category }]
+  let challenge   = null; // { name, goal, startDate, endDate }
+  let otherIncome = [];   // [{ id, amount, date, category, description, client, loggedToFinance, created_at }]
 
   // ── Helpers ───────────────────────────────────────────────────────
   function icUid()    { return 'ic_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
@@ -2650,16 +2617,37 @@
 
   // ── Persistence ───────────────────────────────────────────────────
   function icSaveLocal() {
-    try { localStorage.setItem(LS_IC, JSON.stringify({ challenge, photoIncome, marketIncome })); } catch {}
+    try { localStorage.setItem(LS_IC, JSON.stringify({ challenge, otherIncome })); } catch {}
+  }
+
+  function icMigrateOld(b) {
+    const migrated = [];
+    if (Array.isArray(b.photoIncome)) {
+      b.photoIncome.forEach(e => migrated.push({
+        id: e.id || icUid(), amount: e.amount, date: e.date,
+        category: e.category || 'Photography',
+        description: e.description || '', client: e.client || '',
+        loggedToFinance: false, created_at: e.created_at || new Date().toISOString()
+      }));
+    }
+    if (Array.isArray(b.marketIncome)) {
+      b.marketIncome.forEach(e => migrated.push({
+        id: e.id || icUid(), amount: e.amount, date: e.date,
+        category: 'Marketplace',
+        description: e.item || e.description || '', client: e.buyer || e.client || '',
+        loggedToFinance: false, created_at: e.created_at || new Date().toISOString()
+      }));
+    }
+    migrated.sort((a, b) => (b.date || '') > (a.date || '') ? 1 : -1);
+    return migrated;
   }
 
   function icLoadLocal() {
     try {
       const b = JSON.parse(localStorage.getItem(LS_IC) || 'null');
       if (!b) return false;
-      challenge    = b.challenge    || null;
-      photoIncome  = Array.isArray(b.photoIncome)  ? b.photoIncome  : [];
-      marketIncome = Array.isArray(b.marketIncome) ? b.marketIncome : [];
+      challenge   = b.challenge || null;
+      otherIncome = Array.isArray(b.otherIncome) ? b.otherIncome : icMigrateOld(b);
       return true;
     } catch { return false; }
   }
@@ -2668,7 +2656,7 @@
     try {
       await fetch(IC_URL + '/rest/v1/app_state?on_conflict=key', {
         method: 'POST', headers: IC_H,
-        body: JSON.stringify({ key: 'income_challenge', data: { challenge, photoIncome, marketIncome }, updated_at: new Date().toISOString() })
+        body: JSON.stringify({ key: 'income_challenge', data: { challenge, otherIncome }, updated_at: new Date().toISOString() })
       });
     } catch(e) { console.warn('[challenge] push failed:', e.message); }
   }
@@ -2687,9 +2675,8 @@
         const rows = await res.json();
         if (rows.length && rows[0].data) {
           const d = rows[0].data;
-          if (d.challenge !== undefined)       challenge    = d.challenge;
-          if (Array.isArray(d.photoIncome))    photoIncome  = d.photoIncome;
-          if (Array.isArray(d.marketIncome))   marketIncome = d.marketIncome;
+          if (d.challenge !== undefined) challenge = d.challenge;
+          otherIncome = Array.isArray(d.otherIncome) ? d.otherIncome : icMigrateOld(d);
           icSaveLocal();
           icRender();
         }
@@ -2706,11 +2693,8 @@
         .reduce((s, v) => s + Number(v.total || 0), 0);
     } catch { return 0; }
   }
-  function photoInRange(start, end) {
-    return photoIncome.filter(e => e.date >= start && e.date <= end).reduce((s,e) => s + Number(e.amount||0), 0);
-  }
-  function marketInRange(start, end) {
-    return marketIncome.filter(e => e.date >= start && e.date <= end).reduce((s,e) => s + Number(e.amount||0), 0);
+  function otherInRange(start, end) {
+    return otherIncome.filter(e => e.date >= start && e.date <= end).reduce((s,e) => s + Number(e.amount||0), 0);
   }
 
   // ── Render challenge card ─────────────────────────────────────────
@@ -2737,10 +2721,9 @@
     const ended  = today > end;
     const started = today >= start;
 
-    const ugcAmt    = ugcInRange(start, end);
-    const photoAmt  = photoInRange(start, end);
-    const marketAmt = marketInRange(start, end);
-    const total     = ugcAmt + photoAmt + marketAmt;
+    const ugcAmt   = ugcInRange(start, end);
+    const otherAmt = otherInRange(start, end);
+    const total    = ugcAmt + otherAmt;
 
     const startMs   = new Date(start + 'T12:00:00').getTime();
     const endMs     = new Date(end   + 'T12:00:00').getTime();
@@ -2755,8 +2738,7 @@
 
     const bDiv     = total || 1;
     const ugcPct   = ugcAmt   / bDiv * 100;
-    const photoPct = photoAmt / bDiv * 100;
-    const mktPct   = marketAmt / bDiv * 100;
+    const otherPct = otherAmt / bDiv * 100;
 
     let paceHtml = '';
     if (ended) {
@@ -2812,26 +2794,19 @@
             <span class="ic-brow-amount">${icFmt(Math.round(ugcAmt))}</span>
           </div>
           <div class="ic-breakdown-row">
-            <span class="ic-brow-name">Photography</span>
-            <div class="ic-brow-bar-wrap"><div class="ic-brow-bar-fill photo" style="width:${photoPct.toFixed(1)}%"></div></div>
-            <span class="ic-brow-amount">${icFmt(Math.round(photoAmt))}</span>
-          </div>
-          <div class="ic-breakdown-row">
-            <span class="ic-brow-name">Marketplace</span>
-            <div class="ic-brow-bar-wrap"><div class="ic-brow-bar-fill market" style="width:${mktPct.toFixed(1)}%"></div></div>
-            <span class="ic-brow-amount">${icFmt(Math.round(marketAmt))}</span>
+            <span class="ic-brow-name">Other</span>
+            <div class="ic-brow-bar-wrap"><div class="ic-brow-bar-fill other" style="width:${otherPct.toFixed(1)}%"></div></div>
+            <span class="ic-brow-amount">${icFmt(Math.round(otherAmt))}</span>
           </div>
         </div>
       </div>
       <div class="ic-log-btns">
-        <button class="ic-log-btn" id="icLogPhotoBtn"><i data-lucide="camera"></i> Photography</button>
-        <button class="ic-log-btn" id="icLogMarketBtn"><i data-lucide="shopping-bag"></i> Marketplace</button>
+        <button class="ic-log-btn" id="icLogOtherBtn"><i data-lucide="plus-circle"></i> Add Income</button>
       </div>`;
 
     if (window.lucide) lucide.createIcons({ nodes: [card] });
     document.getElementById('icEditBtn').addEventListener('click', openSetupModal);
-    document.getElementById('icLogPhotoBtn').addEventListener('click', openPhotoModal);
-    document.getElementById('icLogMarketBtn').addEventListener('click', openMarketModal);
+    document.getElementById('icLogOtherBtn').addEventListener('click', openOtherModal);
   }
 
   // ── Setup modal ───────────────────────────────────────────────────
@@ -2867,111 +2842,103 @@
     await icSave();
   }
 
-  // ── Photography modal ─────────────────────────────────────────────
-  function openPhotoModal() {
-    document.getElementById('icPhotoAmount').value   = '';
-    document.getElementById('icPhotoDate').value     = icToday();
-    document.getElementById('icPhotoClient').value   = '';
-    document.getElementById('icPhotoDesc').value     = '';
-    document.getElementById('icPhotoCategory').value = 'Wedding';
-    renderPhotoList();
-    const m = document.getElementById('icPhotoModal');
+  // ── Other Income modal ────────────────────────────────────────────
+  function openOtherModal() {
+    document.getElementById('icOtherAmount').value   = '';
+    document.getElementById('icOtherDate').value     = icToday();
+    document.getElementById('icOtherClient').value   = '';
+    document.getElementById('icOtherDesc').value     = '';
+    document.getElementById('icOtherCategory').value = 'Photography';
+    document.getElementById('icOtherCustom').value   = '';
+    document.getElementById('icOtherCustomWrap').style.display = 'none';
+    document.getElementById('icOtherError').style.display = 'none';
+    renderOtherList();
+    const m = document.getElementById('icOtherModal');
     m.style.display = 'flex';
     if (window.lucide) lucide.createIcons({ nodes: [m] });
   }
-  function closePhotoModal() { document.getElementById('icPhotoModal').style.display = 'none'; }
+  function closeOtherModal() { document.getElementById('icOtherModal').style.display = 'none'; }
 
-  async function addPhotoEntry() {
-    const amount      = parseFloat(document.getElementById('icPhotoAmount').value);
-    const date        = document.getElementById('icPhotoDate').value;
-    const client      = document.getElementById('icPhotoClient').value.trim();
-    const description = document.getElementById('icPhotoDesc').value.trim();
-    const category    = document.getElementById('icPhotoCategory').value;
-    if (!amount || !date) return;
-    photoIncome.unshift({ id: icUid(), amount, date, client, description, category, created_at: new Date().toISOString() });
-    document.getElementById('icPhotoAmount').value = '';
-    document.getElementById('icPhotoClient').value = '';
-    document.getElementById('icPhotoDesc').value   = '';
-    renderPhotoList();
+  async function addOtherEntry() {
+    const amount      = parseFloat(document.getElementById('icOtherAmount').value);
+    const date        = document.getElementById('icOtherDate').value.trim();
+    const catSel      = document.getElementById('icOtherCategory').value;
+    const category    = catSel === '__custom__'
+      ? (document.getElementById('icOtherCustom').value.trim() || 'Other')
+      : catSel;
+    const description = document.getElementById('icOtherDesc').value.trim();
+    const client      = document.getElementById('icOtherClient').value.trim();
+    const errEl       = document.getElementById('icOtherError');
+    const dateRe      = /^\d{4}-\d{2}-\d{2}$/;
+    if (!amount || amount <= 0) { errEl.textContent = 'Please enter a valid amount.'; errEl.style.display = ''; return; }
+    if (!date || !dateRe.test(date)) { errEl.textContent = 'Date must be YYYY-MM-DD (e.g. 2026-07-29).'; errEl.style.display = ''; return; }
+    errEl.style.display = 'none';
+    otherIncome.unshift({ id: icUid(), amount, date, category, description, client, loggedToFinance: false, created_at: new Date().toISOString() });
+    document.getElementById('icOtherAmount').value = '';
+    document.getElementById('icOtherDesc').value   = '';
+    document.getElementById('icOtherClient').value = '';
+    renderOtherList();
     icRender();
     await icSave();
   }
 
-  function renderPhotoList() {
-    const el = document.getElementById('icPhotoList');
+  async function logOtherToFinance(entry) {
+    try {
+      const res = await fetch(IC_URL + '/rest/v1/app_state?key=eq.finance&select=data', { headers: IC_H_R });
+      let bundle = {};
+      if (res.ok) {
+        const rows = await res.json();
+        if (rows.length && rows[0].data) bundle = rows[0].data;
+      }
+      if (!Array.isArray(bundle.finance_income)) bundle.finance_income = [];
+      bundle.finance_income.push({
+        id: 'fi_' + Date.now().toString(36),
+        desc: entry.description || entry.category || 'Other Income',
+        amount: Number(entry.amount),
+        date: entry.date,
+        tag: 'income'
+      });
+      await fetch(IC_URL + '/rest/v1/app_state?on_conflict=key', {
+        method: 'POST', headers: IC_H,
+        body: JSON.stringify({ key: 'finance', data: bundle, updated_at: new Date().toISOString() })
+      });
+      try { localStorage.setItem('finance_income', JSON.stringify(bundle.finance_income)); } catch {}
+      const idx = otherIncome.findIndex(e => e.id === entry.id);
+      if (idx !== -1) otherIncome[idx].loggedToFinance = true;
+      renderOtherList();
+      await icSave();
+    } catch(e) { console.warn('[challenge] logToFinance failed:', e.message); }
+  }
+
+  function renderOtherList() {
+    const el = document.getElementById('icOtherList');
     if (!el) return;
-    if (!photoIncome.length) { el.innerHTML = '<div class="ic-log-empty">No photography income logged yet.</div>'; return; }
+    if (!otherIncome.length) { el.innerHTML = '<div class="ic-log-empty">No other income logged yet.</div>'; return; }
     el.innerHTML = '';
-    photoIncome.forEach(e => {
+    otherIncome.forEach(e => {
       const row = document.createElement('div');
       row.className = 'ic-log-row';
-      const label = e.description || e.client || e.category || 'Photography';
+      const label = e.description || e.client || e.category || 'Income';
+      const actHtml = e.loggedToFinance
+        ? `<span class="ic-logged-tag">Logged</span>`
+        : `<button class="ic-finance-btn">Log to Finance</button>`;
       row.innerHTML = `
         <div class="ic-log-row-info">
           <div class="ic-log-row-name">${icEsc(label)}</div>
           <div class="ic-log-row-meta">${icEsc(e.date)} · ${icEsc(e.category)}${e.client ? ' · ' + icEsc(e.client) : ''}</div>
         </div>
         <span class="ic-log-row-amount">$${Number(e.amount).toFixed(2)}</span>
-        <button class="ic-log-del" aria-label="Delete">×</button>`;
+        <div class="ic-log-row-actions">
+          ${actHtml}
+          <button class="ic-log-del" aria-label="Delete">×</button>
+        </div>`;
+      if (!e.loggedToFinance) {
+        row.querySelector('.ic-finance-btn').addEventListener('click', () => logOtherToFinance(e));
+      }
       row.querySelector('.ic-log-del').addEventListener('click', async () => {
-        photoIncome = photoIncome.filter(x => x.id !== e.id);
-        renderPhotoList();
-        icRender();
-        await icSave();
-      });
-      el.appendChild(row);
-    });
-  }
-
-  // ── Marketplace modal ─────────────────────────────────────────────
-  function openMarketModal() {
-    document.getElementById('icMarketAmount').value   = '';
-    document.getElementById('icMarketDate').value     = icToday();
-    document.getElementById('icMarketItem').value     = '';
-    document.getElementById('icMarketBuyer').value    = '';
-    document.getElementById('icMarketCategory').value = 'Furniture';
-    renderMarketList();
-    const m = document.getElementById('icMarketModal');
-    m.style.display = 'flex';
-    if (window.lucide) lucide.createIcons({ nodes: [m] });
-  }
-  function closeMarketModal() { document.getElementById('icMarketModal').style.display = 'none'; }
-
-  async function addMarketEntry() {
-    const amount   = parseFloat(document.getElementById('icMarketAmount').value);
-    const date     = document.getElementById('icMarketDate').value;
-    const item     = document.getElementById('icMarketItem').value.trim();
-    const buyer    = document.getElementById('icMarketBuyer').value.trim();
-    const category = document.getElementById('icMarketCategory').value;
-    if (!amount || !date) return;
-    marketIncome.unshift({ id: icUid(), amount, date, item, buyer, category, created_at: new Date().toISOString() });
-    document.getElementById('icMarketAmount').value = '';
-    document.getElementById('icMarketItem').value   = '';
-    document.getElementById('icMarketBuyer').value  = '';
-    renderMarketList();
-    icRender();
-    await icSave();
-  }
-
-  function renderMarketList() {
-    const el = document.getElementById('icMarketList');
-    if (!el) return;
-    if (!marketIncome.length) { el.innerHTML = '<div class="ic-log-empty">No marketplace income logged yet.</div>'; return; }
-    el.innerHTML = '';
-    marketIncome.forEach(e => {
-      const row = document.createElement('div');
-      row.className = 'ic-log-row';
-      const label = e.item || e.category || 'Item';
-      row.innerHTML = `
-        <div class="ic-log-row-info">
-          <div class="ic-log-row-name">${icEsc(label)}</div>
-          <div class="ic-log-row-meta">${icEsc(e.date)} · ${icEsc(e.category)}${e.buyer ? ' · ' + icEsc(e.buyer) : ''}</div>
-        </div>
-        <span class="ic-log-row-amount">$${Number(e.amount).toFixed(2)}</span>
-        <button class="ic-log-del" aria-label="Delete">×</button>`;
-      row.querySelector('.ic-log-del').addEventListener('click', async () => {
-        marketIncome = marketIncome.filter(x => x.id !== e.id);
-        renderMarketList();
+        if (e.loggedToFinance && !confirm('This entry has been logged to Finance. Deleting it here will not remove the Finance entry. Continue?')) return;
+        otherIncome = otherIncome.filter(x => x.id !== e.id);
+        renderOtherList();
         icRender();
         await icSave();
       });
@@ -2985,13 +2952,12 @@
     document.getElementById('icSetupSave').addEventListener('click', saveChallenge);
     document.getElementById('icSetupModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeSetupModal(); });
 
-    document.getElementById('icPhotoClose').addEventListener('click', closePhotoModal);
-    document.getElementById('icPhotoAdd').addEventListener('click', addPhotoEntry);
-    document.getElementById('icPhotoModal').addEventListener('click', e => { if (e.target === e.currentTarget) closePhotoModal(); });
-
-    document.getElementById('icMarketClose').addEventListener('click', closeMarketModal);
-    document.getElementById('icMarketAdd').addEventListener('click', addMarketEntry);
-    document.getElementById('icMarketModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeMarketModal(); });
+    document.getElementById('icOtherClose').addEventListener('click', closeOtherModal);
+    document.getElementById('icOtherAdd').addEventListener('click', addOtherEntry);
+    document.getElementById('icOtherModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeOtherModal(); });
+    document.getElementById('icOtherCategory').addEventListener('change', e => {
+      document.getElementById('icOtherCustomWrap').style.display = e.target.value === '__custom__' ? '' : 'none';
+    });
 
     // Refresh UGC totals when returning from content.html
     document.addEventListener('visibilitychange', () => { if (!document.hidden) icRender(); });
