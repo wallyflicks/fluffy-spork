@@ -2706,17 +2706,26 @@
     icLoadLocal();
     icRender();
     try {
-      const res = await fetch(IC_URL + '/rest/v1/app_state?key=eq.income_challenge&select=data', { headers: IC_H_R });
-      if (res.ok) {
-        const rows = await res.json();
+      const [icRes, contentRes] = await Promise.all([
+        fetch(IC_URL + '/rest/v1/app_state?key=eq.income_challenge&select=data', { headers: IC_H_R }),
+        fetch(IC_URL + '/rest/v1/app_state?key=eq.content&select=data',          { headers: IC_H_R }),
+      ]);
+      if (icRes.ok) {
+        const rows = await icRes.json();
         if (rows.length && rows[0].data) {
           const d = rows[0].data;
           if (d.challenge !== undefined) challenge = d.challenge;
           otherIncome = Array.isArray(d.otherIncome) ? d.otherIncome : icMigrateOld(d);
           icSaveLocal();
-          icRender();
         }
       }
+      if (contentRes.ok) {
+        const rows = await contentRes.json();
+        if (rows.length && rows[0].data && Array.isArray(rows[0].data['ugc_videos'])) {
+          try { localStorage.setItem('ugc_videos', JSON.stringify(rows[0].data['ugc_videos'])); } catch {}
+        }
+      }
+      icRender();
     } catch(e) { console.warn('[challenge] load failed:', e.message); }
   }
 
@@ -2767,7 +2776,7 @@
     const todayMs       = new Date(today + 'T12:00:00').getTime();
     const totalDays     = Math.max(1, Math.round((endMs - startMs) / 86400000));
     const rawElapsed    = Math.round((todayMs - startMs) / 86400000);
-    const notStarted    = rawElapsed <= 0;
+    const notStarted    = rawElapsed < 0;
     const daysElapsed   = Math.max(1, rawElapsed);
     const daysRemaining = Math.max(0, Math.round((endMs - todayMs) / 86400000));
 
