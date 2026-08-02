@@ -2776,11 +2776,11 @@
     const startMs       = new Date(start + 'T12:00:00').getTime();
     const endMs         = new Date(end   + 'T12:00:00').getTime();
     const todayMs       = new Date(today + 'T12:00:00').getTime();
-    const totalDays     = Math.max(1, Math.round((endMs - startMs) / 86400000));
+    const totalDays     = Math.max(1, Math.round((endMs - startMs) / 86400000) + 1);
     const rawElapsed    = Math.round((todayMs - startMs) / 86400000);
     const notStarted    = rawElapsed < 0;
-    const daysElapsed   = Math.max(1, rawElapsed);
-    const daysRemaining = Math.max(0, Math.round((endMs - todayMs) / 86400000));
+    const daysElapsed   = Math.max(1, rawElapsed + 1);  // day 1 = startDate, day 2 = startDate+1, etc.
+    const daysRemaining = Math.max(0, Math.round((endMs - todayMs) / 86400000) + 1);
 
     // Linear pace for target marker + pace indicator
     const linearPace   = goal / totalDays;
