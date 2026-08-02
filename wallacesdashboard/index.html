@@ -2821,7 +2821,7 @@
       const icon      = paceDiffRate >= -0.50 ? 'trending-up' : 'trending-down';
       const paceLabel = paceDiffRate >= -0.50 ? 'ahead of pace' : 'behind pace';
       const rateText  = `${sign}${icFmt(Math.round(Math.abs(gapTotal)))} ${paceLabel}`;
-      const subText   = `(${sign}${icFmtD(Math.abs(paceDiffRate))}/day)${requiredPace > 0 ? ' · ' + icFmtD(requiredPace) + '/day needed' : ''}`;
+      const subText   = requiredPace > 0 ? `${icFmtD(requiredPace)}/day needed to catch up` : '';
       paceHtml = `<div class="ic-pace-main ${cls}"><span class="ic-pace-main-icon"><i data-lucide="${icon}"></i></span><div><div class="ic-pace-main-rate">${rateText}</div><div class="ic-pace-main-desc">${subText}</div></div></div>`;
     }
 
