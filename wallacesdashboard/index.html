@@ -2643,6 +2643,7 @@
   let challenge    = null; // { name, goal, startDate, endDate, milestones_reached }
   let otherIncome  = [];   // [{ id, amount, date, category, description, client, loggedToFinance, created_at }]
   let icTrendChart = null; // Chart.js cumulative trend instance
+  let icLastDate   = icToday();  // tracks rendered date; triggers full reload at midnight
 
   // ── Helpers ───────────────────────────────────────────────────────
   function icUid()    { return 'ic_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
@@ -2744,6 +2745,7 @@
 
   // ── Render challenge card ─────────────────────────────────────────
   function icRender() {
+    icLastDate = icToday();
     const card = document.getElementById('incomeChallengeCard');
     if (!card) return;
 
@@ -2813,11 +2815,14 @@
     } else if (total >= goal) {
       paceHtml = `<div class="ic-pace-main ahead"><span class="ic-pace-main-icon"><i data-lucide="trending-up"></i></span><div><div class="ic-pace-main-rate">Goal reached</div><div class="ic-pace-main-desc">${icFmt(Math.round(total - goal))} over target</div></div></div>`;
     } else {
-      const sign = paceDiffRate >= 0 ? '+' : '-';
-      const cls  = paceDiffRate >= -0.50 ? 'ahead' : 'behind';
-      const icon = paceDiffRate >= -0.50 ? 'trending-up' : 'trending-down';
-      const desc = (paceDiffRate >= -0.50 ? 'ahead of pace' : 'behind pace') + (requiredPace > 0 ? ' · ' + icFmtD(requiredPace) + '/day needed' : '');
-      paceHtml = `<div class="ic-pace-main ${cls}"><span class="ic-pace-main-icon"><i data-lucide="${icon}"></i></span><div><div class="ic-pace-main-rate">${sign}${icFmtD(Math.abs(paceDiffRate))}/day</div><div class="ic-pace-main-desc">${desc}</div></div></div>`;
+      const gapTotal  = total - expected;  // negative = behind, positive = ahead
+      const sign      = paceDiffRate >= 0 ? '+' : '-';
+      const cls       = paceDiffRate >= -0.50 ? 'ahead' : 'behind';
+      const icon      = paceDiffRate >= -0.50 ? 'trending-up' : 'trending-down';
+      const paceLabel = paceDiffRate >= -0.50 ? 'ahead of pace' : 'behind pace';
+      const rateText  = `${sign}${icFmt(Math.round(Math.abs(gapTotal)))} ${paceLabel}`;
+      const subText   = `(${sign}${icFmtD(Math.abs(paceDiffRate))}/day)${requiredPace > 0 ? ' · ' + icFmtD(requiredPace) + '/day needed' : ''}`;
+      paceHtml = `<div class="ic-pace-main ${cls}"><span class="ic-pace-main-icon"><i data-lucide="${icon}"></i></span><div><div class="ic-pace-main-rate">${rateText}</div><div class="ic-pace-main-desc">${subText}</div></div></div>`;
     }
 
     // ── Milestone HTML ────────────────────────────────────────────
@@ -3171,8 +3176,20 @@
       document.getElementById('icOtherCustomWrap').style.display = e.target.value === '__custom__' ? '' : 'none';
     });
 
-    // Refresh UGC totals when returning from content.html
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) icRender(); });
+    // Refresh on tab focus; do a full reload if the calendar date changed
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        const d = icToday();
+        if (d !== icLastDate) { icLastDate = d; icLoad(); } else { icRender(); }
+      }
+    });
+    // Catch midnight rollovers for pages left open overnight
+    setInterval(() => {
+      if (!document.hidden) {
+        const d = icToday();
+        if (d !== icLastDate) { icLastDate = d; icLoad(); }
+      }
+    }, 60 * 1000);
   }
 
   // ── Init ──────────────────────────────────────────────────────────
