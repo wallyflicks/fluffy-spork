@@ -629,7 +629,6 @@ const FIN_EXP  = 'finance_expenses';
 const LS_EDITOR_PAYMENTS = 'ugc_editor_payments';
 const LS_EDITOR_RESET_AT = 'ugc_editor_reset_at'; // ISO timestamp, set on pay, never cleared on delete
 const LS_EDITOR_TZ       = 'ugc_editor_tz';       // UTC hour offset (integer), e.g. 7 for UTC+7
-const LS_MIGRATED_TO_CAD = 'content_migrated_cad_v1'; // one-time flag: v.total is now stored in CAD
 
 // ── Sync indicator ────────────────────────────────────────────────
 const syncDot   = document.getElementById('syncDot');
@@ -857,33 +856,6 @@ async function saveEditorTimezone(offset) {
   catch { syncState('err', 'sync err'); }
 }
 
-// ── One-time migration: recompute v.total in CAD for USD deals ────
-function migrateVideosToCad() {
-  if (localStorage.getItem(LS_MIGRATED_TO_CAD)) return;
-  const fx     = _fxRate || 1.38;
-  const videos = ls(LS_VIDEOS);
-  const deals  = ls(LS_DEALS);
-  let changed  = false;
-  videos.forEach(v => {
-    const deal = deals.find(d => d.id === v.deal_id);
-    if (!deal || (deal.currency || 'CAD') === 'CAD') return;
-    // USD deal: flat_rate/bonus/view_bonus were in USD, editor_cost in CAD
-    const flat = Number(v.flat_rate);
-    const vb   = Number(v.view_bonus || 0);
-    const mb   = Number(v.bonus || 0);
-    const ec   = Number(v.editor_cost || 0);
-    v.flat_rate  = flat * fx;
-    v.view_bonus = vb   * fx;
-    v.bonus      = mb   * fx;
-    v.total      = v.flat_rate + v.view_bonus + v.bonus - ec;
-    changed = true;
-  });
-  if (changed) {
-    lsSet(LS_VIDEOS, videos);
-    sbUpsert().catch(() => {});
-  }
-  localStorage.setItem(LS_MIGRATED_TO_CAD, '1');
-}
 
 // ── Init ──────────────────────────────────────────────────────────
 async function init() {
@@ -915,11 +887,9 @@ async function init() {
       const hasLocal = ls(LS_DEALS).length || ls(LS_PAYMENTS).length || ls(LS_VIDEOS).length || ls(LS_CV).length;
       if (hasLocal) pushToCloud().catch(() => {});
     }
-    migrateVideosToCad();
     syncState('ok', 'synced');
   } catch(e) {
     console.log('CONTENT SUPABASE ERROR:', e);
-    migrateVideosToCad();
     syncState('err', 'offline');
   }
   render();
@@ -1197,6 +1167,12 @@ async function saveVideo(dealId) {
   const bonusCad   = dealToCad(manBonus, deal.currency);
   const total      = flatCad + bonusCad - (usedEditor ? editorCost : 0);
 
+  const videos = ls(LS_VIDEOS);
+  const existingOnDate = videos.find(v => v.deal_id === dealId && v.date === date);
+  if (existingOnDate) {
+    if (!confirm(`A video is already logged for ${deal.brand_name} on ${date}. Add another entry anyway?`)) return;
+  }
+
   const row = {
     id: uid(), deal_id: dealId, brand_name: deal.brand_name,
     date, status, flat_rate: flatCad, view_bonus: 0, views_earned: 0, bonus: bonusCad, total, notes,
@@ -1204,7 +1180,6 @@ async function saveVideo(dealId) {
     created_at: new Date().toISOString()
   };
 
-  const videos = ls(LS_VIDEOS);
   videos.push(row);
   lsSet(LS_VIDEOS, videos);
 
