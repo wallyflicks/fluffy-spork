@@ -1168,9 +1168,9 @@ async function saveVideo(dealId) {
   const total      = flatCad + bonusCad - (usedEditor ? editorCost : 0);
 
   const videos = ls(LS_VIDEOS);
-  const existingOnDate = videos.find(v => v.deal_id === dealId && v.date === date);
-  if (existingOnDate) {
-    if (!confirm(`A video is already logged for ${deal.brand_name} on ${date}. Add another entry anyway?`)) return;
+  const exactDup = videos.find(v => v.deal_id === dealId && v.date === date && Number(v.flat_rate) === flatCad && Number(v.bonus || 0) === bonusCad);
+  if (exactDup) {
+    if (!confirm(`This looks like a duplicate — a video with the same rate is already logged for ${deal.brand_name} on ${date}. Add another entry anyway?`)) return;
   }
 
   const row = {
