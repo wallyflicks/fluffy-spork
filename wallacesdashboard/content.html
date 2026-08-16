@@ -1066,7 +1066,7 @@ function buildVideoHistory(dealId) {
       const sc       = v.status === 'Approved' ? 'approved' : v.status === 'Pending' ? 'pending' : 'rejected';
       const vb       = Number(v.view_bonus) || 0;
       const mb       = Number(v.bonus) || 0;
-      const hasViews = vb > 0;
+      const hasBonus = mb > 0;
 
       const ec = Number(v.editor_cost) || 0;
       let breakdown = `flat $${Number(v.flat_rate).toFixed(2)}`;
@@ -1085,20 +1085,18 @@ function buildVideoHistory(dealId) {
           <div style="font-size:11px;color:var(--text-3)">${breakdown}</div>
           <div id="vbf-${esc(v.id)}" style="display:none;margin-top:8px">
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
-              <input class="c-input" type="number" id="vbf-views-${esc(v.id)}"
-                placeholder="Views earned" min="0"
-                style="font-size:12px;padding:6px 10px;max-width:150px"
-                oninput="calcVBPreview('${esc(v.id)}','${esc(dealId)}')">
-              <span id="vbf-calc-${esc(v.id)}" style="font-size:11px;color:var(--info)"></span>
+              <input class="c-input" type="number" id="vbf-bonus-${esc(v.id)}"
+                placeholder="Bonus (CAD)" min="0" step="0.01"
+                style="font-size:12px;padding:6px 10px;max-width:150px">
             </div>
             <div style="display:flex;gap:6px">
-              <button class="c-btn sm primary" style="flex:1" onclick="saveViewBonus('${esc(v.id)}','${esc(dealId)}')">Save</button>
+              <button class="c-btn sm primary" style="flex:1" onclick="saveBonus('${esc(v.id)}','${esc(dealId)}')">Save</button>
               <button class="c-btn sm" onclick="closeVBForm('${esc(v.id)}')">Cancel</button>
             </div>
           </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-items:flex-end">
-          ${v.status !== 'Rejected' ? `<button class="c-btn sm" id="vbBtn-${esc(v.id)}" onclick="openVBForm('${esc(v.id)}','${esc(dealId)}')" style="font-size:10px">${hasViews ? '↺ Views' : '+ Views'}</button>` : ''}
+          ${v.status !== 'Rejected' ? `<button class="c-btn sm" id="vbBtn-${esc(v.id)}" onclick="openVBForm('${esc(v.id)}','${esc(dealId)}')" style="font-size:10px">${hasBonus ? '↺ Bonus' : '+ Bonus'}</button>` : ''}
           <button class="c-btn sm danger" id="vdel-${esc(v.id)}"
             onclick="confirmDeleteVideo('${esc(v.id)}','${esc(dealId)}')">✕</button>
         </div>
@@ -1241,9 +1239,8 @@ function openVBForm(videoId, dealId) {
   const form = document.getElementById('vbf-' + videoId);
   if (!form) return;
   const video = ls(LS_VIDEOS).find(v => v.id === videoId);
-  const input = document.getElementById('vbf-views-' + videoId);
-  if (input && video) input.value = video.views_earned || '';
-  calcVBPreview(videoId, dealId);
+  const input = document.getElementById('vbf-bonus-' + videoId);
+  if (input && video) input.value = video.bonus > 0 ? Number(video.bonus).toFixed(2) : '';
   form.style.display = '';
   const btn = document.getElementById('vbBtn-' + videoId);
   if (btn) btn.style.display = 'none';
@@ -1257,30 +1254,15 @@ function closeVBForm(videoId) {
   if (btn) btn.style.display = '';
 }
 
-function calcVBPreview(videoId, dealId) {
-  const deal  = ls(LS_DEALS).find(d => d.id === dealId);
-  if (!deal) return;
-  const views     = parseFloat(document.getElementById('vbf-views-' + videoId)?.value) || 0;
-  const rawBonus  = (views / 1000) * (Number(deal.view_bonus_rate) || 0);
-  const bonusCad  = dealToCad(rawBonus, deal.currency);
-  const el        = document.getElementById('vbf-calc-' + videoId);
-  if (el) el.textContent = views > 0 ? `= CAD $${bonusCad.toFixed(2)} view bonus` : '';
-}
-
-async function saveViewBonus(videoId, dealId) {
-  const deal = ls(LS_DEALS).find(d => d.id === dealId);
-  if (!deal) return;
-  const views        = parseFloat(document.getElementById('vbf-views-' + videoId)?.value) || 0;
-  const viewBonusCad = dealToCad((views / 1000) * (Number(deal.view_bonus_rate) || 0), deal.currency);
-
+async function saveBonus(videoId, dealId) {
   const videos = ls(LS_VIDEOS);
   const idx    = videos.findIndex(v => v.id === videoId);
   if (idx < 0) return;
+  const bonusCad = parseFloat(document.getElementById('vbf-bonus-' + videoId)?.value) || 0;
   videos[idx] = {
     ...videos[idx],
-    views_earned: views,
-    view_bonus:   viewBonusCad,
-    total: Number(videos[idx].flat_rate) + viewBonusCad + Number(videos[idx].bonus || 0) - Number(videos[idx].editor_cost || 0)
+    bonus: bonusCad,
+    total: Number(videos[idx].flat_rate) + Number(videos[idx].view_bonus || 0) + bonusCad - Number(videos[idx].editor_cost || 0)
   };
   lsSet(LS_VIDEOS, videos);
 
