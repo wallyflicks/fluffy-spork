@@ -2156,7 +2156,6 @@
 
     function renderWeeklyTodos() {
       const todos = getWeeklyTodos();
-      console.log('[weekly] renderWeeklyTodos called, todos.length=', todos.length, JSON.parse(JSON.stringify(todos)));
       const list = document.getElementById('weeklyList');
       const empty = document.getElementById('weeklyEmpty');
       const badge = document.getElementById('weeklyBadge');
@@ -2181,16 +2180,10 @@
         cb.className = 'goal-check' + (todo.done ? ' checked' : '');
         cb.setAttribute('aria-label', todo.done ? 'Mark undone' : 'Mark done');
         cb.addEventListener('click', () => {
-          console.log('[weekly] checkbox clicked, idx=', idx, 'text=', todo.text);
           const arr = getWeeklyTodos();
-          console.log('[weekly] arr from localStorage, arr.length=', arr.length, 'arr[idx]=', arr[idx]);
           const item = arr[idx];
-          const doneBefore = item ? item.done : undefined;
           if (item) { item.done = !item.done; item.doneAt = item.done ? Date.now() : null; }
-          console.log('[weekly] done toggled:', doneBefore, '->', item ? item.done : 'NO ITEM FOUND');
-          console.log('[weekly] arr before save:', JSON.parse(JSON.stringify(arr)));
           saveWeeklyTodos(arr);
-          console.log('[weekly] saved, calling renderWeeklyTodos');
           renderWeeklyTodos();
         });
 
