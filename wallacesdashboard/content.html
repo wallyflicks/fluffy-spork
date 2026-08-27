@@ -818,9 +818,8 @@ function updateEditorTimezoneLabel() {
 }
 
 function updateEditorClock() {
-  const now   = new Date();
-  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
-  const ed    = new Date(utcMs + _editorTzOffset * 3600000);
+  const now = new Date();
+  const ed  = new Date(now.getTime() + _editorTzOffset * 3600000);
   const h = ed.getUTCHours(), m = ed.getUTCMinutes();
 
   const h12  = h % 12 || 12;
