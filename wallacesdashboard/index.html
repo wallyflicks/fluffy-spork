@@ -504,6 +504,28 @@
 
     .goal-delete:hover { color: var(--danger); }
 
+    .goal-recur {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 0;
+      border-radius: 999px;
+      opacity: 0.28;
+      transition: opacity 0.2s ease, color 0.2s ease;
+      line-height: 1;
+      width: 30px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .goal-recur:hover { opacity: 0.65; }
+    .goal-recur.active { color: var(--success); opacity: 0.85; }
+    .goal-recur.active:hover { opacity: 1; }
+
     .goal-actions {
       display: flex;
       gap: 8px;
@@ -1542,8 +1564,10 @@
         const date = key.slice(6);
         if (date >= activeDay) return;
         const goals = getGoalsFor(key);
-        const undone = goals.filter(g => !g.done).map(g => ({ text: g.text, done: false, queued: false }));
-        undone.forEach(g => {
+        const toRollover = goals
+          .filter(g => !g.done || g.recurring)
+          .map(g => ({ text: g.text, done: false, queued: false, recurring: g.recurring || false }));
+        toRollover.forEach(g => {
           if (!dedupe.has(g.text.trim())) {
             todayGoals.push(g);
             dedupe.add(g.text.trim());
@@ -1721,22 +1745,48 @@
       text.tabIndex = 0;
       row.appendChild(text);
 
+      // Recurring toggle — today's list only
+      if (!readOnly) {
+        const recurBtn = document.createElement('button');
+        recurBtn.type = 'button';
+        recurBtn.className = 'goal-recur' + (goal.recurring ? ' active' : '');
+        recurBtn.title = goal.recurring ? 'Recurring daily — click to make one-off' : 'One-off — click to repeat daily';
+        recurBtn.textContent = '↻';
+        recurBtn.setAttribute('aria-label', goal.recurring ? 'Mark as one-off' : 'Mark as recurring');
+        recurBtn.addEventListener('click', () => {
+          const goals = getGoalsFor(key);
+          const item = goals[index];
+          if (!item) return;
+          item.recurring = !item.recurring;
+          saveGoalsFor(key, goals);
+          loadLists();
+        });
+        row.appendChild(recurBtn);
+      }
+
       const deleteBtn = document.createElement('button');
       deleteBtn.type = 'button';
       deleteBtn.className = 'goal-delete';
       deleteBtn.textContent = '×';
-      // On today's list, hide × on completed items (use "clear completed" instead)
-      if (!readOnly && key === getTodayKey() && goal.done) deleteBtn.style.display = 'none';
       row.appendChild(deleteBtn);
 
+      let _completing = false;
       checkbox.addEventListener('click', () => {
-        const goals = getGoalsFor(key);
-        const item = goals[index];
-        if (!item) return;
-        item.done = !item.done;
-        if (item.done) item.doneAt = Date.now(); else delete item.doneAt;
-        saveGoalsFor(key, goals);
-        loadLists();
+        if (_completing) return;
+        _completing = true;
+        // Brief visual flash before hiding the row
+        checkbox.classList.add('checked');
+        row.classList.add('done');
+        text.classList.add('done');
+        setTimeout(() => {
+          const goals = getGoalsFor(key);
+          const item = goals[index];
+          if (!item) { _completing = false; return; }
+          item.done = true;
+          item.doneAt = Date.now();
+          saveGoalsFor(key, goals);
+          loadLists();
+        }, 300);
       });
 
       deleteBtn.addEventListener('click', () => {
@@ -1795,11 +1845,9 @@
       listEl.innerHTML = '';
       if (!goals.length) { emptyEl.classList.remove('hidden'); return; }
       emptyEl.classList.add('hidden');
-      // Sort: uncompleted first, completed below
+      // Today's list: only show undone tasks (done tasks are hidden until next-day rollover)
       const isToday = !readOnly && key === getTodayKey();
-      const sorted = isToday
-        ? [...goals.filter(g => !g.done), ...goals.filter(g => g.done)]
-        : goals;
+      const sorted = isToday ? goals.filter(g => !g.done) : goals;
       const showCount = 5;
       const overflow = sorted.length - showCount;
       const listKey = key + (readOnly ? ':ro' : ':rw');
@@ -1833,9 +1881,9 @@
       const tomorrowGoals = getGoalsFor(getTomorrowKey());
       renderListInto(todayGoals, goalList, emptyState, getTodayKey(), false);
       renderListInto(tomorrowGoals, tomorrowList, tomorrowEmpty, getTomorrowKey(), true);
-      // Show "clear completed" only when there are completed tasks
+      // Done tasks are hidden from the list (disappear on check), so clear-completed is not needed
       const clearWrap = document.getElementById('clearCompletedWrap');
-      if (clearWrap) clearWrap.style.display = todayGoals.some(g => g.done) ? '' : 'none';
+      if (clearWrap) clearWrap.style.display = 'none';
       renderTicker();
     }
 
@@ -2043,6 +2091,31 @@
     }
 
     init();
+
+    // Detect date changes while the page is left open (same pattern as Income Challenge)
+    let goalsLastDate = getActiveDateString();
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        const d = getActiveDateString();
+        if (d !== goalsLastDate) {
+          goalsLastDate = d;
+          rolloverOldGoals();
+          updateStreak();
+          loadLists();
+        }
+      }
+    });
+    setInterval(() => {
+      if (!document.hidden) {
+        const d = getActiveDateString();
+        if (d !== goalsLastDate) {
+          goalsLastDate = d;
+          rolloverOldGoals();
+          updateStreak();
+          loadLists();
+        }
+      }
+    }, 60 * 1000);
 
     // ── WEEKLY TO-DO ──────────────────────────────────────────────────────
     const WEEKLY_KEY = 'weeklyTodos';
