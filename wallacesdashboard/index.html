@@ -2122,7 +2122,15 @@
     const WEEKLY_RESET_KEY = 'weeklyTodoLastReset';
 
     function getWeeklyTodos() {
-      try { return JSON.parse(localStorage.getItem(WEEKLY_KEY)) || []; } catch { return []; }
+      try {
+        const parsed = JSON.parse(localStorage.getItem(WEEKLY_KEY));
+        if (!Array.isArray(parsed)) return [];
+        // Back-fill id on any task that predates the id field so find-by-id always works
+        let dirty = false;
+        parsed.forEach(t => { if (!t.id) { t.id = weeklyUid(); dirty = true; } });
+        if (dirty) localStorage.setItem(WEEKLY_KEY, JSON.stringify(parsed));
+        return parsed;
+      } catch { return []; }
     }
 
     let _weeklyPushTimer = null;
@@ -2173,7 +2181,7 @@
       // Render in original insertion order; done tasks stay in place and remain fully
       // visible — only the checkbox + strikethrough indicate completion. The row itself
       // doesn't get the .done class (which fades to 0.45 opacity and makes tasks look gone).
-      todos.forEach((todo) => {
+      todos.forEach((todo, idx) => {
         const row = document.createElement('li');
         row.className = 'goal-row';
         row.style.cssText = 'grid-template-columns: auto 1fr auto;';
@@ -2184,7 +2192,8 @@
         cb.setAttribute('aria-label', todo.done ? 'Mark undone' : 'Mark done');
         cb.addEventListener('click', () => {
           const arr = getWeeklyTodos();
-          const item = arr.find(x => x.id === todo.id);
+          // Use index as the primary key — simpler and immune to id field being absent
+          const item = arr[idx];
           if (item) { item.done = !item.done; item.doneAt = item.done ? Date.now() : null; }
           saveWeeklyTodos(arr);
           renderWeeklyTodos();
@@ -2199,7 +2208,9 @@
         del.className = 'goal-delete';
         del.textContent = '×';
         del.addEventListener('click', () => {
-          saveWeeklyTodos(getWeeklyTodos().filter(x => x.id !== todo.id));
+          const arr = getWeeklyTodos();
+          arr.splice(idx, 1);
+          saveWeeklyTodos(arr);
           renderWeeklyTodos();
         });
 
