@@ -1770,23 +1770,14 @@
       deleteBtn.textContent = '×';
       row.appendChild(deleteBtn);
 
-      let _completing = false;
       checkbox.addEventListener('click', () => {
-        if (_completing) return;
-        _completing = true;
-        // Brief visual flash before hiding the row
-        checkbox.classList.add('checked');
-        row.classList.add('done');
-        text.classList.add('done');
-        setTimeout(() => {
-          const goals = getGoalsFor(key);
-          const item = goals[index];
-          if (!item) { _completing = false; return; }
-          item.done = true;
-          item.doneAt = Date.now();
-          saveGoalsFor(key, goals);
-          loadLists();
-        }, 300);
+        const goals = getGoalsFor(key);
+        const item = goals[index];
+        if (!item) return;
+        item.done = !item.done;
+        item.doneAt = item.done ? Date.now() : null;
+        saveGoalsFor(key, goals);
+        loadLists();
       });
 
       deleteBtn.addEventListener('click', () => {
@@ -1845,9 +1836,7 @@
       listEl.innerHTML = '';
       if (!goals.length) { emptyEl.classList.remove('hidden'); return; }
       emptyEl.classList.add('hidden');
-      // Today's list: only show undone tasks (done tasks are hidden until next-day rollover)
-      const isToday = !readOnly && key === getTodayKey();
-      const sorted = isToday ? goals.filter(g => !g.done) : goals;
+      const sorted = goals;
       const showCount = 5;
       const overflow = sorted.length - showCount;
       const listKey = key + (readOnly ? ':ro' : ':rw');
