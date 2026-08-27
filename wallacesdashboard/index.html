@@ -2124,17 +2124,33 @@
     function getWeeklyTodos() {
       try { return JSON.parse(localStorage.getItem(WEEKLY_KEY)) || []; } catch { return []; }
     }
+
+    let _weeklyPushTimer = null;
     function saveWeeklyTodos(arr) {
       localStorage.setItem(WEEKLY_KEY, JSON.stringify(arr));
+      // Debounced sync to Supabase so weekly tasks survive a localStorage wipe
+      clearTimeout(_weeklyPushTimer);
+      _weeklyPushTimer = setTimeout(async () => {
+        try {
+          await fetch(SUPABASE_URL + '/rest/v1/app_state?on_conflict=key', {
+            method: 'POST',
+            headers: { ...SB_HEADERS, 'Prefer': 'resolution=merge-duplicates' },
+            body: JSON.stringify({ key: 'weekly_todos', data: arr, updated_at: new Date().toISOString() })
+          });
+        } catch {}
+      }, 1500);
     }
+
     function weeklyUid() {
       return 'w_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     }
 
     function resetWeeklyIfMonday() {
-      const now = new Date();
-      if (now.getDay() !== 1) return; // not Monday
-      const today = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+      // Use Vancouver time consistently with the rest of the app — plain new Date()
+      // uses the browser OS timezone which may not be Vancouver (e.g. UTC, travel).
+      const van = vanNow();
+      if (van.getDay() !== 1) return; // not Monday in Vancouver
+      const today = van.getFullYear() + '-' + String(van.getMonth()+1).padStart(2,'0') + '-' + String(van.getDate()).padStart(2,'0');
       if (localStorage.getItem(WEEKLY_RESET_KEY) === today) return;
       const todos = getWeeklyTodos();
       saveWeeklyTodos(todos.filter(t => !t.done));
@@ -2201,7 +2217,25 @@
       renderWeeklyTodos();
     }
 
-    (function initWeekly() {
+    (async function initWeekly() {
+      // Pull from Supabase first so local state is up-to-date before the Monday reset runs
+      try {
+        const res = await fetch(
+          SUPABASE_URL + '/rest/v1/app_state?key=eq.weekly_todos&select=data',
+          { headers: SB_HEADERS }
+        );
+        if (res.ok) {
+          const rows = await res.json();
+          if (rows.length && Array.isArray(rows[0].data)) {
+            // Only adopt Supabase data if it's newer than what's in localStorage
+            const local = getWeeklyTodos();
+            const remote = rows[0].data;
+            if (remote.length >= local.length) {
+              localStorage.setItem(WEEKLY_KEY, JSON.stringify(remote));
+            }
+          }
+        }
+      } catch {}
       resetWeeklyIfMonday();
       renderWeeklyTodos();
       const input = document.getElementById('weeklyInput');
