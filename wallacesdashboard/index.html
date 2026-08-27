@@ -2164,17 +2164,18 @@
       const badge = document.getElementById('weeklyBadge');
       if (!list) return;
 
-      const uncompleted = todos.filter(t => !t.done);
-      const completed   = todos.filter(t => t.done);
-      badge.textContent = uncompleted.length + ' left';
+      badge.textContent = todos.filter(t => !t.done).length + ' left';
 
       if (!todos.length) { list.innerHTML = ''; empty.classList.remove('hidden'); return; }
       empty.classList.add('hidden');
       list.innerHTML = '';
 
-      [...uncompleted, ...completed].forEach((todo, i) => {
+      // Render in original insertion order; done tasks stay in place and remain fully
+      // visible — only the checkbox + strikethrough indicate completion. The row itself
+      // doesn't get the .done class (which fades to 0.45 opacity and makes tasks look gone).
+      todos.forEach((todo) => {
         const row = document.createElement('li');
-        row.className = 'goal-row' + (todo.done ? ' done' : '');
+        row.className = 'goal-row';
         row.style.cssText = 'grid-template-columns: auto 1fr auto;';
 
         const cb = document.createElement('button');
