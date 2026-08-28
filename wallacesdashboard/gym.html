@@ -21,75 +21,92 @@
 const CONFIG = {
   appTitle: "Progressive Overload Coach",
 
-  // Weight unit shown everywhere. "kg" or "lb".
   units: "kg",
 
-  // Gyms you train at. Add as many as you want.
-  // `id` must be a short unique slug (no spaces). `name` is what people see.
-  gyms: [
-    { id: "home",  name: "Home Gym" },
-    { id: "comm",  name: "Commercial Gym" }
-  ],
+  // Single dummy gym — gym UI is hidden; "both" on an exercise shows the ★ star.
+  gyms: [{ id: "both", name: "All" }],
 
-  // Training split. Most people use Push/Pull/Legs but you can rename
-  // these to "Upper", "Lower", "Full Body", "Day A", anything.
   days: [
     { id: "push", name: "Push" },
     { id: "pull", name: "Pull" },
-    { id: "legs", name: "Legs" }
+    { id: "legs", name: "Legs" },
+    { id: "arms", name: "Arms" }
   ],
 
-  // Split rotation — the order your training days cycle through. Use day
-  // ids from `days` above, plus "rest" for off-days. The pill at the top
-  // of the app reads this + splitAnchor to compute "what day is today".
-  splitRotation: ["push", "pull", "legs", "rest"],
+  // Push / Pull / Rest / Legs / Arms / Rest / Rest
+  splitRotation: ["push", "pull", "rest", "legs", "arms", "rest", "rest"],
 
-  // Anchor: pair a real calendar date with which split day fell on it.
-  // The rotation advances from this point. Set `date` to a recent day
-  // when you knew what split you were on, and `splitId` to that day.
-  // Edit this if your split drifts.
   splitAnchor: {
-    date: "2026-05-12",
-    splitId: "rest"
+    date: "2026-08-28",
+    splitId: "push"
   },
 
-  // Progression rule: hit this many reps on the top set → coach tells you
-  // to add weight next session. Lower this to be more aggressive (e.g. 6),
-  // raise it for more volume bias (e.g. 10).
   upgradeAtReps: 8,
 
-  // Composition estimate (optional, for the weight chart).
-  // Estimates how much of recent weight change is muscle vs fat by
-  // cross-referencing the strength trend. Set yearsTraining to scale
-  // expected muscle gain rate.
   composition: {
     enabled: true,
-    yearsTraining: 1,        // 1 = beginner, 2 = intermediate, 3+ = advanced
-    windowDays: 30           // window to compute weight + strength change
+    yearsTraining: 1,
+    windowDays: 30
   },
 
-  // Starter exercise list. Each one needs:
-  //   name        — what shows in the dropdown
-  //   gym         — one of the gym ids above, or "both"
-  //   day         — one of the day ids above
-  //   repMin      — bottom of your target rep range
-  //   repMax      — top of your target rep range
-  //   step        — how much weight you add when progressing (kg/lb)
-  //   startWeight — starting weight (ignored when bw: true)
-  //   bw          — true for bodyweight movements (logs reps only)
-  //
-  // First-run defaults. Once a user logs anything, they edit through
-  // the in-app + / gear buttons; this block stays as the seed.
+  // gym: "both" → shows ★ in the picker (primary/default exercise)
+  // gym: "comm" → no star (alternative exercise)
   defaultExercises: [
-    { name: "Bench press",     gym: "comm", day: "push", repMin: 5, repMax: 8,  step: 2.5, startWeight: 60 },
-    { name: "Overhead press",  gym: "comm", day: "push", repMin: 5, repMax: 8,  step: 2.5, startWeight: 35 },
-    { name: "Tricep pushdown", gym: "comm", day: "push", repMin: 8, repMax: 12, step: 2.5, startWeight: 25 },
-    { name: "Pull-ups",        gym: "both", day: "pull", repMin: 5, repMax: 10, step: 1,   startWeight: 0, bw: true },
-    { name: "Barbell row",     gym: "comm", day: "pull", repMin: 6, repMax: 10, step: 2.5, startWeight: 50 },
-    { name: "Bicep curl",      gym: "comm", day: "pull", repMin: 8, repMax: 12, step: 1.25,startWeight: 15 },
-    { name: "Back squat",      gym: "comm", day: "legs", repMin: 5, repMax: 8,  step: 5,   startWeight: 80 },
-    { name: "Romanian deadlift", gym: "comm", day: "legs", repMin: 6, repMax: 10, step: 5, startWeight: 60 },
-    { name: "Leg press",       gym: "comm", day: "legs", repMin: 8, repMax: 12, step: 5,   startWeight: 100 }
+    // ── PUSH ──────────────────────────────────────────────────────────
+    { name: "Dumbbell Bench Press",                       gym: "both", day: "push", repMin: 6,  repMax: 8,  step: 2.5,  startWeight: 20 },
+    { name: "Weighted Push-Ups",                          gym: "comm", day: "push", repMin: 6,  repMax: 8,  step: 2.5,  startWeight: 10 },
+    { name: "Incline Dumbbell Bench Press",               gym: "both", day: "push", repMin: 8,  repMax: 12, step: 2.5,  startWeight: 16 },
+    { name: "Resistance Band Chest Press",                gym: "comm", day: "push", repMin: 8,  repMax: 12, step: 2.5,  startWeight: 10 },
+    { name: "Seated Dumbbell Overhead Press",             gym: "both", day: "push", repMin: 8,  repMax: 12, step: 2.5,  startWeight: 14 },
+    { name: "Standing Dumbbell Overhead Press",           gym: "comm", day: "push", repMin: 8,  repMax: 12, step: 2.5,  startWeight: 14 },
+    { name: "Dumbbell Lateral Raise",                     gym: "both", day: "push", repMin: 8,  repMax: 12, step: 1.25, startWeight: 8  },
+    { name: "Band Lateral Raise",                         gym: "comm", day: "push", repMin: 8,  repMax: 12, step: 1,    startWeight: 0, bw: true },
+
+    // ── PULL ──────────────────────────────────────────────────────────
+    { name: "Bent Over Row (Dumbbell)",                   gym: "both", day: "pull", repMin: 8,  repMax: 12, step: 2.5,  startWeight: 20 },
+    { name: "Single-Arm Row (Dumbbell)",                  gym: "comm", day: "pull", repMin: 8,  repMax: 12, step: 2.5,  startWeight: 20 },
+    { name: "T-Bar Row",                                  gym: "comm", day: "pull", repMin: 8,  repMax: 12, step: 5,    startWeight: 40 },
+    { name: "Pull-Ups (Bodyweight or Assisted)",          gym: "both", day: "pull", repMin: 8,  repMax: 12, step: 1,    startWeight: 0, bw: true },
+    { name: "Lat Pulldown (Cable)",                       gym: "comm", day: "pull", repMin: 8,  repMax: 12, step: 5,    startWeight: 40 },
+    { name: "Single Arm Pulldown (Cable)",                gym: "comm", day: "pull", repMin: 8,  repMax: 12, step: 5,    startWeight: 25 },
+    { name: "Dumbbell Shrug",                             gym: "both", day: "pull", repMin: 8,  repMax: 12, step: 2.5,  startWeight: 24 },
+    { name: "Shrug (Barbell)",                            gym: "comm", day: "pull", repMin: 8,  repMax: 12, step: 5,    startWeight: 60 },
+    { name: "Chest Supported Incline Shrug",              gym: "comm", day: "pull", repMin: 8,  repMax: 12, step: 2.5,  startWeight: 16 },
+    { name: "Face Pull (Cable or Band)",                  gym: "both", day: "pull", repMin: 8,  repMax: 12, step: 2.5,  startWeight: 20 },
+    { name: "Rear Delt Fly (Cable or Machine)",           gym: "comm", day: "pull", repMin: 8,  repMax: 12, step: 2.5,  startWeight: 10 },
+    { name: "Band Pull-Aparts",                           gym: "comm", day: "pull", repMin: 8,  repMax: 12, step: 1,    startWeight: 0, bw: true },
+
+    // ── LEGS ──────────────────────────────────────────────────────────
+    { name: "Squat (Dumbbell Goblet)",                    gym: "both", day: "legs", repMin: 6,  repMax: 12, step: 2.5,  startWeight: 20 },
+    { name: "Hack Squat (Machine)",                       gym: "comm", day: "legs", repMin: 6,  repMax: 12, step: 5,    startWeight: 60 },
+    { name: "Seated Hamstring Curl (Machine)",            gym: "both", day: "legs", repMin: 8,  repMax: 12, step: 5,    startWeight: 30 },
+    { name: "Lying Leg Curl (Machine)",                   gym: "comm", day: "legs", repMin: 8,  repMax: 12, step: 5,    startWeight: 30 },
+    { name: "RDL (Dumbbell or Barbell)",                  gym: "comm", day: "legs", repMin: 8,  repMax: 12, step: 5,    startWeight: 40 },
+    { name: "Leg Extension (Machine)",                    gym: "both", day: "legs", repMin: 8,  repMax: 12, step: 5,    startWeight: 30 },
+    { name: "Sissy Squat (Bodyweight or Smith)",          gym: "comm", day: "legs", repMin: 8,  repMax: 12, step: 2.5,  startWeight: 0, bw: true },
+    { name: "Step-Ups (Dumbbell)",                        gym: "comm", day: "legs", repMin: 8,  repMax: 12, step: 2.5,  startWeight: 14 },
+    { name: "Standing Calf Raise (Dumbbell)",             gym: "both", day: "legs", repMin: 15, repMax: 20, step: 2.5,  startWeight: 20 },
+    { name: "Seated Calf Raise (Machine)",                gym: "comm", day: "legs", repMin: 15, repMax: 20, step: 5,    startWeight: 30 },
+    { name: "Calf Press (Leg Press Machine)",             gym: "comm", day: "legs", repMin: 15, repMax: 20, step: 10,   startWeight: 80 },
+
+    // ── ARMS ──────────────────────────────────────────────────────────
+    { name: "Bicep Curl (Dumbbell)",                      gym: "both", day: "arms", repMin: 8,  repMax: 12, step: 1.25, startWeight: 12 },
+    { name: "Spider Curls (DB on Incline Bench)",         gym: "comm", day: "arms", repMin: 8,  repMax: 12, step: 1.25, startWeight: 10 },
+    { name: "Curl (Cable)",                               gym: "comm", day: "arms", repMin: 8,  repMax: 12, step: 2.5,  startWeight: 20 },
+    { name: "Tricep Extension (Cable, V-Bar)",            gym: "both", day: "arms", repMin: 6,  repMax: 8,  step: 2.5,  startWeight: 20 },
+    { name: "Skull Crushers (EZ Curl Bar)",               gym: "comm", day: "arms", repMin: 6,  repMax: 8,  step: 2.5,  startWeight: 20 },
+    { name: "Overhead Tricep Extension (Cable)",          gym: "comm", day: "arms", repMin: 6,  repMax: 8,  step: 2.5,  startWeight: 15 },
+    { name: "Tricep Extension (Cable, Long Rope)",        gym: "both", day: "arms", repMin: 8,  repMax: 12, step: 2.5,  startWeight: 17.5 },
+    { name: "Single Arm Tricep Extension (Cable)",        gym: "comm", day: "arms", repMin: 8,  repMax: 12, step: 2.5,  startWeight: 10 },
+    { name: "Tricep Dip (Bodyweight, bench)",             gym: "comm", day: "arms", repMin: 8,  repMax: 12, step: 1,    startWeight: 0, bw: true },
+    { name: "Incline Curl (Dumbbell)",                    gym: "both", day: "arms", repMin: 8,  repMax: 12, step: 1.25, startWeight: 10 },
+    { name: "Concentration Curl (Dumbbell)",              gym: "comm", day: "arms", repMin: 8,  repMax: 12, step: 1.25, startWeight: 10 },
+    { name: "Bicep Curl (Armblaster)",                    gym: "comm", day: "arms", repMin: 8,  repMax: 12, step: 1.25, startWeight: 12 },
+    { name: "Seated Overhead Tricep Extension (Dumbbell)",gym: "both", day: "arms", repMin: 8,  repMax: 12, step: 2.5,  startWeight: 20 },
+    { name: "Seated Overhead Tricep Extension (EZ Curl)", gym: "comm", day: "arms", repMin: 8,  repMax: 12, step: 2.5,  startWeight: 20 },
+    { name: "Tricep Pushdown (Cable, straight bar)",      gym: "comm", day: "arms", repMin: 8,  repMax: 12, step: 2.5,  startWeight: 25 },
+    { name: "Cable Curl (Straight Bar)",                  gym: "both", day: "arms", repMin: 8,  repMax: 12, step: 2.5,  startWeight: 20 },
+    { name: "EZ Curl (21s)",                              gym: "comm", day: "arms", repMin: 8,  repMax: 12, step: 2.5,  startWeight: 15 }
   ]
 };
 </script>
@@ -1566,10 +1583,6 @@ img, video, canvas, svg { max-width: 100%; }
     <!-- Filters -->
     <div class="po-filters">
       <div class="po-seg-row">
-        <span class="po-seg-label">Gym</span>
-        <div class="po-seg-control" id="gymSeg"></div>
-      </div>
-      <div class="po-seg-row">
         <span class="po-seg-label">Day</span>
         <div class="po-seg-control" id="daySeg"></div>
       </div>
@@ -1706,10 +1719,6 @@ img, video, canvas, svg { max-width: 100%; }
       <input type="text" id="exName" placeholder="e.g. Incline DB press">
     </div>
     <div class="po-field">
-      <label style="font-size:11px;color:var(--text-3);font-weight:700;letter-spacing:0.04em;text-transform:uppercase">Gym</label>
-      <div class="po-modal-seg" id="exGymSeg"></div>
-    </div>
-    <div class="po-field">
       <label style="font-size:11px;color:var(--text-3);font-weight:700;letter-spacing:0.04em;text-transform:uppercase">Day</label>
       <div class="po-modal-seg" id="exDaySeg"></div>
     </div>
@@ -1753,12 +1762,6 @@ img, video, canvas, svg { max-width: 100%; }
         <button data-u="kg">kg</button>
         <button data-u="lb">lb</button>
       </div>
-    </div>
-
-    <div class="po-set-section">
-      <h4>Gyms</h4>
-      <div class="po-set-list" id="setGyms"></div>
-      <button class="po-add-row-btn" id="setAddGym">+ Add gym</button>
     </div>
 
     <div class="po-set-section">
@@ -1807,11 +1810,11 @@ img, video, canvas, svg { max-width: 100%; }
   function normalize(s) {
     s = s || {};
     s.units = s.units || CONFIG.units || 'kg';
-    s.gyms  = (Array.isArray(s.gyms)  && s.gyms.length)  ? s.gyms  : CONFIG.gyms.slice();
+    s.gyms  = CONFIG.gyms.slice();
     s.days  = (Array.isArray(s.days)  && s.days.length)  ? s.days  : CONFIG.days.slice();
     s.exercises = Array.isArray(s.exercises) ? s.exercises : buildDefaultExercises();
     s.logs = (s.logs && typeof s.logs === 'object') ? s.logs : {};
-    s.filterGym = s.filterGym || s.gyms[0].id;
+    s.filterGym = 'both';
     s.filterDay = s.filterDay || s.days[0].id;
     // Split rotation lives in state so the user can edit it via the pill modal.
     // Stored as a plain array of names (e.g. ["Push", "Pull", "Legs", "Rest"]).
@@ -1856,8 +1859,7 @@ img, video, canvas, svg { max-width: 100%; }
   function estimate1RM(w, r) { if (r < 2) return w; return w * (1 + r / 30); }
   function roundToStep(v, s) { return Math.round(v / s) * s; }
   function getFiltered() {
-    return state.exercises.filter(e =>
-      (e.gym === state.filterGym || e.gym === 'both') && e.day === state.filterDay);
+    return state.exercises.filter(e => e.day === state.filterDay);
   }
   function getCurrentEx() {
     const f = getFiltered();
@@ -1901,20 +1903,13 @@ img, video, canvas, svg { max-width: 100%; }
   // RENDER
   // ============================================================
   function renderFilters() {
-    $('gymSeg').innerHTML = state.gyms.map(g =>
-      '<button class="po-seg-btn ' + (g.id === state.filterGym ? 'active' : '') + '" data-gym="' + g.id + '">' + escape(g.name) + '</button>'
-    ).join('');
     $('daySeg').innerHTML = state.days.map(d =>
       '<button class="po-seg-btn ' + (d.id === state.filterDay ? 'active' : '') + '" data-day="' + d.id + '">' + escape(d.name) + '</button>'
     ).join('');
-    $('gymSeg').querySelectorAll('.po-seg-btn').forEach(b => {
-      b.addEventListener('click', () => { state.filterGym = b.dataset.gym; state.currentEx = null; saveState(); renderAll(); });
-    });
     $('daySeg').querySelectorAll('.po-seg-btn').forEach(b => {
       b.addEventListener('click', () => {
         state.filterDay = b.dataset.day;
         state.currentEx = null;
-        // User has now manually picked a day — stop auto-overriding to today's split.
         state._userPickedDay = true;
         saveState(); renderAll();
       });
@@ -1978,7 +1973,7 @@ img, video, canvas, svg { max-width: 100%; }
   function renderRx() {
     const wrap = $('rxWrap');
     const ex = getCurrentEx();
-    if (!ex) { wrap.innerHTML = '<div class="po-rx-empty">Pick a gym and day above.</div>'; return; }
+    if (!ex) { wrap.innerHTML = '<div class="po-rx-empty">Pick a day above.</div>'; return; }
     const logs = getLogs();
     if (!logs.length) {
       const sw = ex.startWeight, sr = ex.repMin;
@@ -2584,16 +2579,15 @@ img, video, canvas, svg { max-width: 100%; }
   function classifyMuscleGroup(ex) {
     const name = String(ex.name || '').toLowerCase();
     const day = String(ex.day || '').toLowerCase();
-    if (/(squat|deadlift|lunge|leg)/.test(name) || day === 'legs') return 'Legs';
-    if (/(bench|press|pec|push)/.test(name) || day === 'push') return 'Chest';
-    if (/(row|pull|lat|back|deadlift)/.test(name) || day === 'pull') return 'Back';
-    if (/(shoulder|overhead|press)/.test(name)) return 'Shoulders';
-    if (/(curl|biceps|bicep)/.test(name)) return 'Biceps';
-    if (/(tricep|dip|extension|skullcrusher)/.test(name)) return 'Triceps';
+    if (/(squat|deadlift|lunge|leg|calf|hamstring|hip|glute)/.test(name) || day === 'legs') return 'Legs';
+    if (/(bench|pec)/.test(name) || day === 'push') return 'Push';
+    if (/(row|lat|shrug|pull-apart|pulldown|face pull)/.test(name) || day === 'pull') return 'Pull';
+    if (/(curl|bicep|armblaster|spider)/.test(name)) return 'Biceps';
+    if (/(tricep|skull|pushdown|dip)/.test(name)) return 'Triceps';
+    if (day === 'arms') return 'Arms';
     if (/(plank|ab|core|situp|crunch)/.test(name)) return 'Core';
-    if (day === 'pull') return 'Back';
-    if (day === 'push') return 'Chest';
-    if (day === 'legs') return 'Legs';
+    if (day === 'pull') return 'Pull';
+    if (day === 'push') return 'Push';
     return 'Core';
   }
 
@@ -2674,7 +2668,7 @@ img, video, canvas, svg { max-width: 100%; }
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 28);
     cutoff.setHours(0, 0, 0, 0);
-    const groups = ['Chest','Back','Shoulders','Biceps','Triceps','Legs','Core'];
+    const groups = ['Push','Pull','Legs','Biceps','Triceps','Arms','Core'];
     const counts = {};
     groups.forEach(g => { counts[g] = new Set(); });
     logs.forEach(({ ex, log }) => {
@@ -2775,19 +2769,9 @@ img, video, canvas, svg { max-width: 100%; }
   let editingExId = null;
   let modalGym = null, modalDay = null;
   function renderModalSegs() {
-    $('exGymSeg').innerHTML = state.gyms.map(g =>
-      '<button data-gym="' + g.id + '" class="' + (modalGym === g.id ? 'active' : '') + '">' + escape(g.name) + '</button>'
-    ).join('') + '<button data-gym="both" class="' + (modalGym === 'both' ? 'active' : '') + '">Both</button>';
     $('exDaySeg').innerHTML = state.days.map(d =>
       '<button data-day="' + d.id + '" class="' + (modalDay === d.id ? 'active' : '') + '">' + escape(d.name) + '</button>'
     ).join('');
-    $('exGymSeg').querySelectorAll('button').forEach(b => {
-      b.addEventListener('click', () => {
-        modalGym = b.dataset.gym;
-        $('exGymSeg').querySelectorAll('button').forEach(x => x.classList.remove('active'));
-        b.classList.add('active');
-      });
-    });
     $('exDaySeg').querySelectorAll('button').forEach(b => {
       b.addEventListener('click', () => {
         modalDay = b.dataset.day;
@@ -2802,12 +2786,10 @@ img, video, canvas, svg { max-width: 100%; }
     $('exDelete').style.display = mode === 'edit' ? 'block' : 'none';
     if (mode === 'edit') {
       $('exName').value = ex.name;
-      modalGym = ex.gym;
       modalDay = ex.day;
       $('exBw').checked = !!ex.bw;
     } else {
       $('exName').value = '';
-      modalGym = state.filterGym;
       modalDay = state.filterDay;
       $('exBw').checked = false;
     }
@@ -2829,17 +2811,15 @@ img, video, canvas, svg { max-width: 100%; }
   $('exModalSave').addEventListener('click', () => {
     const name = $('exName').value.trim();
     if (!name) { alert('Name is required.'); return; }
-    if (!modalGym) { alert('Pick a gym.'); return; }
     if (!modalDay) { alert('Pick a day.'); return; }
     const isBw = $('exBw').checked;
     if (editingExId) {
       const ex = state.exercises.find(e => e.id === editingExId);
-      if (ex) Object.assign(ex, { name, gym: modalGym, day: modalDay, bw: isBw, step: isBw ? 1 : (ex.step || 2.5) });
+      if (ex) Object.assign(ex, { name, day: modalDay, bw: isBw, step: isBw ? 1 : (ex.step || 2.5) });
     } else {
-      const ex = Object.assign({ id: uid() }, { name, gym: modalGym, day: modalDay, bw: isBw, startWeight: isBw ? 0 : 20, repMin: 6, repMax: 8, step: isBw ? 1 : 2.5 });
+      const ex = Object.assign({ id: uid() }, { name, gym: 'both', day: modalDay, bw: isBw, startWeight: isBw ? 0 : 20, repMin: 6, repMax: 8, step: isBw ? 1 : 2.5 });
       state.exercises.push(ex);
       state.currentEx = ex.id;
-      state.filterGym = (modalGym === 'both') ? state.filterGym : modalGym;
       state.filterDay = modalDay;
     }
     saveState();
@@ -2869,7 +2849,7 @@ img, video, canvas, svg { max-width: 100%; }
 
   function openRotationModal() {
     rotDraft = (state.splitRotation || []).slice();
-    if (!rotDraft.length) rotDraft = ['Push', 'Pull', 'Legs', 'Rest'];
+    if (!rotDraft.length) rotDraft = ['Push', 'Pull', 'Rest', 'Legs', 'Arms', 'Rest', 'Rest'];
     rotDraftTodayIdx = todaySplit().index;
     if (rotDraftTodayIdx >= rotDraft.length) rotDraftTodayIdx = 0;
     renderRotList();
@@ -2964,32 +2944,12 @@ img, video, canvas, svg { max-width: 100%; }
     $('setUnitsSeg').querySelectorAll('button').forEach(b => {
       b.classList.toggle('active', b.dataset.u === state.units);
     });
-    $('setGyms').innerHTML = state.gyms.map((g, i) =>
-      '<div class="po-set-row" data-i="' + i + '">'
-      + '<input type="text" value="' + escape(g.name) + '" data-field="name" placeholder="Gym name">'
-      + '<button class="po-mini-btn" data-action="del" aria-label="Delete">×</button>'
-      + '</div>'
-    ).join('');
     $('setDays').innerHTML = state.days.map((d, i) =>
       '<div class="po-set-row" data-i="' + i + '">'
       + '<input type="text" value="' + escape(d.name) + '" data-field="name" placeholder="Day name">'
       + '<button class="po-mini-btn" data-action="del" aria-label="Delete">×</button>'
       + '</div>'
     ).join('');
-    $('setGyms').querySelectorAll('.po-set-row').forEach(row => {
-      const i = parseInt(row.dataset.i, 10);
-      row.querySelector('input').addEventListener('input', e => {
-        state.gyms[i].name = e.target.value;
-        saveState();
-      });
-      row.querySelector('[data-action="del"]').addEventListener('click', () => {
-        if (state.gyms.length <= 1) { alert('You need at least one gym.'); return; }
-        if (!confirm('Remove "' + state.gyms[i].name + '"? Exercises tagged to this gym will become invisible until you reassign them.')) return;
-        state.gyms.splice(i, 1);
-        if (!state.gyms.find(g => g.id === state.filterGym)) state.filterGym = state.gyms[0].id;
-        saveState(); renderSettings(); renderAll();
-      });
-    });
     $('setDays').querySelectorAll('.po-set-row').forEach(row => {
       const i = parseInt(row.dataset.i, 10);
       row.querySelector('input').addEventListener('input', e => {
@@ -3020,13 +2980,6 @@ img, video, canvas, svg { max-width: 100%; }
       b.classList.add('active');
       if (typeof wtRender === 'function') wtRender();
     });
-  });
-  $('setAddGym').addEventListener('click', () => {
-    const name = (prompt('New gym name:') || '').trim();
-    if (!name) return;
-    const id = 'g_' + Date.now();
-    state.gyms.push({ id, name });
-    saveState(); renderSettings(); renderAll();
   });
   $('setAddDay').addEventListener('click', () => {
     const name = (prompt('New day name:') || '').trim();
