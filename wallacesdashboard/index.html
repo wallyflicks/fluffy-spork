@@ -1014,12 +1014,20 @@
 
     /* ─── Quick Log ─────────────────────────────────────────────────── */
     .ql-card { padding: 18px 20px 16px; gap: 4px; }
+    .ql-today-total { display: flex; align-items: baseline; gap: 8px; padding-bottom: 12px; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 11px; color: var(--text-tertiary); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+    .ql-today-amt { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--success); }
+    .ql-today-amt.usd { color: var(--text-secondary); }
+    .ql-today-sep { opacity: 0.4; }
     .ql-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
     .ql-row:last-child { border-bottom: none; }
     .ql-info { min-width: 0; }
     .ql-name { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .ql-count { font-size: 11px; color: var(--text-tertiary); font-family: var(--mono); margin-top: 2px; }
+    .ql-count-row { display: flex; align-items: center; gap: 5px; margin-top: 2px; }
+    .ql-count { font-size: 11px; color: var(--text-tertiary); font-family: var(--mono); }
     .ql-count.warn { color: var(--warning); font-weight: 700; }
+    .ql-edit-cap { background: none; border: none; color: var(--text-tertiary); opacity: 0.55; cursor: pointer; padding: 2px; display: inline-flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; }
+    .ql-edit-cap:hover { opacity: 1; color: var(--text-primary); }
+    .ql-edit-cap svg { width: 11px; height: 11px; }
     .ql-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
     .ql-btn { width: 30px; height: 30px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.05); color: var(--text-primary); font-size: 16px; font-weight: 700; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; }
     .ql-btn:hover { background: rgba(255,255,255,0.09); }
@@ -2632,6 +2640,21 @@
     </div>
   </div>
 
+  <!-- Quick Log: edit daily cap popup -->
+  <div id="qlCapModal" class="ql-modal-backdrop" style="display:none" role="dialog" aria-modal="true">
+    <div class="ql-modal">
+      <p class="ql-modal-title" id="qlCapModalTitle">Daily Cap</p>
+      <div class="ql-field">
+        <label class="ql-label" for="qlCapInput">Max videos / day</label>
+        <input class="ql-input" id="qlCapInput" type="number" min="1" step="1">
+      </div>
+      <div class="ql-modal-actions">
+        <button type="button" class="ql-modal-btn" id="qlCapCancelBtn">Cancel</button>
+        <button type="button" class="ql-modal-btn primary" id="qlCapSaveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
   <nav class="tabbar" aria-label="Bottom navigation">
   <div class="tabbar-inner">
     <a href="index.html"    class="tabbar-link active" aria-current="page" aria-label="Main"><i data-lucide="home"></i></a>
@@ -2653,16 +2676,22 @@
   'use strict';
 
   let _qlPendingDealId = null;
+  let _qlCapDealId = null;
 
   function qlRender() {
     const card = document.getElementById('quickLogCard');
     if (!card) return;
     const deals = getActiveDeals();
+
+    const todayCad = totalEarnedTodayCad();
+    const todayUsd = todayCad / (_fxRate || 1.38);
+    const header = `<div class="ql-today-total">Today <span class="ql-today-amt">$${todayCad.toFixed(2)} CAD</span><span class="ql-today-sep">·</span><span class="ql-today-amt usd">$${todayUsd.toFixed(2)} USD</span></div>`;
+
     if (!deals.length) {
-      card.innerHTML = '<div class="ql-empty">No active deals — add one in Content.</div>';
+      card.innerHTML = header + '<div class="ql-empty">No active deals — add one in Content.</div>';
       return;
     }
-    card.innerHTML = deals.map(d => {
+    card.innerHTML = header + deals.map(d => {
       const cnt  = videosToday(d.id).length;
       const cap  = getDealMaxPerDay(d);
       const over = cnt >= cap;
@@ -2670,7 +2699,10 @@
       <div class="ql-row">
         <div class="ql-info">
           <div class="ql-name">${esc(d.brand_name)}</div>
-          <div class="ql-count${over ? ' warn' : ''}">${cnt}/${cap} today</div>
+          <div class="ql-count-row">
+            <span class="ql-count${over ? ' warn' : ''}">${cnt}/${cap} today</span>
+            <button type="button" class="ql-edit-cap" data-ql-editcap="${esc(d.id)}" aria-label="Edit daily cap for ${esc(d.brand_name)}"><i data-lucide="pencil"></i></button>
+          </div>
         </div>
         <div class="ql-actions">
           <button type="button" class="ql-btn" data-ql-minus="${esc(d.id)}" ${cnt > 0 ? '' : 'disabled'} aria-label="Undo last log for ${esc(d.brand_name)}">−</button>
@@ -2685,6 +2717,10 @@
     card.querySelectorAll('[data-ql-minus]').forEach(btn => {
       btn.addEventListener('click', () => qlUndo(btn.getAttribute('data-ql-minus')));
     });
+    card.querySelectorAll('[data-ql-editcap]').forEach(btn => {
+      btn.addEventListener('click', () => qlOpenCapModal(btn.getAttribute('data-ql-editcap')));
+    });
+    if (window.lucide) lucide.createIcons();
   }
 
   function qlOpenModal(dealId) {
@@ -2723,6 +2759,31 @@
     qlRender();
   }
 
+  function qlOpenCapModal(dealId) {
+    _qlCapDealId = dealId;
+    const deal = getDeal(dealId);
+    document.getElementById('qlCapModalTitle').textContent = 'Daily Cap' + (deal ? ' — ' + deal.brand_name : '');
+    document.getElementById('qlCapInput').value = getDealMaxPerDay(deal);
+    document.getElementById('qlCapModal').style.display = 'flex';
+  }
+
+  function qlCloseCapModal() {
+    document.getElementById('qlCapModal').style.display = 'none';
+    _qlCapDealId = null;
+  }
+
+  async function qlSaveCap() {
+    if (!_qlCapDealId) return;
+    const dealId = _qlCapDealId;
+    const n = parseInt(document.getElementById('qlCapInput').value, 10);
+    qlCloseCapModal();
+    if (!Number.isFinite(n) || n <= 0) return;
+    try {
+      await updateDeal(dealId, { max_per_day: n });
+    } catch (e) { console.warn('[quick log] cap update failed:', e.message); }
+    qlRender();
+  }
+
   document.getElementById('qlEditorCheck').addEventListener('change', e => {
     document.getElementById('qlEditorCostWrap').style.display = e.target.checked ? '' : 'none';
   });
@@ -2730,6 +2791,15 @@
   document.getElementById('qlConfirmBtn').addEventListener('click', qlConfirm);
   document.getElementById('qlModal').addEventListener('click', e => {
     if (e.target === e.currentTarget) qlCloseModal();
+  });
+
+  document.getElementById('qlCapCancelBtn').addEventListener('click', qlCloseCapModal);
+  document.getElementById('qlCapSaveBtn').addEventListener('click', qlSaveCap);
+  document.getElementById('qlCapInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); qlSaveCap(); }
+  });
+  document.getElementById('qlCapModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) qlCloseCapModal();
   });
 
   // Cross-tab sync: content.html's deal/video mutations write to the same

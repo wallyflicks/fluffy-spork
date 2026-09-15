@@ -120,6 +120,24 @@ function videosToday(dealId)     { const t = todayVan(); return ls(LS_VIDEOS).fi
 function videosThisMonth(dealId) { const m = monthOf(todayVan()); return ls(LS_VIDEOS).filter(v => v.deal_id === dealId && v.status === 'Approved' && monthOf(v.date) === m).length; }
 function totalEarnedFromDeal(dealId) { return ls(LS_VIDEOS).filter(v => v.deal_id === dealId && v.status === 'Approved').reduce((s,v) => s + Number(v.total), 0); }
 
+// Sum of all approved videos' totals (stored in CAD) logged today, across every deal.
+function totalEarnedTodayCad() {
+  const t = todayVan();
+  return ls(LS_VIDEOS).filter(v => v.date === t && v.status === 'Approved').reduce((s,v) => s + Number(v.total || 0), 0);
+}
+
+// Patch a deal's fields (e.g. { max_per_day }) and sync — goes through the same
+// fresh-bundle-first pattern as every other deal mutation.
+async function updateDeal(dealId, patch) {
+  await withFreshBundle(() => {
+    const deals = ls(LS_DEALS);
+    const idx = deals.findIndex(d => d.id === dealId);
+    if (idx < 0) return;
+    deals[idx] = { ...deals[idx], ...patch };
+    lsSet(LS_DEALS, deals);
+  });
+}
+
 // ── Core video logging ──────────────────────────────────────────────
 // Same logic as content.html's "+ Log Video" form. opts: { date, status, bonus, usedEditor, editorCost, notes }
 async function logVideoForDeal(dealId, opts = {}) {
