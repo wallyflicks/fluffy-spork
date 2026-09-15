@@ -30,6 +30,16 @@
   --purple: #a78bfa;
   --font: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  /* aliases for the Income Challenge block (moved from index.html, which uses this naming) */
+  --text-primary: var(--text-1);
+  --text-secondary: var(--text-2);
+  --text-tertiary: var(--text-3);
+  --success: var(--good);
+  --warning: var(--warn);
+  --danger: var(--bad);
+  --card: var(--bg-card);
+  --card-border: var(--border);
+  --sans: var(--font);
 }
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text-1); font-family: var(--font); overflow-x: hidden; }
@@ -252,6 +262,164 @@ select.c-input option { background: #1a1a1c; }
 .tabbar-link svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .tabbar-link.active { background: #ffffff; color: #0a0a0a; }
 .tabbar-link:hover:not(.active) { color: rgba(255,255,255,0.65); }
+/* ─── Income Challenge (moved from index.html) ─────────────────── */
+.section { display: flex; flex-direction: column; gap: 18px; }
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+    }
+
+    .section-title::before {
+      content: "";
+      display: block;
+      width: 18px;
+      height: 1px;
+      background: var(--text-tertiary);
+      opacity: 0.6;
+    }
+
+    .section-title::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.08), transparent);
+    }
+
+    .gm-card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 22px;
+      backdrop-filter: blur(24px) saturate(1.2);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+      border: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ─── Income Challenge ─────────────────────────────────────────── */
+    .ic-card { padding: 20px 22px 18px; }
+    .ic-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .ic-title-row { display: flex; flex-direction: column; gap: 3px; }
+    .ic-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-tertiary); margin: 0; }
+    .ic-name { font-size: 17px; font-weight: 700; color: var(--text-primary); margin: 0; }
+    .ic-edit-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: var(--text-secondary); font-size: 11px; font-weight: 600; padding: 5px 10px; cursor: pointer; font-family: var(--sans); white-space: nowrap; flex-shrink: 0; }
+    .ic-edit-btn:hover { background: rgba(255,255,255,0.09); }
+    .ic-amounts { display: flex; align-items: baseline; gap: 6px; margin-bottom: 12px; }
+    .ic-amount-value { font-size: 36px; font-weight: 700; letter-spacing: -0.04em; font-family: var(--mono); line-height: 1; color: var(--text-primary); }
+    .ic-amount-goal { font-size: 16px; color: var(--text-tertiary); font-family: var(--mono); }
+    .ic-progress-bar-wrap { background: rgba(255,255,255,0.06); border-radius: 999px; height: 8px; overflow: hidden; margin-bottom: 14px; position: relative; }
+    .ic-target-marker { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,0.35); transform: translateX(-50%); pointer-events: none; border-radius: 1px; }
+    .ic-progress-bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #6BE3A4, #4BB788); transition: width 0.5s ease; min-width: 3px; }
+    .ic-progress-bar-fill.over { background: linear-gradient(90deg, #F2C063, #E0A030); }
+    .ic-stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .ic-stat { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 10px 10px 8px; display: flex; flex-direction: column; gap: 3px; }
+    .ic-stat-label { font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-tertiary); }
+    .ic-stat-value { font-size: 14px; font-weight: 700; font-family: var(--mono); color: var(--text-primary); line-height: 1.1; }
+    .ic-pace-chip { font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; margin-bottom: 14px; }
+    .ic-pace-chip svg { width: 12px; height: 12px; }
+    .ic-pace-chip.ahead { background: rgba(107,227,164,0.12); color: var(--success); }
+    .ic-pace-chip.behind { background: rgba(255,107,107,0.12); color: var(--danger); }
+    .ic-pace-chip.neutral { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
+    .ic-breakdown { border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; }
+    .ic-breakdown-label { font-size: 9px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px; }
+    .ic-breakdown-bars { display: flex; flex-direction: column; gap: 6px; }
+    .ic-breakdown-row { display: grid; grid-template-columns: 90px 1fr auto; align-items: center; gap: 8px; }
+    .ic-brow-name { font-size: 11px; color: var(--text-secondary); }
+    .ic-brow-bar-wrap { background: rgba(255,255,255,0.06); border-radius: 999px; height: 5px; overflow: hidden; }
+    .ic-brow-bar-fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
+    .ic-brow-bar-fill.ugc { background: #6BE3A4; }
+    .ic-brow-bar-fill.other { background: #7dd3fc; }
+    .ic-log-row-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+    .ic-finance-btn { background: transparent; border: 1px solid rgba(107,227,164,0.3); color: var(--success); font-family: var(--sans); font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+    .ic-finance-btn:hover { background: rgba(107,227,164,0.1); }
+    .ic-logged-tag { font-size: 10px; font-weight: 700; color: var(--success); opacity: 0.65; white-space: nowrap; letter-spacing: 0.04em; }
+    .ic-brow-amount { font-size: 11px; font-weight: 700; font-family: var(--mono); color: var(--text-secondary); white-space: nowrap; }
+    .ic-log-btns { display: flex; gap: 8px; margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; }
+    .ic-log-btn { flex: 1; padding: 8px 10px; border-radius: 10px; border: 1px dashed rgba(255,255,255,0.18); background: transparent; color: var(--text-secondary); font-family: var(--sans); font-size: 11px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; transition: background 0.15s, color 0.15s; }
+    .ic-log-btn:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+    .ic-log-btn svg { width: 12px; height: 12px; }
+    .ic-no-challenge { text-align: center; padding: 24px 0 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .ic-no-challenge-text { font-size: 13px; color: var(--text-tertiary); margin: 0; }
+    .ic-setup-btn { padding: 9px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: var(--text-primary); font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .ic-setup-btn:hover { background: rgba(255,255,255,0.10); }
+    .ic-setup-btn svg { width: 14px; height: 14px; }
+    /* Pace indicator (below stats) */
+    .ic-pace-main { border-radius: 12px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .ic-pace-main.ahead { background: rgba(107,227,164,0.08); border: 1px solid rgba(107,227,164,0.15); }
+    .ic-pace-main.behind { background: rgba(255,107,107,0.08); border: 1px solid rgba(255,107,107,0.15); }
+    .ic-pace-main.neutral { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+    .ic-pace-main-icon { flex-shrink: 0; display: flex; }
+    .ic-pace-main-icon svg { width: 16px; height: 16px; }
+    .ic-pace-main.ahead .ic-pace-main-icon { color: var(--success); }
+    .ic-pace-main.behind .ic-pace-main-icon { color: var(--danger); }
+    .ic-pace-main.neutral .ic-pace-main-icon { color: var(--text-tertiary); }
+    .ic-pace-main-rate { font-size: 15px; font-weight: 700; font-family: var(--mono); line-height: 1.1; }
+    .ic-pace-main.ahead .ic-pace-main-rate { color: var(--success); }
+    .ic-pace-main.behind .ic-pace-main-rate { color: var(--danger); }
+    .ic-pace-main.neutral .ic-pace-main-rate { color: var(--text-secondary); }
+    .ic-pace-main-desc { font-size: 10px; color: var(--text-tertiary); margin-top: 2px; }
+    /* Milestones */
+    .ic-milestone-banner { border-radius: 12px; padding: 12px 14px; background: rgba(107,227,164,0.09); border: 1px solid rgba(107,227,164,0.22); margin-bottom: 12px; }
+    .ic-milestone-banner-title { font-size: 13px; font-weight: 700; color: var(--success); margin: 0 0 2px; }
+    .ic-milestone-banner-sub { font-size: 11px; color: rgba(107,227,164,0.65); margin: 0; }
+    .ic-milestone-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .ic-milestone-badge { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 20px; background: rgba(107,227,164,0.07); color: rgba(107,227,164,0.55); border: 1px solid rgba(107,227,164,0.14); }
+    /* Trend chart */
+    .ic-trend { border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; margin-bottom: 14px; }
+    .ic-trend-label { font-size: 9px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px; }
+    .ic-trend-canvas-wrap { height: 80px; }
+    /* Stacked source bar */
+    .ic-stacked { border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; margin-bottom: 14px; }
+    .ic-stacked-label { font-size: 9px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px; }
+    .ic-stacked-bar { height: 10px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; display: flex; margin-bottom: 10px; }
+    .ic-stacked-seg { height: 100%; transition: width 0.4s ease; }
+    .ic-stacked-empty { font-size: 11px; color: var(--text-tertiary); margin: 0 0 0; }
+    .ic-stacked-legend { display: flex; gap: 14px; flex-wrap: wrap; }
+    .ic-stacked-legend-row { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-secondary); }
+    .ic-stacked-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    /* ─── IC Modals ─────────────────────────────────────────────────── */
+    .ic-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.72); backdrop-filter: blur(8px); z-index: 10000; display: flex; align-items: flex-end; justify-content: center; }
+    .ic-modal { background: #111113; border: 1px solid rgba(255,255,255,0.10); border-top: 1px solid rgba(255,255,255,0.15); border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; max-height: calc(100vh - 68px); max-height: calc(100dvh - 68px); overflow: hidden; display: flex; flex-direction: column; }
+    .ic-modal-header { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 20px 0; }
+    .ic-modal-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px 20px; display: flex; flex-direction: column; gap: 14px; }
+    .ic-modal-footer { flex-shrink: 0; padding: 12px 20px calc(20px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(255,255,255,0.07); }
+    .ic-modal-title { font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0; }
+    .ic-modal-close { background: transparent; border: none; color: var(--text-tertiary); cursor: pointer; padding: 4px; display: flex; align-items: center; border-radius: 6px; }
+    .ic-modal-close:hover { color: var(--text-primary); }
+    .ic-modal-close svg { width: 18px; height: 18px; }
+    .ic-field { display: flex; flex-direction: column; gap: 5px; }
+    .ic-label { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-tertiary); }
+    .ic-input { padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); color: var(--text-primary); font-family: var(--sans); font-size: 13px; width: 100%; -webkit-appearance: none; color-scheme: dark; }
+    .ic-input:focus { outline: none; border-color: rgba(107,227,164,0.4); }
+    .ic-input::placeholder { color: rgba(255,255,255,0.25); }
+    select.ic-input { cursor: pointer; }
+    select.ic-input option { background: #1a1a1c; }
+    .ic-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .ic-form-full { grid-column: 1 / -1; }
+    .ic-btn { padding: 10px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: var(--text-primary); font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.15s; }
+    .ic-btn:hover { background: rgba(255,255,255,0.10); }
+    .ic-btn.primary { background: var(--success); color: #000; border-color: transparent; }
+    .ic-btn.primary:hover { background: #5fd4a6; }
+    .ic-btn.full { width: 100%; }
+    .ic-log-list { display: flex; flex-direction: column; gap: 6px; }
+    .ic-log-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; }
+    .ic-log-row-info { flex: 1; min-width: 0; }
+    .ic-log-row-name { font-size: 13px; color: var(--text-primary); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ic-log-row-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 1px; }
+    .ic-log-row-amount { font-size: 14px; font-weight: 700; font-family: var(--mono); color: var(--success); white-space: nowrap; }
+    .ic-log-del { background: transparent; border: none; color: var(--text-tertiary); cursor: pointer; padding: 4px 6px; border-radius: 6px; font-size: 18px; line-height: 1; flex-shrink: 0; }
+    .ic-log-del:hover { color: var(--danger); }
+    .ic-log-empty { font-size: 12px; color: var(--text-tertiary); text-align: center; padding: 14px 0; font-style: italic; }
+    .ic-section-divider { font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-tertiary); display: flex; align-items: center; gap: 8px; }
+    .ic-section-divider::before, .ic-section-divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.06); }
+
 </style>
 </head>
 <body>
@@ -471,6 +639,15 @@ select.c-input option { background: #1a1a1c; }
     </div>
   </div>
 
+    <!-- ── Income Challenge ── -->
+    <div class="section">
+      <div class="section-title">Income Challenge</div>
+      <section class="gm-card ic-card" id="incomeChallengeCard">
+        <!-- populated by icRender() -->
+      </section>
+    </div>
+
+
 </div><!-- /.content-shell -->
 
 <!-- DEAL MODAL -->
@@ -516,6 +693,10 @@ select.c-input option { background: #1a1a1c; }
             <option value="Paused">Paused</option>
             <option value="Completed">Completed</option>
           </select>
+        </div>
+        <div class="c-field">
+          <label>Max Videos / Day</label>
+          <input class="c-input" type="number" id="dealMaxPerDay" placeholder="3" min="1" step="1">
         </div>
         <div class="c-field c-form-span">
           <label>Notes</label>
@@ -590,6 +771,92 @@ select.c-input option { background: #1a1a1c; }
   </div>
 </div>
 
+  <!-- Income Challenge: Setup Modal -->
+  <div id="icSetupModal" class="ic-modal-backdrop" style="display:none" role="dialog" aria-modal="true">
+    <div class="ic-modal">
+      <div class="ic-modal-header">
+        <p class="ic-modal-title" id="icSetupModalTitle">New Challenge</p>
+        <button class="ic-modal-close" id="icSetupClose" aria-label="Close"><i data-lucide="x"></i></button>
+      </div>
+      <div class="ic-modal-body">
+        <div class="ic-form-grid">
+          <div class="ic-field ic-form-full">
+            <label class="ic-label" for="icSetupName">Challenge Name</label>
+            <input class="ic-input" id="icSetupName" type="text" placeholder="Income Challenge" autocomplete="off">
+          </div>
+          <div class="ic-field">
+            <label class="ic-label" for="icSetupGoal">Goal (CAD $)</label>
+            <input class="ic-input" id="icSetupGoal" type="number" min="1" step="100" placeholder="10000">
+          </div>
+          <div class="ic-field">
+            <label class="ic-label" for="icSetupStart">Start Date</label>
+            <input class="ic-input" id="icSetupStart" type="text" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off">
+          </div>
+          <div class="ic-field ic-form-full">
+            <label class="ic-label" for="icSetupEnd">End Date <span style="color:var(--danger)">*</span></label>
+            <input class="ic-input" id="icSetupEnd" type="text" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off">
+          </div>
+        </div>
+        <div id="icSetupError" style="font-size:12px;color:var(--danger);display:none"></div>
+        <div style="padding-top:8px">
+          <button class="ic-btn primary full" id="icSetupSave">Save Challenge</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Income Challenge: Other Income Modal -->
+  <div id="icOtherModal" class="ic-modal-backdrop" style="display:none" role="dialog" aria-modal="true">
+    <div class="ic-modal">
+      <div class="ic-modal-header">
+        <p class="ic-modal-title">Other Income</p>
+        <button class="ic-modal-close" id="icOtherClose" aria-label="Close"><i data-lucide="x"></i></button>
+      </div>
+      <div class="ic-modal-body">
+        <div class="ic-section-divider">Add Entry</div>
+        <div class="ic-form-grid">
+          <div class="ic-field">
+            <label class="ic-label" for="icOtherAmount">Amount (CAD)</label>
+            <input class="ic-input" id="icOtherAmount" type="number" min="0" step="0.01" placeholder="0.00">
+          </div>
+          <div class="ic-field">
+            <label class="ic-label" for="icOtherDate">Date</label>
+            <input class="ic-input" id="icOtherDate" type="text" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off">
+          </div>
+          <div class="ic-field">
+            <label class="ic-label" for="icOtherCategory">Source / Category</label>
+            <select class="ic-input" id="icOtherCategory">
+              <option>Photography</option>
+              <option>Wedding Photography</option>
+              <option>Event Photography</option>
+              <option>Portrait Photography</option>
+              <option>Product Photography</option>
+              <option>Marketplace</option>
+              <option>Freelance</option>
+              <option value="__custom__">Custom...</option>
+            </select>
+          </div>
+          <div class="ic-field" id="icOtherCustomWrap" style="display:none">
+            <label class="ic-label" for="icOtherCustom">Custom Category</label>
+            <input class="ic-input" id="icOtherCustom" type="text" placeholder="Enter category" autocomplete="off">
+          </div>
+          <div class="ic-field ic-form-full">
+            <label class="ic-label" for="icOtherDesc">Description</label>
+            <input class="ic-input" id="icOtherDesc" type="text" placeholder="e.g. Engagement shoot at Stanley Park" autocomplete="off">
+          </div>
+          <div class="ic-field ic-form-full">
+            <label class="ic-label" for="icOtherClient">Client / Buyer (optional)</label>
+            <input class="ic-input" id="icOtherClient" type="text" placeholder="Name or leave blank" autocomplete="off">
+          </div>
+        </div>
+        <p class="ic-error" id="icOtherError" style="display:none"></p>
+        <button class="ic-btn primary full" id="icOtherAdd">Add Entry</button>
+        <div class="ic-section-divider">History</div>
+        <div id="icOtherList" class="ic-log-list"></div>
+      </div>
+    </div>
+  </div>
+
 <!-- NAV -->
 <nav class="tabbar" aria-label="Bottom navigation">
   <div class="tabbar-inner">
@@ -608,27 +875,16 @@ select.c-input option { background: #1a1a1c; }
 <!-- Tooltip element -->
 <div class="eh-tooltip" id="ehTooltip"></div>
 
+<script src="deals-data.js"></script>
 <script>
 'use strict';
 
-// ── Supabase ─────────────────────────────────────────────────────
-const SUPA_URL    = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
-const SUPA_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
-const CONTENT_KEY = 'content';
-const SB_H  = { 'Content-Type': 'application/json', 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Prefer': 'resolution=merge-duplicates' };
-const SB_RH = { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY };
-
-// ── localStorage keys ─────────────────────────────────────────────
-const LS_DEALS    = 'ugc_deals';
-const LS_PAYMENTS = 'ugc_payments';
-const LS_VIDEOS   = 'ugc_videos';
-const LS_CV       = 'content_videos';
+// Supabase config, localStorage keys, ls()/lsSet()/uid()/todayVan()/esc(),
+// fetchFromCloud()/pushToCloud() and the deal/video data model all live in
+// deals-data.js now — it's shared with index.html's Quick Log widget.
 
 const FIN_INC  = 'finance_income';
 const FIN_EXP  = 'finance_expenses';
-const LS_EDITOR_PAYMENTS = 'ugc_editor_payments';
-const LS_EDITOR_RESET_AT = 'ugc_editor_reset_at'; // ISO timestamp, set on pay, never cleared on delete
-const LS_EDITOR_TZ       = 'ugc_editor_tz';       // UTC hour offset (integer), e.g. 7 for UTC+7
 
 // ── Sync indicator ────────────────────────────────────────────────
 const syncDot   = document.getElementById('syncDot');
@@ -638,37 +894,6 @@ function syncState(state, msg) {
   syncLabel.textContent = msg;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────
-function uid()      { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
-function todayVan() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' }); }
-function monthOf(d) { return (d || todayVan()).slice(0, 7); }
-function esc(s)     { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function ls(k)      { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } }
-function lsSet(k,v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
-
-// ── Cloud sync ────────────────────────────────────────────────────
-async function fetchFromCloud() {
-  const res = await fetch(`${SUPA_URL}/rest/v1/app_state?key=eq.${CONTENT_KEY}&select=data`, { headers: SB_RH });
-  if (!res.ok) throw new Error('fetch failed ' + res.status);
-  const rows = await res.json();
-  return (rows.length && rows[0].data) ? rows[0].data : null;
-}
-async function pushToCloud() {
-  const bundle = {
-    [LS_DEALS]:           ls(LS_DEALS),
-    [LS_PAYMENTS]:        ls(LS_PAYMENTS),
-    [LS_VIDEOS]:          ls(LS_VIDEOS),
-    [LS_CV]:              ls(LS_CV),
-    [LS_EDITOR_PAYMENTS]: ls(LS_EDITOR_PAYMENTS),
-    [LS_EDITOR_RESET_AT]: localStorage.getItem(LS_EDITOR_RESET_AT) || null,
-    [LS_EDITOR_TZ]:       _editorTzOffset,
-  };
-  const res = await fetch(`${SUPA_URL}/rest/v1/app_state?on_conflict=key`, {
-    method: 'POST', headers: SB_H,
-    body: JSON.stringify({ key: CONTENT_KEY, data: bundle, updated_at: new Date().toISOString() })
-  });
-  if (!res.ok) throw new Error('push failed ' + res.status);
-}
 async function sbUpsert() { await pushToCloud(); }
 async function sbDelete()  { await pushToCloud(); }
 
@@ -737,7 +962,6 @@ let _ehTooltipTimer   = null;
 let _ehPeriod         = 'day';
 let _view             = 'list';
 let _earningsCurrency = 'CAD';
-let _fxRate           = null;
 let _editorTzOffset   = localStorage.getItem(LS_EDITOR_TZ) !== null ? Number(localStorage.getItem(LS_EDITOR_TZ)) : 7;
 
 // Calendar state
@@ -749,23 +973,10 @@ let _calMonth  = _vanNow.getMonth();
 let _cvEditId         = null;
 let _cvDeleteConfirm  = false;
 
-// ── USD/CAD exchange rate (cached daily in localStorage) ──────────
-const FX_LS_KEY = 'content_fx_usd_cad';
-
-async function ensureFxRate() {
-  const cached = JSON.parse(localStorage.getItem(FX_LS_KEY) || 'null');
-  if (cached && cached.date === todayVan()) {
-    _fxRate = cached.rate;
-  } else {
-    try {
-      const resp = await fetch('https://api.frankfurter.app/latest?from=USD&to=CAD');
-      const json = await resp.json();
-      _fxRate = json.rates.CAD;
-      localStorage.setItem(FX_LS_KEY, JSON.stringify({ rate: _fxRate, date: todayVan() }));
-    } catch {
-      _fxRate = (cached && cached.rate) || 1.38;
-    }
-  }
+// USD/CAD exchange rate + dealToCad() live in deals-data.js (shared _fxRate).
+// This wraps it with the UI refresh content.html needs after the rate loads.
+async function refreshFxRateUI() {
+  await ensureFxRate();
   updateFxLabel();
   updateDealCardRates();
   renderSummary(); renderEarningsHistory();
@@ -781,12 +992,6 @@ function updateDealCardRates() {
     const el = document.getElementById('dcr-' + d.id);
     if (el) el.textContent = 'CAD $' + dealToCad(Number(d.rate_per_video), d.currency).toFixed(2) + ' / video';
   });
-}
-
-// Convert an amount from a deal's native currency to CAD
-function dealToCad(amount, dealCurrency) {
-  if ((dealCurrency || 'CAD') === 'CAD') return amount;
-  return amount * (_fxRate || 1.38);
 }
 
 function setEarningsCurrency(cur) {
@@ -859,7 +1064,7 @@ async function saveEditorTimezone(offset) {
 // ── Init ──────────────────────────────────────────────────────────
 async function init() {
   document.getElementById('payDate').value = todayVan();
-  ensureFxRate();
+  refreshFxRateUI();
   syncState('syncing', 'syncing…');
 
   try {
@@ -908,6 +1113,13 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) init();
 });
 
+// Cross-tab sync: index.html's Quick Log widget writes to the same
+// localStorage keys — pick up its changes immediately if this tab is
+// also open (e.g. Quick Log logs a video while this page sits in the background).
+window.addEventListener('storage', e => {
+  if (e.key === LS_DEALS || e.key === LS_VIDEOS) render();
+});
+
 // ── View toggle ───────────────────────────────────────────────────
 function setView(view) {
   _view = view;
@@ -921,15 +1133,8 @@ function setView(view) {
 
 // ══════════════════════════════════════════════════════════════════
 // SECTION 1 — DEALS
+// (videosThisMonth / totalEarnedFromDeal live in deals-data.js)
 // ══════════════════════════════════════════════════════════════════
-
-function videosThisMonth(dealId) {
-  const m = monthOf(todayVan());
-  return ls(LS_VIDEOS).filter(v => v.deal_id === dealId && v.status === 'Approved' && monthOf(v.date) === m).length;
-}
-function totalEarnedFromDeal(dealId) {
-  return ls(LS_VIDEOS).filter(v => v.deal_id === dealId && v.status === 'Approved').reduce((s,v) => s + Number(v.total), 0);
-}
 
 function renderDeals() {
   const deals = ls(LS_DEALS);
@@ -1159,36 +1364,25 @@ async function saveVideo(dealId) {
   const notes      = document.getElementById('vld-notes-' + dealId)?.value.trim() || '';
   const usedEditor = document.getElementById('vld-editor-' + dealId)?.checked || false;
   const editorCost = usedEditor ? (parseFloat(document.getElementById('vld-editor-cost-' + dealId)?.value) || 3.00) : null;
-  const flat       = Number(deal.rate_per_video);
-  const flatCad    = dealToCad(flat, deal.currency);
+  const flatCad    = dealToCad(Number(deal.rate_per_video), deal.currency);
   const bonusCad   = dealToCad(manBonus, deal.currency);
-  const total      = flatCad + bonusCad - (usedEditor ? editorCost : 0);
 
-  const videos = ls(LS_VIDEOS);
-  const exactDup = videos.find(v => v.deal_id === dealId && v.date === date && Number(v.flat_rate) === flatCad && Number(v.bonus || 0) === bonusCad);
+  const exactDup = ls(LS_VIDEOS).find(v => v.deal_id === dealId && v.date === date && Number(v.flat_rate) === flatCad && Number(v.bonus || 0) === bonusCad);
   if (exactDup) {
     if (!confirm(`This looks like a duplicate — a video with the same rate is already logged for ${deal.brand_name} on ${date}. Add another entry anyway?`)) return;
   }
 
-  const row = {
-    id: uid(), deal_id: dealId, brand_name: deal.brand_name,
-    date, status, flat_rate: flatCad, view_bonus: 0, views_earned: 0, bonus: bonusCad, total, notes,
-    editor_cost: editorCost,
-    created_at: new Date().toISOString()
-  };
-
-  videos.push(row);
-  lsSet(LS_VIDEOS, videos);
-
   closeVideoForm(dealId);
+  syncState('syncing','syncing…');
+  try {
+    await logVideoForDeal(dealId, { date, status, bonus: manBonus, usedEditor, editorCost, notes });
+    syncState('ok','synced');
+  } catch { syncState('err','sync err'); }
+
   renderDeals();
   renderSummary();
   renderEditorCosts();
   renderEarningsHistory();
-
-  syncState('syncing','syncing…');
-  try { await sbUpsert(); syncState('ok','synced'); }
-  catch { syncState('err','sync err'); }
 }
 
 function toggleHistory(dealId) {
@@ -1225,13 +1419,17 @@ function confirmDeleteVideo(videoId, dealId) {
 }
 
 async function deleteVideo(videoId, dealId) {
-  lsSet(LS_VIDEOS, ls(LS_VIDEOS).filter(v => v.id !== videoId));
+  syncState('syncing','syncing…');
+  try {
+    await withFreshBundle(() => {
+      lsSet(LS_VIDEOS, ls(LS_VIDEOS).filter(v => v.id !== videoId));
+    });
+    syncState('ok','synced');
+  } catch { syncState('err','sync err'); }
   renderDeals();
   renderSummary();
   renderEditorCosts();
   renderEarningsHistory();
-  try { await sbDelete(); syncState('ok','synced'); }
-  catch { syncState('err','sync err'); }
 }
 
 function openVBForm(videoId, dealId) {
@@ -1254,16 +1452,23 @@ function closeVBForm(videoId) {
 }
 
 async function saveBonus(videoId, dealId) {
-  const videos = ls(LS_VIDEOS);
-  const idx    = videos.findIndex(v => v.id === videoId);
-  if (idx < 0) return;
   const bonusCad = parseFloat(document.getElementById('vbf-bonus-' + videoId)?.value) || 0;
-  videos[idx] = {
-    ...videos[idx],
-    bonus: bonusCad,
-    total: Number(videos[idx].flat_rate) + Number(videos[idx].view_bonus || 0) + bonusCad - Number(videos[idx].editor_cost || 0)
-  };
-  lsSet(LS_VIDEOS, videos);
+
+  syncState('syncing','syncing…');
+  try {
+    await withFreshBundle(() => {
+      const videos = ls(LS_VIDEOS);
+      const idx = videos.findIndex(v => v.id === videoId);
+      if (idx < 0) return;
+      videos[idx] = {
+        ...videos[idx],
+        bonus: bonusCad,
+        total: Number(videos[idx].flat_rate) + Number(videos[idx].view_bonus || 0) + bonusCad - Number(videos[idx].editor_cost || 0)
+      };
+      lsSet(LS_VIDEOS, videos);
+    });
+    syncState('ok','synced');
+  } catch { syncState('err','sync err'); }
 
   const histEl = document.getElementById('vh-' + dealId);
   if (histEl && histEl.style.display !== 'none') {
@@ -1272,14 +1477,10 @@ async function saveBonus(videoId, dealId) {
   renderDeals();
   renderSummary();
   renderEarningsHistory();
-
-  syncState('syncing','syncing…');
-  try { await sbUpsert(); syncState('ok','synced'); }
-  catch { syncState('err','sync err'); }
 }
 
 function populateBrandSelect() {
-  const active = ls(LS_DEALS).filter(d => !d.status || d.status === 'Active');
+  const active = getActiveDeals();
   const sel    = document.getElementById('payBrand');
   const cur    = sel.value;
   sel.innerHTML = '<option value="">Select brand…</option>' +
@@ -1305,10 +1506,14 @@ function confirmDeleteDeal(id) {
 }
 
 async function deleteDeal(id) {
-  lsSet(LS_DEALS, ls(LS_DEALS).filter(d => d.id !== id));
+  syncState('syncing','syncing…');
+  try {
+    await withFreshBundle(() => {
+      lsSet(LS_DEALS, ls(LS_DEALS).filter(d => d.id !== id));
+    });
+    syncState('ok','synced');
+  } catch { syncState('err','sync err'); }
   renderDeals();
-  try { await sbDelete(); syncState('ok','synced'); }
-  catch { syncState('err','sync err'); }
 }
 
 function openEditDeal(id) {
@@ -1322,6 +1527,7 @@ function openEditDeal(id) {
   document.getElementById('dealViewBonus').value = d.view_bonus_rate != null ? d.view_bonus_rate : '1.00';
   document.getElementById('dealSchedule').value  = d.payment_schedule || 'Monthly';
   document.getElementById('dealStatus').value    = d.status || 'Active';
+  document.getElementById('dealMaxPerDay').value = getDealMaxPerDay(d);
   document.getElementById('dealNotes').value     = d.notes || '';
   document.getElementById('dealModal').classList.add('open');
 }
@@ -1335,6 +1541,7 @@ document.getElementById('addDealBtn').addEventListener('click', () => {
   document.getElementById('dealViewBonus').value = '1.00';
   document.getElementById('dealSchedule').value  = 'Monthly';
   document.getElementById('dealStatus').value    = 'Active';
+  document.getElementById('dealMaxPerDay').value = DEFAULT_MAX_PER_DAY;
   document.getElementById('dealNotes').value     = '';
   document.getElementById('dealModal').classList.add('open');
 });
@@ -1345,37 +1552,44 @@ function closeDealModal() {
 }
 
 async function saveDeal() {
-  const brand    = document.getElementById('dealBrand').value.trim();
-  const rate     = parseFloat(document.getElementById('dealRate').value);
-  const currency = document.getElementById('dealCurrency').value;
-  const bonus    = parseFloat(document.getElementById('dealViewBonus').value);
-  const schedule = document.getElementById('dealSchedule').value;
-  const status   = document.getElementById('dealStatus').value;
-  const notes    = document.getElementById('dealNotes').value.trim();
+  const brand      = document.getElementById('dealBrand').value.trim();
+  const rate       = parseFloat(document.getElementById('dealRate').value);
+  const currency   = document.getElementById('dealCurrency').value;
+  const bonus      = parseFloat(document.getElementById('dealViewBonus').value);
+  const schedule   = document.getElementById('dealSchedule').value;
+  const status     = document.getElementById('dealStatus').value;
+  const maxPerDay  = parseInt(document.getElementById('dealMaxPerDay').value, 10);
+  const notes      = document.getElementById('dealNotes').value.trim();
   if (!brand || isNaN(rate) || rate < 0) return;
 
-  const existing = _editingDealId ? ls(LS_DEALS).find(d => d.id === _editingDealId) : null;
-  const row = {
-    id: _editingDealId || uid(),
-    brand_name: brand, rate_per_video: rate, currency,
-    view_bonus_rate: isNaN(bonus) ? 1 : bonus,
-    payment_schedule: schedule, status, notes,
-    created_at: existing ? existing.created_at : new Date().toISOString()
-  };
-
-  const deals = ls(LS_DEALS);
-  if (_editingDealId) {
-    const idx = deals.findIndex(d => d.id === _editingDealId);
-    if (idx >= 0) deals[idx] = row; else deals.push(row);
-  } else {
-    deals.push(row);
-  }
-  lsSet(LS_DEALS, deals);
+  const editingId = _editingDealId;
   closeDealModal();
-  renderDeals();
+
   syncState('syncing','syncing…');
-  try { await sbUpsert(); syncState('ok','synced'); }
-  catch { syncState('err','sync err'); }
+  try {
+    await withFreshBundle(() => {
+      const deals = ls(LS_DEALS);
+      const existing = editingId ? deals.find(d => d.id === editingId) : null;
+      const row = {
+        id: editingId || uid(),
+        brand_name: brand, rate_per_video: rate, currency,
+        view_bonus_rate: isNaN(bonus) ? 1 : bonus,
+        payment_schedule: schedule, status,
+        max_per_day: (isNaN(maxPerDay) || maxPerDay <= 0) ? DEFAULT_MAX_PER_DAY : maxPerDay,
+        notes,
+        created_at: existing ? existing.created_at : new Date().toISOString()
+      };
+      if (editingId) {
+        const idx = deals.findIndex(d => d.id === editingId);
+        if (idx >= 0) deals[idx] = row; else deals.push(row);
+      } else {
+        deals.push(row);
+      }
+      lsSet(LS_DEALS, deals);
+    });
+    syncState('ok','synced');
+  } catch { syncState('err','sync err'); }
+  renderDeals();
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -2081,7 +2295,7 @@ function renderCalendar() {
 function populateCVBrandSelect() {
   const sel    = document.getElementById('cvBrand');
   if (!sel) return;
-  const active = ls(LS_DEALS).filter(d => !d.status || d.status === 'Active');
+  const active = getActiveDeals();
   const cur    = sel.value;
   sel.innerHTML = '<option value="">None / Personal</option>' +
     active.map(d => `<option value="${esc(d.brand_name)}">${esc(d.brand_name)}</option>`).join('');
@@ -2285,5 +2499,588 @@ updateEditorClock();
 setInterval(updateEditorClock, 1000);
 init();
 </script>
+
+<script>
+(function () {
+  'use strict';
+
+  const IC_URL = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
+  const IC_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
+  const IC_H = {
+    'Content-Type': 'application/json',
+    'apikey': IC_KEY,
+    'Authorization': 'Bearer ' + IC_KEY,
+    'Prefer': 'resolution=merge-duplicates',
+  };
+  const IC_H_R = { 'apikey': IC_KEY, 'Authorization': 'Bearer ' + IC_KEY };
+  const LS_IC = 'ic_bundle_v1';
+
+  // ── State ─────────────────────────────────────────────────────────
+  let challenge    = null; // { name, goal, startDate, endDate, milestones_reached }
+  let otherIncome  = [];   // [{ id, amount, date, category, description, client, loggedToFinance, created_at }]
+  let icTrendChart = null; // Chart.js cumulative trend instance
+  let icLastDate   = icToday();  // tracks rendered date; triggers full reload at midnight
+
+  // ── Helpers ───────────────────────────────────────────────────────
+  function icUid()    { return 'ic_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+  function icToday()  { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' }); }
+  function icEsc(s)   { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function icFmt(n)   { return '$' + Number(n).toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+  function icFmtD(n)  { return '$' + Math.abs(n).toFixed(0); }
+
+  // ── Persistence ───────────────────────────────────────────────────
+  function icSaveLocal() {
+    try { localStorage.setItem(LS_IC, JSON.stringify({ challenge, otherIncome })); } catch {}
+  }
+
+  function icMigrateOld(b) {
+    const migrated = [];
+    if (Array.isArray(b.photoIncome)) {
+      b.photoIncome.forEach(e => migrated.push({
+        id: e.id || icUid(), amount: e.amount, date: e.date,
+        category: e.category || 'Photography',
+        description: e.description || '', client: e.client || '',
+        loggedToFinance: false, created_at: e.created_at || new Date().toISOString()
+      }));
+    }
+    if (Array.isArray(b.marketIncome)) {
+      b.marketIncome.forEach(e => migrated.push({
+        id: e.id || icUid(), amount: e.amount, date: e.date,
+        category: 'Marketplace',
+        description: e.item || e.description || '', client: e.buyer || e.client || '',
+        loggedToFinance: false, created_at: e.created_at || new Date().toISOString()
+      }));
+    }
+    migrated.sort((a, b) => (b.date || '') > (a.date || '') ? 1 : -1);
+    return migrated;
+  }
+
+  function icLoadLocal() {
+    try {
+      const b = JSON.parse(localStorage.getItem(LS_IC) || 'null');
+      if (!b) return false;
+      challenge   = b.challenge || null;
+      otherIncome = Array.isArray(b.otherIncome) ? b.otherIncome : icMigrateOld(b);
+      return true;
+    } catch { return false; }
+  }
+
+  async function icPush() {
+    try {
+      await fetch(IC_URL + '/rest/v1/app_state?on_conflict=key', {
+        method: 'POST', headers: IC_H,
+        body: JSON.stringify({ key: 'income_challenge', data: { challenge, otherIncome }, updated_at: new Date().toISOString() })
+      });
+    } catch(e) { console.warn('[challenge] push failed:', e.message); }
+  }
+
+  async function icSave() {
+    icSaveLocal();
+    await icPush();
+  }
+
+  async function icLoad() {
+    icLoadLocal();
+    icRender();
+    try {
+      const [icRes, contentRes] = await Promise.all([
+        fetch(IC_URL + '/rest/v1/app_state?key=eq.income_challenge&select=data', { headers: IC_H_R }),
+        fetch(IC_URL + '/rest/v1/app_state?key=eq.content&select=data',          { headers: IC_H_R }),
+      ]);
+      if (icRes.ok) {
+        const rows = await icRes.json();
+        if (rows.length && rows[0].data) {
+          const d = rows[0].data;
+          if (d.challenge !== undefined) challenge = d.challenge;
+          otherIncome = Array.isArray(d.otherIncome) ? d.otherIncome : icMigrateOld(d);
+          icSaveLocal();
+        }
+      }
+      if (contentRes.ok) {
+        const rows = await contentRes.json();
+        if (rows.length && rows[0].data && Array.isArray(rows[0].data['ugc_videos'])) {
+          try { localStorage.setItem('ugc_videos', JSON.stringify(rows[0].data['ugc_videos'])); } catch {}
+        }
+      }
+      icRender();
+    } catch(e) { console.warn('[challenge] load failed:', e.message); }
+  }
+
+  // ── Income sources ────────────────────────────────────────────────
+  function ugcInRange(start, end) {
+    try {
+      const vids = JSON.parse(localStorage.getItem('ugc_videos') || '[]');
+      return vids
+        .filter(v => v.status === 'Approved' && v.date >= start && v.date <= end)
+        .reduce((s, v) => s + Number(v.total || 0), 0);
+    } catch { return 0; }
+  }
+  function otherInRange(start, end) {
+    return otherIncome.filter(e => e.date >= start && e.date <= end).reduce((s,e) => s + Number(e.amount||0), 0);
+  }
+
+  // ── Render challenge card ─────────────────────────────────────────
+  function icRender() {
+    icLastDate = icToday();
+    const card = document.getElementById('incomeChallengeCard');
+    if (!card) return;
+
+    if (!challenge || !challenge.endDate) {
+      if (icTrendChart) { icTrendChart.destroy(); icTrendChart = null; }
+      card.innerHTML = `
+        <div class="ic-no-challenge">
+          <p class="ic-no-challenge-text">No active challenge. Set a goal to start tracking your income.</p>
+          <button class="ic-setup-btn" id="icNewBtn"><i data-lucide="target"></i> Set Challenge</button>
+        </div>`;
+      if (window.lucide) lucide.createIcons({ nodes: [card] });
+      document.getElementById('icNewBtn').addEventListener('click', openSetupModal);
+      return;
+    }
+
+    const today   = icToday();
+    const start   = challenge.startDate;
+    const end     = challenge.endDate;
+    const goal    = Number(challenge.goal) || 10000;
+    const name    = challenge.name || 'Income Challenge';
+    const ended   = today > end;
+    const started = today >= start;
+
+    const ugcAmt   = ugcInRange(start, end);
+    const otherAmt = otherInRange(start, end);
+    const total    = ugcAmt + otherAmt;
+
+    const startMs       = new Date(start + 'T12:00:00').getTime();
+    const endMs         = new Date(end   + 'T12:00:00').getTime();
+    const todayMs       = new Date(today + 'T12:00:00').getTime();
+    const totalDays     = Math.max(1, Math.round((endMs - startMs) / 86400000) + 1);
+    const rawElapsed    = Math.round((todayMs - startMs) / 86400000);
+    const notStarted    = rawElapsed < 0;
+    const daysElapsed   = Math.max(1, rawElapsed + 1);  // day 1 = startDate, day 2 = startDate+1, etc.
+    const daysRemaining = Math.max(0, Math.round((endMs - todayMs) / 86400000) + 1);
+
+    // Linear pace for target marker + pace indicator
+    const linearPace   = goal / totalDays;
+    const expected     = linearPace * daysElapsed;
+    const expectedPct  = Math.min(99.5, goal > 0 ? expected / goal * 100 : 0);
+    const paceDiffRate = (!notStarted && started) ? (total - expected) / daysElapsed : 0;
+    const actualPace   = (!notStarted && started) ? total / daysElapsed : 0;
+    const requiredPace = daysRemaining > 0 ? Math.max(0, (goal - total) / daysRemaining) : 0;
+    const pct          = Math.min(100, goal > 0 ? total / goal * 100 : 0);
+
+    // Milestone detection — track which thresholds have been crossed
+    const MILESTONES = [25, 50, 75, 100];
+    let milestonesSaveNeeded = false;
+    let freshMilestone = 0;
+    if (started && !notStarted) {
+      if (!challenge.milestones_reached) challenge.milestones_reached = {};
+      MILESTONES.forEach(m => {
+        if (pct >= m && !challenge.milestones_reached[m]) {
+          challenge.milestones_reached[m] = today;
+          milestonesSaveNeeded = true;
+        }
+        if (challenge.milestones_reached[m] === today && m > freshMilestone) freshMilestone = m;
+      });
+    }
+
+    // ── Pace indicator HTML ───────────────────────────────────────
+    let paceHtml = '';
+    if (notStarted || !started) {
+      paceHtml = `<div class="ic-pace-main neutral"><span class="ic-pace-main-icon"><i data-lucide="clock"></i></span><div><div class="ic-pace-main-rate">Starts ${start}</div><div class="ic-pace-main-desc">Challenge hasn't started yet</div></div></div>`;
+    } else if (ended) {
+      paceHtml = `<div class="ic-pace-main neutral"><span class="ic-pace-main-icon"><i data-lucide="flag"></i></span><div><div class="ic-pace-main-rate">Challenge ended</div><div class="ic-pace-main-desc">${icFmt(Math.round(total))} earned total</div></div></div>`;
+    } else if (total >= goal) {
+      paceHtml = `<div class="ic-pace-main ahead"><span class="ic-pace-main-icon"><i data-lucide="trending-up"></i></span><div><div class="ic-pace-main-rate">Goal reached</div><div class="ic-pace-main-desc">${icFmt(Math.round(total - goal))} over target</div></div></div>`;
+    } else {
+      const gapTotal  = total - expected;  // negative = behind, positive = ahead
+      const sign      = paceDiffRate >= 0 ? '+' : '-';
+      const cls       = paceDiffRate >= -0.50 ? 'ahead' : 'behind';
+      const icon      = paceDiffRate >= -0.50 ? 'trending-up' : 'trending-down';
+      const paceLabel = paceDiffRate >= -0.50 ? 'ahead of pace' : 'behind pace';
+      const rateText  = `${sign}${icFmt(Math.round(Math.abs(gapTotal)))} ${paceLabel}`;
+      const subText   = requiredPace > 0 ? `${icFmtD(requiredPace)}/day needed to catch up` : '';
+      paceHtml = `<div class="ic-pace-main ${cls}"><span class="ic-pace-main-icon"><i data-lucide="${icon}"></i></span><div><div class="ic-pace-main-rate">${rateText}</div><div class="ic-pace-main-desc">${subText}</div></div></div>`;
+    }
+
+    // ── Milestone HTML ────────────────────────────────────────────
+    const milestoneMsg = {
+      25:  ['Quarter of the way',  icFmt(Math.round(goal * 0.75)) + ' still to go.'],
+      50:  ['Halfway there',       icFmt(Math.round(goal * 0.50)) + ' still to go.'],
+      75:  ['Three quarters done', icFmt(Math.round(goal * 0.25)) + ' left — final stretch.'],
+      100: ['Goal reached',        icFmt(goal) + ' earned — challenge complete.'],
+    };
+    let milestoneBannerHtml = '';
+    let milestoneBadgesHtml = '';
+    if (challenge.milestones_reached) {
+      if (freshMilestone && milestoneMsg[freshMilestone]) {
+        const [t, s] = milestoneMsg[freshMilestone];
+        milestoneBannerHtml = `<div class="ic-milestone-banner"><p class="ic-milestone-banner-title">${t}</p><p class="ic-milestone-banner-sub">${s}</p></div>`;
+      }
+      const reached = MILESTONES.filter(m => challenge.milestones_reached[m]);
+      if (reached.length) {
+        milestoneBadgesHtml = `<div class="ic-milestone-badges">${reached.map(m => `<span class="ic-milestone-badge">${m}%</span>`).join('')}</div>`;
+      }
+    }
+
+    // ── Stacked bar HTML ──────────────────────────────────────────
+    const bDiv = total || 1;
+    const ugcPct   = ugcAmt   / bDiv * 100;
+    const otherPct = otherAmt / bDiv * 100;
+    let stackedHtml;
+    if (total <= 0) {
+      stackedHtml = `<div class="ic-stacked-bar"></div><p class="ic-stacked-empty">No income logged yet.</p>`;
+    } else {
+      stackedHtml = `
+        <div class="ic-stacked-bar">
+          <div class="ic-stacked-seg" style="width:${ugcPct.toFixed(1)}%;background:#6BE3A4"></div>
+          <div class="ic-stacked-seg" style="width:${otherPct.toFixed(1)}%;background:#7dd3fc"></div>
+        </div>
+        <div class="ic-stacked-legend">
+          <div class="ic-stacked-legend-row"><span class="ic-stacked-dot" style="background:#6BE3A4"></span><span>UGC — ${icFmt(Math.round(ugcAmt))} (${Math.round(ugcAmt / total * 100)}%)</span></div>
+          <div class="ic-stacked-legend-row"><span class="ic-stacked-dot" style="background:#7dd3fc"></span><span>Other Income — ${icFmt(Math.round(otherAmt))} (${Math.round(otherAmt / total * 100)}%)</span></div>
+        </div>`;
+    }
+
+    // Build trend data before destroying old chart
+    const trendData = icBuildTrend(start, end, today);
+    if (icTrendChart) { icTrendChart.destroy(); icTrendChart = null; }
+
+    card.innerHTML = `
+      <div class="ic-header">
+        <div class="ic-title-row">
+          <p class="ic-eyebrow">Income Challenge</p>
+          <p class="ic-name">${icEsc(name)}</p>
+        </div>
+        <button class="ic-edit-btn" id="icEditBtn">Edit</button>
+      </div>
+      <div class="ic-amounts">
+        <span class="ic-amount-value">${icFmt(Math.round(total))}</span>
+        <span class="ic-amount-goal">/ ${icFmt(goal)} CAD</span>
+      </div>
+      <div class="ic-progress-bar-wrap">
+        <div class="ic-progress-bar-fill${pct >= 100 ? ' over' : ''}" style="width:${pct.toFixed(1)}%"></div>
+        ${(started && !notStarted) ? `<div class="ic-target-marker" style="left:${expectedPct.toFixed(1)}%"></div>` : ''}
+      </div>
+      <div class="ic-stats-row">
+        <div class="ic-stat">
+          <span class="ic-stat-label">Days Left</span>
+          <span class="ic-stat-value">${ended ? '0' : daysRemaining}</span>
+        </div>
+        <div class="ic-stat">
+          <span class="ic-stat-label">Avg/Day</span>
+          <span class="ic-stat-value">${icFmtD(actualPace)}</span>
+        </div>
+        <div class="ic-stat">
+          <span class="ic-stat-label">Need/Day</span>
+          <span class="ic-stat-value">${(requiredPace > 0 && !ended) ? icFmtD(requiredPace) : '—'}</span>
+        </div>
+      </div>
+      ${paceHtml}
+      ${milestoneBannerHtml}
+      ${milestoneBadgesHtml}
+      <div class="ic-trend">
+        <div class="ic-trend-label">Cumulative Progress</div>
+        <div class="ic-trend-canvas-wrap"><canvas id="icTrendCanvas"></canvas></div>
+      </div>
+      <div class="ic-stacked">
+        <div class="ic-stacked-label">Sources</div>
+        ${stackedHtml}
+      </div>
+      <div class="ic-log-btns">
+        <button class="ic-log-btn" id="icLogOtherBtn"><i data-lucide="plus-circle"></i> Add Income</button>
+      </div>`;
+
+    if (window.lucide) lucide.createIcons({ nodes: [card] });
+    document.getElementById('icEditBtn').addEventListener('click', openSetupModal);
+    document.getElementById('icLogOtherBtn').addEventListener('click', openOtherModal);
+    icDrawTrend(trendData);
+    if (milestonesSaveNeeded) { icSaveLocal(); icPush(); }
+  }
+
+  // ── Trend chart helpers ───────────────────────────────────────────
+  function icBuildTrend(start, end, today) {
+    const capDate = today <= end ? today : end;
+    const days = [];
+    const cur = new Date(start + 'T12:00:00');
+    const capMs = new Date(capDate + 'T12:00:00').getTime();
+    while (cur.getTime() <= capMs) {
+      days.push(cur.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' }));
+      cur.setDate(cur.getDate() + 1);
+    }
+    if (!days.length) return { labels: [], data: [] };
+
+    let ugcEntries = [];
+    try {
+      ugcEntries = JSON.parse(localStorage.getItem('ugc_videos') || '[]')
+        .filter(v => v.status === 'Approved' && v.date >= start && v.date <= end)
+        .map(v => ({ date: v.date, amount: Number(v.total || 0) }));
+    } catch {}
+    const allEntries = [
+      ...ugcEntries,
+      ...otherIncome.filter(e => e.date >= start && e.date <= end).map(e => ({ date: e.date, amount: Number(e.amount || 0) }))
+    ];
+
+    let cum = 0;
+    const data = days.map(d => {
+      allEntries.filter(e => e.date === d).forEach(e => { cum += e.amount; });
+      return Math.round(cum * 100) / 100;
+    });
+
+    const n = days.length;
+    const step = Math.max(1, Math.ceil(n / 5));
+    const labels = days.map((d, i) =>
+      (i === 0 || i === n - 1 || i % step === 0) ? d.slice(5).replace('-', '/') : ''
+    );
+    return { labels, data };
+  }
+
+  function icDrawTrend({ labels, data }) {
+    const canvas = document.getElementById('icTrendCanvas');
+    if (!canvas || !window.Chart) return;
+    if (!data.length || data.every(v => v === 0)) {
+      const wrap = canvas.parentElement;
+      if (wrap) wrap.innerHTML = '<p style="font-size:11px;color:var(--text-tertiary);margin:18px 0 0;text-align:center">No income logged yet.</p>';
+      return;
+    }
+    icTrendChart = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          borderColor: '#6BE3A4',
+          backgroundColor: 'rgba(107,227,164,0.07)',
+          borderWidth: 1.5,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 3,
+          pointHoverBackgroundColor: '#6BE3A4',
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            backgroundColor: 'rgba(14,14,16,0.95)',
+            borderColor: 'rgba(255,255,255,0.10)',
+            borderWidth: 1,
+            titleColor: 'rgba(255,255,255,0.40)',
+            titleFont: { size: 9 },
+            bodyColor: '#6BE3A4',
+            bodyFont: { size: 12, weight: '700' },
+            padding: 8,
+            callbacks: {
+              title: ctx => ctx[0]?.label || '',
+              label: ctx => '$' + Math.round(ctx.raw).toLocaleString('en-CA'),
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            border: { display: false },
+            ticks: { color: 'rgba(255,255,255,0.22)', font: { size: 9 }, maxRotation: 0, autoSkip: false }
+          },
+          y: {
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            border: { display: false },
+            beginAtZero: true,
+            ticks: {
+              color: 'rgba(255,255,255,0.22)',
+              font: { size: 9 },
+              maxTicksLimit: 4,
+              callback: v => v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'k' : '$' + v,
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // ── Setup modal ───────────────────────────────────────────────────
+  function openSetupModal() {
+    document.getElementById('icSetupModalTitle').textContent = challenge ? 'Edit Challenge' : 'New Challenge';
+    document.getElementById('icSetupName').value  = challenge ? challenge.name      : 'Income Challenge';
+    document.getElementById('icSetupGoal').value  = challenge ? challenge.goal      : '10000';
+    document.getElementById('icSetupStart').value = challenge ? challenge.startDate : icToday();
+    document.getElementById('icSetupEnd').value   = challenge ? challenge.endDate   : '';
+    document.getElementById('icSetupError').style.display = 'none';
+    const m = document.getElementById('icSetupModal');
+    m.style.display = 'flex';
+    if (window.lucide) lucide.createIcons({ nodes: [m] });
+  }
+  function closeSetupModal() { document.getElementById('icSetupModal').style.display = 'none'; }
+
+  async function saveChallenge() {
+    const name      = document.getElementById('icSetupName').value.trim() || 'Income Challenge';
+    const goal      = parseFloat(document.getElementById('icSetupGoal').value);
+    const startDate = document.getElementById('icSetupStart').value.trim();
+    const endDate   = document.getElementById('icSetupEnd').value.trim();
+    const errEl     = document.getElementById('icSetupError');
+    const dateRe    = /^\d{4}-\d{2}-\d{2}$/;
+    if (!goal || goal <= 0)          { errEl.textContent = 'Please enter a valid goal amount.';              errEl.style.display = ''; return; }
+    if (!startDate)                  { errEl.textContent = 'Start date is required.';                        errEl.style.display = ''; return; }
+    if (!dateRe.test(startDate))     { errEl.textContent = 'Start date must be YYYY-MM-DD (e.g. 2026-08-01).'; errEl.style.display = ''; return; }
+    if (!endDate)                    { errEl.textContent = 'End date is required.';                          errEl.style.display = ''; return; }
+    if (!dateRe.test(endDate))       { errEl.textContent = 'End date must be YYYY-MM-DD (e.g. 2026-12-31).';  errEl.style.display = ''; return; }
+    if (endDate <= startDate)        { errEl.textContent = 'End date must be after start date.';             errEl.style.display = ''; return; }
+    challenge = { name, goal, startDate, endDate };
+    closeSetupModal();
+    icRender();
+    await icSave();
+  }
+
+  // ── Other Income modal ────────────────────────────────────────────
+  function openOtherModal() {
+    document.getElementById('icOtherAmount').value   = '';
+    document.getElementById('icOtherDate').value     = icToday();
+    document.getElementById('icOtherClient').value   = '';
+    document.getElementById('icOtherDesc').value     = '';
+    document.getElementById('icOtherCategory').value = 'Photography';
+    document.getElementById('icOtherCustom').value   = '';
+    document.getElementById('icOtherCustomWrap').style.display = 'none';
+    document.getElementById('icOtherError').style.display = 'none';
+    renderOtherList();
+    const m = document.getElementById('icOtherModal');
+    m.style.display = 'flex';
+    if (window.lucide) lucide.createIcons({ nodes: [m] });
+  }
+  function closeOtherModal() { document.getElementById('icOtherModal').style.display = 'none'; }
+
+  async function addOtherEntry() {
+    const amount      = parseFloat(document.getElementById('icOtherAmount').value);
+    const date        = document.getElementById('icOtherDate').value.trim();
+    const catSel      = document.getElementById('icOtherCategory').value;
+    const category    = catSel === '__custom__'
+      ? (document.getElementById('icOtherCustom').value.trim() || 'Other')
+      : catSel;
+    const description = document.getElementById('icOtherDesc').value.trim();
+    const client      = document.getElementById('icOtherClient').value.trim();
+    const errEl       = document.getElementById('icOtherError');
+    const dateRe      = /^\d{4}-\d{2}-\d{2}$/;
+    if (!amount || amount <= 0) { errEl.textContent = 'Please enter a valid amount.'; errEl.style.display = ''; return; }
+    if (!date || !dateRe.test(date)) { errEl.textContent = 'Date must be YYYY-MM-DD (e.g. 2026-07-29).'; errEl.style.display = ''; return; }
+    errEl.style.display = 'none';
+    otherIncome.unshift({ id: icUid(), amount, date, category, description, client, loggedToFinance: false, created_at: new Date().toISOString() });
+    document.getElementById('icOtherAmount').value = '';
+    document.getElementById('icOtherDesc').value   = '';
+    document.getElementById('icOtherClient').value = '';
+    renderOtherList();
+    icRender();
+    await icSave();
+  }
+
+  async function logOtherToFinance(entry) {
+    try {
+      const res = await fetch(IC_URL + '/rest/v1/app_state?key=eq.finance&select=data', { headers: IC_H_R });
+      let bundle = {};
+      if (res.ok) {
+        const rows = await res.json();
+        if (rows.length && rows[0].data) bundle = rows[0].data;
+      }
+      if (!Array.isArray(bundle.finance_income)) bundle.finance_income = [];
+      bundle.finance_income.push({
+        id: 'fi_' + Date.now().toString(36),
+        desc: entry.description || entry.category || 'Other Income',
+        amount: Number(entry.amount),
+        date: entry.date,
+        tag: 'income'
+      });
+      await fetch(IC_URL + '/rest/v1/app_state?on_conflict=key', {
+        method: 'POST', headers: IC_H,
+        body: JSON.stringify({ key: 'finance', data: bundle, updated_at: new Date().toISOString() })
+      });
+      try { localStorage.setItem('finance_income', JSON.stringify(bundle.finance_income)); } catch {}
+      const idx = otherIncome.findIndex(e => e.id === entry.id);
+      if (idx !== -1) otherIncome[idx].loggedToFinance = true;
+      renderOtherList();
+      await icSave();
+    } catch(e) { console.warn('[challenge] logToFinance failed:', e.message); }
+  }
+
+  function renderOtherList() {
+    const el = document.getElementById('icOtherList');
+    if (!el) return;
+    if (!otherIncome.length) { el.innerHTML = '<div class="ic-log-empty">No other income logged yet.</div>'; return; }
+    el.innerHTML = '';
+    otherIncome.forEach(e => {
+      const row = document.createElement('div');
+      row.className = 'ic-log-row';
+      const label = e.description || e.client || e.category || 'Income';
+      const actHtml = e.loggedToFinance
+        ? `<span class="ic-logged-tag">Logged</span>`
+        : `<button class="ic-finance-btn">Log to Finance</button>`;
+      row.innerHTML = `
+        <div class="ic-log-row-info">
+          <div class="ic-log-row-name">${icEsc(label)}</div>
+          <div class="ic-log-row-meta">${icEsc(e.date)} · ${icEsc(e.category)}${e.client ? ' · ' + icEsc(e.client) : ''}</div>
+        </div>
+        <span class="ic-log-row-amount">$${Number(e.amount).toFixed(2)}</span>
+        <div class="ic-log-row-actions">
+          ${actHtml}
+          <button class="ic-log-del" aria-label="Delete">×</button>
+        </div>`;
+      if (!e.loggedToFinance) {
+        row.querySelector('.ic-finance-btn').addEventListener('click', () => logOtherToFinance(e));
+      }
+      row.querySelector('.ic-log-del').addEventListener('click', async () => {
+        if (e.loggedToFinance && !confirm('This entry has been logged to Finance. Deleting it here will not remove the Finance entry. Continue?')) return;
+        otherIncome = otherIncome.filter(x => x.id !== e.id);
+        renderOtherList();
+        icRender();
+        await icSave();
+      });
+      el.appendChild(row);
+    });
+  }
+
+  // ── Wire events ───────────────────────────────────────────────────
+  function icWire() {
+    document.getElementById('icSetupClose').addEventListener('click', closeSetupModal);
+    document.getElementById('icSetupSave').addEventListener('click', saveChallenge);
+    document.getElementById('icSetupModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeSetupModal(); });
+
+    document.getElementById('icOtherClose').addEventListener('click', closeOtherModal);
+    document.getElementById('icOtherAdd').addEventListener('click', addOtherEntry);
+    document.getElementById('icOtherModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeOtherModal(); });
+    document.getElementById('icOtherCategory').addEventListener('change', e => {
+      document.getElementById('icOtherCustomWrap').style.display = e.target.value === '__custom__' ? '' : 'none';
+    });
+
+    // Refresh on tab focus; do a full reload if the calendar date changed
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        const d = icToday();
+        if (d !== icLastDate) { icLastDate = d; icLoad(); } else { icRender(); }
+      }
+    });
+    // Catch midnight rollovers for pages left open overnight
+    setInterval(() => {
+      if (!document.hidden) {
+        const d = icToday();
+        if (d !== icLastDate) { icLastDate = d; icLoad(); }
+      }
+    }, 60 * 1000);
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────
+  function icInit() {
+    icWire();
+    icLoad();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', icInit, { once: true });
+  } else {
+    icInit();
+  }
+})();
+</script>
+
 </body>
 </html>
