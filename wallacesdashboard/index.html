@@ -2169,6 +2169,34 @@
         const text = document.createElement('div');
         text.className = 'goal-text' + (todo.done ? ' done' : '');
         text.textContent = todo.text;
+        text.tabIndex = 0;
+
+        function commitWeeklyEdit(newText) {
+          const trimmed = newText.trim();
+          if (!trimmed) { renderWeeklyTodos(); return; }
+          const arr = getWeeklyTodos();
+          if (arr[idx]) {
+            arr[idx].text = trimmed;
+            saveWeeklyTodos(arr);
+            syncWeeklyNow(arr);
+          }
+          renderWeeklyTodos();
+        }
+
+        text.addEventListener('dblclick', () => {
+          text.contentEditable = 'true';
+          text.focus();
+          document.execCommand('selectAll', false, null);
+        });
+
+        text.addEventListener('keydown', event => {
+          if (event.key === 'Enter') { event.preventDefault(); text.blur(); }
+          if (event.key === 'Escape') { text.textContent = todo.text; text.blur(); }
+        });
+
+        text.addEventListener('blur', () => {
+          if (text.isContentEditable) { text.contentEditable = 'false'; commitWeeklyEdit(text.textContent || ''); }
+        });
 
         const del = document.createElement('button');
         del.type = 'button';
