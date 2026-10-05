@@ -21,7 +21,7 @@
 const CONFIG = {
   appTitle: "Progressive Overload Coach",
 
-  units: "kg",
+  units: "lb",
 
   // Gym field is unused in UI; kept for schema compat only.
   gyms: [{ id: "both", name: "All" }],
@@ -1395,7 +1395,7 @@ img, video, canvas, svg { max-width: 100%; }
     <div class="wt-card">
       <div class="wt-row">
         <span class="wt-num" id="wtNum">—</span>
-        <span class="wt-unit" id="wtUnit">kg</span>
+        <span class="wt-unit" id="wtUnit">lb</span>
       </div>
       <div class="wt-delta hidden" id="wtDelta"></div>
       <div class="wt-streak hidden" id="wtStreak">🔥<span id="wtStreakNum">0 day streak</span></div>
@@ -1445,7 +1445,7 @@ img, video, canvas, svg { max-width: 100%; }
           <span class="wt-locked-check">✓</span>
           <div>
             <div class="wt-locked-label">LOGGED TODAY</div>
-            <div class="wt-locked-value" id="wtLockedValue">— kg</div>
+            <div class="wt-locked-value" id="wtLockedValue">— lb</div>
           </div>
         </div>
         <button class="wt-edit-btn" id="wtEditBtn">Edit</button>
@@ -1454,7 +1454,7 @@ img, video, canvas, svg { max-width: 100%; }
       <div class="wt-input-row" id="wtInputRow">
         <div class="wt-input-top">
           <input type="number" step="0.1" class="wt-input" id="wtInput" placeholder="Enter weight" inputmode="decimal" aria-label="Today's weight">
-          <span class="wt-unit-static" id="wtUnitStatic">kg</span>
+          <span class="wt-unit-static" id="wtUnitStatic">lb</span>
           <button class="wt-save-btn" id="wtSaveBtn">Save</button>
         </div>
       </div>
@@ -1593,7 +1593,7 @@ img, video, canvas, svg { max-width: 100%; }
       </div>
       <div class="po-log-grid" id="logGrid">
         <div class="po-field" id="weightField">
-          <label id="weightLabel">Weight (kg)</label>
+          <label id="weightLabel">Weight (lb)</label>
           <div class="po-weight-row">
             <button class="po-w-btn" id="weightDownBtn" type="button">−</button>
             <input type="number" id="weightInput" step="0.5" inputmode="decimal" placeholder="0">
@@ -1620,7 +1620,7 @@ img, video, canvas, svg { max-width: 100%; }
       <div class="po-stats-row">
         <div class="po-stat-box">
           <div class="po-stat-label" id="oneRmLabel">Est. 1RM</div>
-          <div class="po-stat-val" id="oneRm">—<span class="po-unit" id="oneRmUnit">kg</span></div>
+          <div class="po-stat-val" id="oneRm">—<span class="po-unit" id="oneRmUnit">lb</span></div>
         </div>
         <div class="po-stat-box">
           <div class="po-stat-label">Best set</div>
@@ -1671,7 +1671,7 @@ img, video, canvas, svg { max-width: 100%; }
               <span class="po-tw-summary-num" id="poTwSetCount">0</span>
               <span class="po-tw-summary-label">sets</span>
               <span class="po-tw-summary-sep">·</span>
-              <span class="po-tw-summary-vol" id="poTwTotalVol">0 kg lifted</span>
+              <span class="po-tw-summary-vol" id="poTwTotalVol">0 lb lifted</span>
             </div>
           </div>
           <button class="po-tw-done-btn" id="poTwDoneBtn" type="button">Mark workout done</button>
@@ -1736,14 +1736,6 @@ img, video, canvas, svg { max-width: 100%; }
     <h3>Settings</h3>
 
     <div class="po-set-section">
-      <h4>Units</h4>
-      <div class="po-modal-seg" id="setUnitsSeg">
-        <button data-u="kg">kg</button>
-        <button data-u="lb">lb</button>
-      </div>
-    </div>
-
-    <div class="po-set-section">
       <h4>Days</h4>
       <div class="po-set-list" id="setDays"></div>
       <button class="po-add-row-btn" id="setAddDay">+ Add day</button>
@@ -1782,13 +1774,19 @@ img, video, canvas, svg { max-width: 100%; }
   function loadState() {
     try {
       const raw = localStorage.getItem(LS_KEY);
-      if (raw) return normalize(JSON.parse(raw));
+      if (raw) {
+        // Backup raw data once, before any migration runs. Never overwrite.
+        if (!localStorage.getItem('gym_logs_backup_pre_lb_migration')) {
+          localStorage.setItem('gym_logs_backup_pre_lb_migration', raw);
+        }
+        return normalize(JSON.parse(raw));
+      }
     } catch (e) {}
     return normalize({});
   }
   function normalize(s) {
     s = s || {};
-    s.units = s.units || CONFIG.units || 'kg';
+    s.units = 'lb'; // lb-only — ignore any stored 'kg' value
     s.gyms  = CONFIG.gyms.slice();
     s.days  = (Array.isArray(s.days)  && s.days.length)  ? s.days  : CONFIG.days.slice();
     s.exercises = Array.isArray(s.exercises) ? s.exercises : buildDefaultExercises();
@@ -1834,6 +1832,25 @@ img, video, canvas, svg { max-width: 100%; }
         e.alts = _cfgByName[e.name].alts || [];
       }
     });
+    // One-time kg→lb migration. Guard is per-entry unit tag so it is safe to run
+    // on every device independently — entries tagged unit:'lb' are never touched
+    // again. The 2.20462 constant is migration-only; all new logs are saved in lb.
+    const KG_TO_LB = 2.20462;
+    const _migrLog = [];
+    Object.keys(s.logs || {}).forEach(exId => {
+      const arr = s.logs[exId];
+      if (!Array.isArray(arr)) return;
+      arr.forEach(entry => {
+        if (entry.unit === 'lb') return; // already converted
+        const before = entry.weight;
+        entry.weight = Math.round((before * KG_TO_LB) / 0.5) * 0.5;
+        entry.unit = 'lb';
+        _migrLog.push({ exId, before, after: entry.weight });
+      });
+    });
+    if (_migrLog.length) {
+      console.log('[GYM] kg→lb migration:', _migrLog.length, 'entries converted (first 10):', _migrLog.slice(0, 10));
+    }
     return s;
   }
   function saveState() {
@@ -2274,16 +2291,16 @@ img, video, canvas, svg { max-width: 100%; }
   }
 
   // Sync today's workout summary to Supabase workout_sessions table (silent fail)
-  async function syncWorkoutSession(dateKey, sum, u) {
+  async function syncWorkoutSession(dateKey, sum) {
     try {
       if (!window.supabase || !SUPABASE_URL || SUPABASE_URL.indexOf('PASTE-') === 0) return;
       if (!pcSupa) return;
       const exercises = sum.perEx.map(e => ({
         name: e.ex.name,
         sets: e.sets.length,
-        totalLbs: e.ex.bw ? 0 : Math.round(e.vol * (u === 'kg' ? 2.205 : 1))
+        totalLbs: e.ex.bw ? 0 : Math.round(e.vol)
       }));
-      const totalLbs = Math.round(sum.totalVol * (u === 'kg' ? 2.205 : 1));
+      const totalLbs = Math.round(sum.totalVol);
       await pcSupa.from('workout_sessions').upsert({
         date: dateKey,
         exercises: exercises,
@@ -2339,7 +2356,7 @@ img, video, canvas, svg { max-width: 100%; }
     btn.style.opacity = btn.disabled ? '0.4' : '';
 
     // Sync today's session to Supabase workout_sessions table
-    if (sum.totalSets > 0) syncWorkoutSession(todayKey, sum, u);
+    if (sum.totalSets > 0) syncWorkoutSession(todayKey, sum);
   }
 
   function renderWorkoutHistory() {
@@ -2608,29 +2625,26 @@ img, video, canvas, svg { max-width: 100%; }
       d.setHours(0, 0, 0, 0);
       days.push(d);
     }
-    const u = unit(); // 'kg' or 'lb'
     const dayData = days.map(d => {
       // Use local date string for matching (avoids timezone mismatch with wtDateKey)
       const dateStr = wtDateKey(d);
-      let totalKg = 0, totalSets = 0;
+      let totalVol = 0, totalSets = 0;
       logs.forEach(({ log }) => {
         const logDate = log.date ? (log.date.length >= 10 ? log.date.slice(0, 10) : log.date) : '';
         // Match both ISO UTC slice and local date
         const logLocal = log.date ? wtDateKey(new Date(log.date)) : '';
         if (logDate === dateStr || logLocal === dateStr) {
-          const vol = (log.weight || 0) * (log.reps || 0);
-          // Convert to kg regardless of unit
-          totalKg += u === 'lb' ? vol / 2.205 : vol;
+          totalVol += (log.weight || 0) * (log.reps || 0);
           totalSets++;
         }
       });
-      return { date: d, dateStr, totalKg: Math.round(totalKg * 10) / 10, totalSets };
+      return { date: d, dateStr, totalVol: Math.round(totalVol), totalSets };
     });
     const DOW = ['S','M','T','W','T','F','S'];
     const labels = days.map(d => DOW[d.getDay()]);
-    const data   = dayData.map(d => d.totalKg);
+    const data   = dayData.map(d => d.totalVol);
     const bgColors = dayData.map((d, i) => {
-      if (d.totalKg === 0) return 'rgba(255,255,255,0.07)';
+      if (d.totalVol === 0) return 'rgba(255,255,255,0.07)';
       return i === 6 ? '#6ee7b7' : 'rgba(255,255,255,0.50)';
     });
     const ctx = document.getElementById('thWeeklyChart');
@@ -2650,7 +2664,7 @@ img, video, canvas, svg { max-width: 100%; }
                 title: items => dayData[items[0].dataIndex].date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
                 label: item => {
                   const d = dayData[item.dataIndex];
-                  return d.totalKg === 0 ? 'Rest day' : d.totalKg.toLocaleString() + ' ' + unit() + ' lifted · ' + d.totalSets + ' sets';
+                  return d.totalVol === 0 ? 'Rest day' : d.totalVol.toLocaleString() + 'lb lifted · ' + d.totalSets + ' sets';
                 }
               }
             }
@@ -2665,6 +2679,11 @@ img, video, canvas, svg { max-width: 100%; }
       thWeeklyChartInstance.data.labels = labels;
       thWeeklyChartInstance.data.datasets[0].data = data;
       thWeeklyChartInstance.data.datasets[0].backgroundColor = bgColors;
+      // Rebuild tooltip closure with fresh dayData reference
+      thWeeklyChartInstance.options.plugins.tooltip.callbacks.label = item => {
+        const d = dayData[item.dataIndex];
+        return d.totalVol === 0 ? 'Rest day' : d.totalVol.toLocaleString() + 'lb lifted · ' + d.totalSets + ' sets';
+      };
       thWeeklyChartInstance.update();
     }
   }
@@ -2755,7 +2774,7 @@ img, video, canvas, svg { max-width: 100%; }
     const w = ex.bw ? 0 : (parseFloat($('weightInput').value) || 0);
     if (!ex.bw && w <= 0) { alert('Enter a weight.'); return; }
     const arr = state.logs[ex.id] || [];
-    arr.push({ weight: w, reps: reps, date: new Date().toISOString() });
+    arr.push({ weight: w, reps: reps, date: new Date().toISOString(), unit: 'lb' });
     state.logs[ex.id] = arr;
     saveState(); renderAll();
     // Strength changed → composition estimate may shift
@@ -2947,9 +2966,6 @@ img, video, canvas, svg { max-width: 100%; }
   // SETTINGS MODAL (gyms, days, units, data)
   // ============================================================
   function renderSettings() {
-    $('setUnitsSeg').querySelectorAll('button').forEach(b => {
-      b.classList.toggle('active', b.dataset.u === state.units);
-    });
     $('setDays').innerHTML = state.days.map((d, i) =>
       '<div class="po-set-row" data-i="' + i + '">'
       + '<input type="text" value="' + escape(d.name) + '" data-field="name" placeholder="Day name">'
@@ -2978,14 +2994,6 @@ img, video, canvas, svg { max-width: 100%; }
   $('setModalClose').addEventListener('click', () => {
     $('setModalBg').classList.remove('show');
     renderAll();
-  });
-  $('setUnitsSeg').querySelectorAll('button').forEach(b => {
-    b.addEventListener('click', () => {
-      state.units = b.dataset.u; saveState();
-      $('setUnitsSeg').querySelectorAll('button').forEach(x => x.classList.remove('active'));
-      b.classList.add('active');
-      if (typeof wtRender === 'function') wtRender();
-    });
   });
   $('setAddDay').addEventListener('click', () => {
     const name = (prompt('New day name:') || '').trim();

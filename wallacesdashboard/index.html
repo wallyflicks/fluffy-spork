@@ -1148,7 +1148,7 @@
         <div class="gm-header">
           <div class="gm-left">
             <p class="gm-eyebrow" id="tomorrowLabel">Plan tomorrow — …</p>
-            <p class="tomorrow-subtext">Add tonight. Moves to Today at 6 AM.</p>
+            <p class="tomorrow-subtext">Add tonight. Moves to Today at 12 AM.</p>
           </div>
           <div class="tomorrow-badge" id="gmTomorrowCount">0 planned</div>
         </div>
@@ -1477,18 +1477,11 @@
 
     function getActiveDateString() {
       const van = vanNow();
-      if (van.getHours() < 6) {
-        van.setDate(van.getDate() - 1);
-      }
       return van.getFullYear() + '-' + String(van.getMonth()+1).padStart(2,'0') + '-' + String(van.getDate()).padStart(2,'0');
     }
 
     function getTomorrowDateString() {
       const van = vanNow();
-      if (van.getHours() < 6) {
-        // Before 6 AM Van — "tomorrow" is today's Vancouver date
-        return van.getFullYear() + '-' + String(van.getMonth()+1).padStart(2,'0') + '-' + String(van.getDate()).padStart(2,'0');
-      }
       van.setDate(van.getDate() + 1);
       return van.getFullYear() + '-' + String(van.getMonth()+1).padStart(2,'0') + '-' + String(van.getDate()).padStart(2,'0');
     }
@@ -1535,6 +1528,52 @@
         const cleaned = tomorrowGoals.filter(g => !dedupe.has(g.text.trim()));
         if (cleaned.length !== tomorrowGoals.length) saveGoalsFor(tomorrowKey, cleaned);
       }
+    }
+
+    // ─── MIDNIGHT ROLLOVER (cloud-coordinated) ────────────────────────────────
+    // _cloudLastRollover is the Vancouver date string we last confirmed in Supabase.
+    // It is null until fetched, and is updated whenever we run or confirm a rollover.
+    let _cloudLastRollover = null;
+
+    async function fetchCloudLastRollover() {
+      try {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/app_state?key=eq.lastRollover&select=data`,
+          { headers: SB_HEADERS }
+        );
+        if (!res.ok) return null;
+        const rows = await res.json();
+        return (rows.length && rows[0].data) ? String(rows[0].data) : null;
+      } catch { return null; }
+    }
+
+    async function saveCloudLastRollover(dateStr) {
+      _cloudLastRollover = dateStr;
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/app_state?on_conflict=key`, {
+          method: 'POST',
+          headers: { ...SB_HEADERS, 'Prefer': 'resolution=merge-duplicates' },
+          body: JSON.stringify({ key: 'lastRollover', data: dateStr, updated_at: new Date().toISOString() })
+        });
+      } catch {}
+    }
+
+    // Returns true if goal data was modified and loadLists() should be called.
+    // For the open-tab case it re-fetches from Supabase first so another
+    // device's rollover (or task changes) land before we decide what to do.
+    async function midnightRolloverCheck() {
+      const today = getActiveDateString();
+      if (_cloudLastRollover === today) return false; // fast path — already handled
+      const cloudDate = await fetchCloudLastRollover();
+      _cloudLastRollover = cloudDate;
+      // Always re-sync goals from cloud: another device may have already rolled
+      // over, or added/completed tasks since this tab last loaded.
+      await loadFromSupabase();
+      if (cloudDate === today) return true; // another device ran it; we just refreshed
+      rolloverOldGoals();
+      updateStreak();
+      await saveCloudLastRollover(today);
+      return true;
     }
 
     function updateStreak() {
@@ -1926,15 +1965,7 @@
     });
 
     // ─── MIGRATION ────────────────────────────────────────────────────────────
-    function migrateTomorrowIfNeeded() {
-      const now = new Date();
-      if (now.getHours() < 6) return;
-      const todayStr = getTodayDateString();
-      if (localStorage.getItem('lastMigrationDate') === todayStr) return;
-      // Plan Tomorrow goals from last night are keyed by today's date, so they
-      // already appear in Today via the date-based key system. Just mark done.
-      localStorage.setItem('lastMigrationDate', todayStr);
-    }
+    // (Plan Tomorrow → Today migration is now handled by midnightRolloverCheck)
 
     // ─── INIT ─────────────────────────────────────────────────────────────────
     // ─── DAILY QUOTE ──────────────────────────────────────────────────────────
@@ -2015,9 +2046,17 @@
     async function init() {
       setSyncState('syncing', 'connecting…');
       await loadFromSupabase();
-      migrateTomorrowIfNeeded();
-      rolloverOldGoals();
-      updateStreak();
+      // Check once against the cloud lastRollover without re-fetching goals
+      // (we just loaded them above). If another device already ran today's
+      // rollover, the cloud data we loaded is already post-rollover.
+      const _initToday = getActiveDateString();
+      const _initCloud = await fetchCloudLastRollover();
+      _cloudLastRollover = _initCloud;
+      if (_initCloud !== _initToday) {
+        rolloverOldGoals();
+        updateStreak();
+        await saveCloudLastRollover(_initToday);
+      }
       renderTodayHeader();
       renderTomorrowCount();
       makeAddHandlers(goalInput, goalAddBtn, getTodayKey(), loadLists);
@@ -2039,28 +2078,17 @@
 
     init();
 
-    // Detect date changes while the page is left open (same pattern as Income Challenge)
-    let goalsLastDate = getActiveDateString();
+    // Keep the tab current if left open past midnight. midnightRolloverCheck re-syncs
+    // from Supabase, runs the rollover if not yet done today, and returns true when
+    // the display needs refreshing.
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
-        const d = getActiveDateString();
-        if (d !== goalsLastDate) {
-          goalsLastDate = d;
-          rolloverOldGoals();
-          updateStreak();
-          loadLists();
-        }
+        midnightRolloverCheck().then(changed => { if (changed) loadLists(); });
       }
     });
     setInterval(() => {
       if (!document.hidden) {
-        const d = getActiveDateString();
-        if (d !== goalsLastDate) {
-          goalsLastDate = d;
-          rolloverOldGoals();
-          updateStreak();
-          loadLists();
-        }
+        midnightRolloverCheck().then(changed => { if (changed) loadLists(); });
       }
     }, 60 * 1000);
 
