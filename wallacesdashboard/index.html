@@ -2932,8 +2932,9 @@
   };
   const DEFAULT_SETTINGS = { daily_goal_min: 180, streak_min_min: 60 };
 
-  let shData = { sessions: [], settings: { ...DEFAULT_SETTINGS } };
+  let shData = { sessions: [], settings: { ...DEFAULT_SETTINGS }, subjects: [], shownLevelUps: [] };
   let shTick = null;
+  let shSelectedSubjectId = null;
 
   function shVanNow() {
     return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
@@ -3036,10 +3037,12 @@
       if (!res.ok) return null;
       const rows = await res.json();
       const d = rows[0]?.data;
-      if (!d) return { sessions: [], settings: { ...DEFAULT_SETTINGS } };
+      if (!d) return { sessions: [], settings: { ...DEFAULT_SETTINGS }, subjects: [], shownLevelUps: [] };
       return {
         sessions: Array.isArray(d.sessions) ? d.sessions : [],
-        settings: { ...DEFAULT_SETTINGS, ...(d.settings || {}) }
+        settings: { ...DEFAULT_SETTINGS, ...(d.settings || {}) },
+        subjects: Array.isArray(d.subjects) ? d.subjects : [],
+        shownLevelUps: Array.isArray(d.shownLevelUps) ? d.shownLevelUps : []
       };
     } catch { return null; }
   }
@@ -3062,6 +3065,15 @@
     return updated;
   }
 
+  function shFindSubject(id) {
+    if (!id) return null;
+    return (shData.subjects || []).find(s => s.id === id) || null;
+  }
+
+  function shEscHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
   function shRender() {
     const card = document.getElementById('studyHomeCard');
     if (!card) return;
@@ -3072,6 +3084,7 @@
     const goalMs = (shData.settings.daily_goal_min || 180) * 60000;
     const pct = Math.min(100, (todayMs / goalMs) * 100);
     const streak = shStreak(shData.sessions, shData.settings);
+    const subjects = shData.subjects || [];
 
     let timerDisplay, timerClass, statusText;
     if (active) {
@@ -3083,6 +3096,21 @@
       timerDisplay = shFmtMsShort(todayMs) || '0m';
       timerClass = '';
       statusText = `${shFmtMsShort(todayMs)} today`;
+    }
+
+    // Subject chips (idle only; while running show dot+name next to status)
+    let subjHtml = '';
+    if (!active && subjects.length > 0) {
+      const chips = subjects.map(subj => {
+        const sel = shSelectedSubjectId === subj.id;
+        return `<button class="sh-chip${sel ? ' sh-chip-active' : ''}" data-sh-subj="${subj.id}" style="display:inline-flex;align-items:center;gap:4px;padding:4px 9px 4px 6px;border-radius:999px;border:1px solid ${sel ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)'};background:${sel ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)'};color:${sel ? '#fff' : 'rgba(255,255,255,0.55)'};font-size:11px;font-weight:500;cursor:pointer;white-space:nowrap;font-family:var(--sans)"><span style="width:6px;height:6px;border-radius:50%;background:${subj.color};flex-shrink:0"></span>${shEscHtml(subj.name)}</button>`;
+      }).join('');
+      subjHtml = `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:-4px">${chips}</div>`;
+    } else if (active) {
+      const subj = shFindSubject(active.subject_id);
+      if (subj) {
+        statusText = `<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:${subj.color};display:inline-block"></span>${shEscHtml(subj.name)}</span>`;
+      }
     }
 
     let controlsHtml;
@@ -3106,6 +3134,7 @@
         </div>
         <div class="study-home-controls">${controlsHtml}</div>
       </div>
+      ${subjHtml}
       <div>
         <div class="study-home-progress-wrap">
           <div class="study-home-progress-fill" style="width:${pct}%"></div>
@@ -3127,6 +3156,15 @@
     if (resumeBtn) resumeBtn.addEventListener('click', shDoResume);
     const finishBtn = document.getElementById('shFinishBtn');
     if (finishBtn) finishBtn.addEventListener('click', shDoFinish);
+
+    // Wire subject chip toggles
+    card.querySelectorAll('[data-sh-subj]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sid = btn.dataset.shSubj;
+        shSelectedSubjectId = (shSelectedSubjectId === sid) ? null : sid;
+        shRender();
+      });
+    });
   }
 
   function shStartTick() {
@@ -3147,6 +3185,7 @@
       if (data.sessions.find(s => s.status === 'running' || s.status === 'paused')) return data;
       return { ...data, sessions: [...data.sessions, {
         id: shUid(), status: 'running',
+        subject_id: shSelectedSubjectId || null,
         segments: [{ start: new Date().toISOString(), end: null }]
       }]};
     });
@@ -3197,6 +3236,7 @@
     const data = await shRead();
     if (!data) return;
     shData = data;
+    if (shSelectedSubjectId && !shFindSubject(shSelectedSubjectId)) shSelectedSubjectId = null;
     shRender();
     const active = shGetActive();
     if (active && active.status === 'running') shStartTick();

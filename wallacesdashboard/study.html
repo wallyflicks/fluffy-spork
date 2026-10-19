@@ -63,6 +63,8 @@ main {
   letter-spacing: -0.03em;
 }
 
+.header-actions { display: flex; gap: 8px; }
+
 .icon-btn {
   display: flex;
   align-items: center;
@@ -131,6 +133,59 @@ main {
   height: 18px;
 }
 
+/* ── Subject chips ── */
+.subject-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.subject-chips::-webkit-scrollbar { display: none; }
+
+.subject-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px 5px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  font-family: var(--sans);
+}
+.subject-chip:hover { background: rgba(255,255,255,0.09); }
+.subject-chip.active {
+  border-color: rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.12);
+  color: var(--text-primary);
+}
+
+.chip-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chip-add {
+  width: 28px; height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 /* ── Timer controls ── */
 .timer-controls {
   display: flex;
@@ -153,6 +208,7 @@ main {
   cursor: pointer;
   transition: opacity 0.15s, background 0.15s;
   white-space: nowrap;
+  font-family: var(--sans);
 }
 .btn:active { opacity: 0.75; }
 .btn:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -268,21 +324,40 @@ main {
 
 .heatmap-cell {
   border-radius: 7px;
-  padding: 5px 3px 4px;
+  min-height: 44px;
+  border: 1px solid transparent;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.heatmap-cell.empty {
+  background: transparent;
+  cursor: default;
+  pointer-events: none;
+}
+
+.heatmap-cell.today { border-color: rgba(255,255,255,0.3); }
+
+.heatmap-bands {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.heatmap-cell-inner {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  min-height: 44px;
+  padding: 5px 3px 4px;
+  height: 100%;
   justify-content: center;
-  border: 1px solid transparent;
-  transition: background 0.2s;
-}
-
-.heatmap-cell.empty { background: transparent; }
-
-.heatmap-cell.today {
-  border-color: rgba(255,255,255,0.3);
 }
 
 .heatmap-day-num {
@@ -296,8 +371,88 @@ main {
   font-size: 9px;
   font-weight: 600;
   font-family: var(--mono);
-  color: rgba(255,255,255,0.45);
+  color: rgba(255,255,255,0.55);
   line-height: 1;
+}
+
+/* ── Heatmap popover ── */
+#heatmapPopover {
+  position: fixed;
+  background: #1e1e21;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  z-index: 3000;
+  min-width: 140px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  display: none;
+}
+#heatmapPopover.show { display: block; }
+
+.popover-date {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+
+.popover-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  color: var(--text-secondary);
+}
+
+.popover-row strong {
+  color: var(--text-primary);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+/* ── Subject stats ── */
+.subj-stat-card {
+  background: rgba(255,255,255,0.03);
+  border-radius: 12px;
+  padding: 14px 14px 12px;
+  border: 1px solid rgba(255,255,255,0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.level-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  background: rgba(255,255,255,0.1);
+  border-radius: 5px;
+  padding: 2px 6px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.stat-mini {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-mini-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.stat-mini-val {
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--mono);
 }
 
 /* ── Sessions list ── */
@@ -335,6 +490,16 @@ main {
   font-weight: 700;
   font-family: var(--mono);
   letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.session-subj-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
 }
 
 .session-actions {
@@ -436,6 +601,22 @@ main {
 }
 .modal-input:focus { border-color: var(--success); }
 
+.modal-select {
+  width: 100%;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 15px;
+  color: var(--text-primary);
+  font-family: var(--sans);
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.modal-select:focus { border-color: var(--success); }
+.modal-select option { background: #1a1a1d; }
+
 .modal-row {
   display: flex;
   gap: 10px;
@@ -447,6 +628,95 @@ main {
   gap: 10px;
 }
 .modal-btns > * { flex: 1; }
+
+/* ── Color swatches ── */
+.color-swatches-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.color-swatch {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.1s, border-color 0.1s;
+}
+.color-swatch:hover { transform: scale(1.12); }
+.color-swatch.selected { border-color: rgba(255,255,255,0.8); }
+
+.custom-color-wrap {
+  position: relative;
+  width: 26px; height: 26px;
+  flex-shrink: 0;
+}
+
+.custom-color-wrap input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.2);
+  padding: 0;
+  cursor: pointer;
+  background: none;
+  -webkit-appearance: none;
+  overflow: hidden;
+}
+.custom-color-wrap input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.custom-color-wrap input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; }
+
+/* ── Subject manager list rows ── */
+.subj-list-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.subj-list-row:last-child { border-bottom: none; }
+
+/* ── Subject manager modal scroll ── */
+.modal-scroll {
+  max-height: 75vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ── Level-up toast ── */
+#levelUpToast {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 56px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-10px);
+  background: #1e1e21;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s, transform 0.3s;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+#levelUpToast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
 
 /* ── Fullscreen lock-in overlay ── */
 #lockinOverlay {
@@ -479,6 +749,14 @@ main {
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: rgba(255,255,255,0.25);
+}
+
+.li-subj {
+  font-size: 13px;
+  color: rgba(255,255,255,0.4);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .li-btn-row {
@@ -525,13 +803,17 @@ main {
 <main>
   <div class="page-header">
     <h1 class="page-title">Lock In</h1>
-    <button class="icon-btn" id="settingsBtn" aria-label="Settings"><i data-lucide="settings-2"></i></button>
+    <div class="header-actions">
+      <button class="icon-btn" id="subjectMgrOpenBtn" aria-label="Subjects"><i data-lucide="layers"></i></button>
+      <button class="icon-btn" id="settingsBtn" aria-label="Settings"><i data-lucide="settings-2"></i></button>
+    </div>
   </div>
 
   <!-- Timer card -->
   <div class="card" id="timerCard">
     <div class="timer-display" id="timerDisplay">0:00:00</div>
     <div class="timer-status" id="timerStatus"></div>
+    <div class="subject-chips" id="subjectChips" style="display:none"></div>
     <div class="timer-controls" id="timerControls">
       <button class="btn btn-primary" id="startBtn"><i data-lucide="play"></i> Start</button>
     </div>
@@ -584,6 +866,12 @@ main {
     <div class="heatmap-grid" id="heatmapGrid"></div>
   </div>
 
+  <!-- Subject stats -->
+  <div id="subjectStatsSection" style="display:none">
+    <div class="section-title" style="margin-bottom:12px">Subjects</div>
+    <div id="subjectStatsList" style="display:flex;flex-direction:column;gap:10px"></div>
+  </div>
+
   <!-- Recent sessions -->
   <div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -593,6 +881,12 @@ main {
     <div class="sessions-list" id="sessionsList"></div>
   </div>
 </main>
+
+<!-- ── Heatmap popover ── -->
+<div id="heatmapPopover"></div>
+
+<!-- ── Level-up toast ── -->
+<div id="levelUpToast"></div>
 
 <!-- ── Settings modal ── -->
 <div class="modal-backdrop" id="settingsModal" role="dialog" aria-modal="true" aria-label="Settings">
@@ -631,6 +925,10 @@ main {
         <input type="time" class="modal-input" id="manualEnd">
       </div>
     </div>
+    <div class="modal-field" id="manualSubjectField">
+      <div class="modal-label">Subject (optional)</div>
+      <select class="modal-select" id="manualSubject"></select>
+    </div>
     <div class="modal-btns">
       <button class="btn btn-secondary" id="manualCancelBtn">Cancel</button>
       <button class="btn btn-primary" id="manualSaveBtn">Save</button>
@@ -666,7 +964,7 @@ main {
   </div>
 </div>
 
-<!-- ── Delete confirm modal ── -->
+<!-- ── Delete session modal ── -->
 <div class="modal-backdrop" id="deleteModal" role="dialog" aria-modal="true" aria-label="Delete session">
   <div class="modal">
     <div class="modal-title">Delete this session?</div>
@@ -678,10 +976,59 @@ main {
   </div>
 </div>
 
+<!-- ── Subject manager modal ── -->
+<div class="modal-backdrop" id="subjectMgrModal" role="dialog" aria-modal="true" aria-label="Subjects">
+  <div class="modal modal-scroll">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div class="modal-title">Subjects</div>
+      <button class="icon-btn" id="subjectMgrCloseBtn" style="flex-shrink:0"><i data-lucide="x"></i></button>
+    </div>
+    <div id="subjectMgrList"></div>
+    <div id="subjectAddForm" style="border-top:1px solid rgba(255,255,255,0.07);padding-top:16px;display:flex;flex-direction:column;gap:12px">
+      <div class="modal-label">New subject</div>
+      <input type="text" class="modal-input" id="newSubjectName" placeholder="Subject name" maxlength="40">
+      <div class="color-swatches-row" id="newSubjectColorPicker"></div>
+      <button class="btn btn-primary" id="addSubjectBtn">Add Subject</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit subject modal ── -->
+<div class="modal-backdrop" id="editSubjectModal" role="dialog" aria-modal="true" aria-label="Edit subject">
+  <div class="modal">
+    <div class="modal-title">Edit Subject</div>
+    <div class="modal-field">
+      <div class="modal-label">Name</div>
+      <input type="text" class="modal-input" id="editSubjectName" maxlength="40">
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">Color</div>
+      <div class="color-swatches-row" id="editSubjectColorPicker"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" id="editSubjectCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="editSubjectSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Delete subject confirm modal ── -->
+<div class="modal-backdrop" id="deleteSubjectModal" role="dialog" aria-modal="true" aria-label="Delete subject">
+  <div class="modal">
+    <div class="modal-title">Delete subject?</div>
+    <p style="font-size:14px;color:var(--text-secondary)">All sessions for this subject will become Unassigned. This cannot be undone.</p>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" id="deleteSubjectCancelBtn">Cancel</button>
+      <button class="btn btn-danger" id="deleteSubjectConfirmBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Fullscreen lock-in overlay ── -->
 <div id="lockinOverlay">
   <div class="li-label">LOCK IN</div>
   <div class="li-timer" id="liTimer">0:00:00</div>
+  <div class="li-subj" id="liSubj" style="display:none"></div>
   <div class="li-btn-row">
     <button class="btn btn-secondary" id="liPauseBtn"><i data-lucide="pause"></i> Pause</button>
     <button class="btn btn-primary" id="liFinishBtn"><i data-lucide="check"></i> Finish</button>
@@ -715,8 +1062,11 @@ const SB_HEADERS = {
   'Authorization': 'Bearer ' + SUPABASE_KEY,
 };
 const DEFAULT_SETTINGS = { daily_goal_min: 180, streak_min_min: 60 };
+const LEVEL_BASE = 2.5;
+const SUBJECT_COLORS = ['#6366F1','#EC4899','#F59E0B','#14B8A6','#EF4444','#8B5CF6','#06B6D4','#F97316','#84CC16','#3B82F6'];
+const UNASSIGNED_HEX = '#6BE3A4';
 
-// ── Vancouver timezone helpers ────────────────────────────────────────────────
+// ── Vancouver timezone helpers ─────────────────────────────────────────────────
 function vanNow() {
   return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
 }
@@ -726,8 +1076,6 @@ function vanDateStr(d) {
 }
 
 function vanMidnightUTC(dateStr) {
-  // Return the UTC ms for midnight Vancouver time on the given YYYY-MM-DD.
-  // Vancouver is UTC-7 (PDT, roughly Mar-Nov) or UTC-8 (PST, roughly Nov-Mar).
   const [y, m, d] = dateStr.split('-').map(Number);
   for (const h of [7, 8, 9, 6, 10]) {
     const candidate = new Date(Date.UTC(y, m - 1, d, h, 0, 0));
@@ -737,22 +1085,54 @@ function vanMidnightUTC(dateStr) {
       return candidate.getTime();
     }
   }
-  return Date.UTC(y, m - 1, d, 8, 0, 0); // fallback PST
+  return Date.UTC(y, m - 1, d, 8, 0, 0);
 }
 
 function vanDayBounds(dateStr) {
-  // Return [startMs, endMs) for a Vancouver calendar day.
-  // End = start of the NEXT Vancouver midnight, so DST transitions split correctly.
   const startMs = vanMidnightUTC(dateStr);
   const [y, m, d] = dateStr.split('-').map(Number);
-  const nextDay = new Date(Date.UTC(y, m - 1, d + 1, 8, 0, 0)); // rough next UTC-8 midnight
+  const nextDay = new Date(Date.UTC(y, m - 1, d + 1, 8, 0, 0));
   const nextStr = nextDay.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
-  const endMs = vanMidnightUTC(nextStr);
-  return [startMs, endMs];
+  return [startMs, vanMidnightUTC(nextStr)];
+}
+
+function vanDateMinus(dateStr, days) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const utcNoon = new Date(Date.UTC(y, m - 1, d - days, 12, 0, 0));
+  return vanDateStr(utcNoon);
 }
 
 function todayVan() {
   return vanDateStr(vanNow());
+}
+
+// ── Level helpers ─────────────────────────────────────────────────────────────
+function levelFromHours(h) {
+  let level = 1;
+  while (LEVEL_BASE * (level + 1) * level <= h) level++;
+  return level;
+}
+
+function levelHoursNeeded(n) {
+  return LEVEL_BASE * n * (n - 1);
+}
+
+// ── Util ──────────────────────────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function mergeById(base, incoming) {
+  const map = new Map((base || []).map(x => [x.id, x]));
+  for (const item of (incoming || [])) map.set(item.id, item);
+  return [...map.values()];
 }
 
 // ── Cloud helpers ─────────────────────────────────────────────────────────────
@@ -765,10 +1145,12 @@ async function cloudRead() {
     if (!res.ok) return null;
     const rows = await res.json();
     const d = rows[0]?.data;
-    if (!d) return { sessions: [], settings: { ...DEFAULT_SETTINGS } };
+    if (!d) return { sessions: [], settings: { ...DEFAULT_SETTINGS }, subjects: [], shownLevelUps: [] };
     return {
       sessions: Array.isArray(d.sessions) ? d.sessions : [],
-      settings: { ...DEFAULT_SETTINGS, ...(d.settings || {}) }
+      settings: { ...DEFAULT_SETTINGS, ...(d.settings || {}) },
+      subjects: Array.isArray(d.subjects) ? d.subjects : [],
+      shownLevelUps: Array.isArray(d.shownLevelUps) ? d.shownLevelUps : []
     };
   } catch { return null; }
 }
@@ -783,7 +1165,6 @@ async function cloudWrite(data) {
   } catch {}
 }
 
-// Fetch latest, apply transform, write back. Returns final state or null on failure.
 async function cloudUpdate(fn) {
   const current = await cloudRead();
   if (!current) return null;
@@ -803,13 +1184,10 @@ function sessionElapsedMs(session, nowMs) {
   return session.segments.reduce((sum, seg) => sum + segmentElapsedMs(seg, nowMs), 0);
 }
 
-// Overlap between segment and a [dayStartMs, dayEndMs) window
 function segmentDayOverlapMs(seg, dayStartMs, dayEndMs, nowMs) {
   const start = new Date(seg.start).getTime();
   const end = seg.end ? new Date(seg.end).getTime() : nowMs;
-  const lo = Math.max(start, dayStartMs);
-  const hi = Math.min(end, dayEndMs);
-  return Math.max(0, hi - lo);
+  return Math.max(0, Math.min(end, dayEndMs) - Math.max(start, dayStartMs));
 }
 
 function dayTotalMs(dateStr, sessions, nowMs) {
@@ -819,6 +1197,29 @@ function dayTotalMs(dateStr, sessions, nowMs) {
     for (const seg of s.segments) {
       total += segmentDayOverlapMs(seg, dayStart, dayEnd, nowMs);
     }
+  }
+  return total;
+}
+
+function dayTotalBySubject(dateStr, sessions, nowMs) {
+  const [dayStart, dayEnd] = vanDayBounds(dateStr);
+  const result = {};
+  for (const s of sessions) {
+    const sid = s.subject_id || null;
+    let ms = 0;
+    for (const seg of s.segments) ms += segmentDayOverlapMs(seg, dayStart, dayEnd, nowMs);
+    if (ms > 0) result[String(sid)] = (result[String(sid)] || 0) + ms;
+  }
+  return result;
+}
+
+function subjectTotalMs(subjectId, sessions, nowMs) {
+  const sid = subjectId || null;
+  let total = 0;
+  for (const s of sessions) {
+    if ((s.subject_id || null) !== sid) continue;
+    if (s.status !== 'done' && s.status !== 'running' && s.status !== 'paused') continue;
+    total += sessionElapsedMs(s, nowMs);
   }
   return total;
 }
@@ -852,40 +1253,24 @@ function fmtMsHeatmap(ms) {
 }
 
 // ── Streak calculation ────────────────────────────────────────────────────────
-function vanDateMinus(dateStr, days) {
-  // Return a YYYY-MM-DD string that is `days` calendar days before dateStr, in Vancouver.
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const utcNoon = new Date(Date.UTC(y, m - 1, d - days, 12, 0, 0));
-  return vanDateStr(utcNoon);
-}
-
 function computeStreak(sessions, settings) {
   const minMs = (settings.streak_min_min || 60) * 60000;
   const today = todayVan();
   const nowMs = Date.now();
-
-  // Build daily totals for the past 400 days using UTC-noon iteration (DST-safe)
   const dailyMap = {};
   for (let i = 0; i < 400; i++) {
     const ds = vanDateMinus(today, i);
     dailyMap[ds] = dayTotalMs(ds, sessions, nowMs);
   }
 
-  // Current streak: consecutive qualifying days ending today or yesterday
   let streak = 0;
   const todayTotal = dailyMap[today] || 0;
   const anchor = todayTotal >= minMs ? today : vanDateMinus(today, 1);
-  const anchorTotal = dailyMap[anchor] || 0;
-  if (anchorTotal >= minMs) {
+  if ((dailyMap[anchor] || 0) >= minMs) {
     let i = 0;
-    while (true) {
-      const ds = vanDateMinus(anchor, i);
-      if ((dailyMap[ds] || 0) >= minMs) { streak++; i++; }
-      else break;
-    }
+    while ((dailyMap[vanDateMinus(anchor, i)] || 0) >= minMs) { streak++; i++; }
   }
 
-  // Longest streak
   const sortedDays = Object.keys(dailyMap).sort();
   let longest = 0, cur = 0;
   for (const ds of sortedDays) {
@@ -897,17 +1282,27 @@ function computeStreak(sessions, settings) {
 }
 
 // ── App state ─────────────────────────────────────────────────────────────────
-let appData = { sessions: [], settings: { ...DEFAULT_SETTINGS } };
+let appData = { sessions: [], settings: { ...DEFAULT_SETTINGS }, subjects: [], shownLevelUps: [] };
 let tickInterval = null;
 let heatmapYear = vanNow().getFullYear();
-let heatmapMonth = vanNow().getMonth(); // 0-based
+let heatmapMonth = vanNow().getMonth();
 let pendingDeleteId = null;
 let pendingEditId = null;
+let pendingDeleteSubjectId = null;
+let editingSubjectId = null;
+let editingSubjectColor = SUBJECT_COLORS[0];
+let newSubjectColor = SUBJECT_COLORS[0];
+let selectedSubjectId = null;
 let volumeChart = null;
 let wakeLock = null;
 
 function getActiveSession() {
   return appData.sessions.find(s => s.status === 'running' || s.status === 'paused') || null;
+}
+
+function findSubject(id) {
+  if (!id) return null;
+  return (appData.subjects || []).find(s => s.id === id) || null;
 }
 
 function uid() {
@@ -920,8 +1315,48 @@ function renderAll() {
   renderStats();
   renderGoal();
   renderHeatmap();
+  renderSubjectStats();
   renderSessions();
   renderVolumeChart();
+}
+
+function renderSubjectChips(active) {
+  const subjects = appData.subjects || [];
+  const chipsEl = document.getElementById('subjectChips');
+
+  if (!subjects.length) {
+    chipsEl.style.display = 'none';
+    return;
+  }
+  chipsEl.style.display = '';
+
+  const currentSubjId = active ? (active.subject_id || null) : selectedSubjectId;
+
+  let html = subjects.map(subj => {
+    const isActive = currentSubjId === subj.id;
+    return `<button class="subject-chip${isActive ? ' active' : ''}" data-subject-id="${subj.id}">
+      <span class="chip-dot" style="background:${subj.color}"></span>${escHtml(subj.name)}
+    </button>`;
+  }).join('');
+
+  html += `<button class="subject-chip chip-add" id="chipsOpenMgrBtn" title="Manage subjects">+</button>`;
+
+  chipsEl.innerHTML = html;
+
+  chipsEl.querySelectorAll('.subject-chip[data-subject-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sid = btn.dataset.subjectId || null;
+      if (active) {
+        changeSessionSubject(sid === currentSubjId ? null : sid);
+      } else {
+        selectedSubjectId = (sid === selectedSubjectId) ? null : sid;
+        renderSubjectChips(null);
+      }
+    });
+  });
+
+  const mgrBtn = document.getElementById('chipsOpenMgrBtn');
+  if (mgrBtn) mgrBtn.addEventListener('click', openSubjectManager);
 }
 
 function renderTimer() {
@@ -930,7 +1365,6 @@ function renderTimer() {
   const status = document.getElementById('timerStatus');
   const controls = document.getElementById('timerControls');
   const actionsRow = document.getElementById('timerActionsRow');
-
   const nowMs = Date.now();
 
   if (!active) {
@@ -965,39 +1399,44 @@ function renderTimer() {
       document.getElementById('discardBtn').addEventListener('click', () => openModal('discardModal'));
     }
 
-    // Sync lock-in overlay too
     const li = document.getElementById('liTimer');
     if (li) li.textContent = fmtMs(elapsed);
     const liPause = document.getElementById('liPauseBtn');
     if (liPause) liPause.innerHTML = active.status === 'running'
       ? '<i data-lucide="pause"></i> Pause'
       : '<i data-lucide="play"></i> Resume';
+
+    // Lock-in subject display
+    const liSubj = document.getElementById('liSubj');
+    if (liSubj) {
+      const subj = findSubject(active.subject_id);
+      if (subj) {
+        liSubj.style.display = '';
+        liSubj.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${subj.color};display:inline-block"></span>${escHtml(subj.name)}`;
+      } else {
+        liSubj.style.display = 'none';
+      }
+    }
   }
 
+  renderSubjectChips(active);
   lucide.createIcons();
 }
 
 function renderStats() {
   const nowMs = Date.now();
   const today = todayVan();
-
   const todayMs = dayTotalMs(today, appData.sessions, nowMs);
 
-  // Week total (DST-safe iteration via UTC-noon)
   let weekMs = 0;
-  for (let i = 0; i < 7; i++) {
-    weekMs += dayTotalMs(vanDateMinus(today, i), appData.sessions, nowMs);
-  }
+  for (let i = 0; i < 7; i++) weekMs += dayTotalMs(vanDateMinus(today, i), appData.sessions, nowMs);
 
-  // Streak
   const { streak, longest } = computeStreak(appData.sessions, appData.settings);
 
-  // Total
   let totalMs = 0;
   for (const s of appData.sessions) {
     if (s.status === 'done') totalMs += sessionElapsedMs(s, nowMs);
   }
-  // Include active session
   const active = getActiveSession();
   if (active) totalMs += sessionElapsedMs(active, nowMs);
 
@@ -1018,66 +1457,101 @@ function renderGoal() {
   const goalMs = (appData.settings.daily_goal_min || 180) * 60000;
   const pct = Math.min(100, (todayMs / goalMs) * 100);
 
-  document.getElementById('goalLabel').textContent =
-    `Daily goal: ${fmtMsShort(goalMs)}`;
+  document.getElementById('goalLabel').textContent = `Daily goal: ${fmtMsShort(goalMs)}`;
   document.getElementById('goalBar').style.width = pct + '%';
 
   const badge = document.getElementById('goalReachedBadge');
   const sub = document.getElementById('goalSubLabel');
-
   if (todayMs >= goalMs) {
     badge.style.display = '';
     sub.textContent = `${fmtMsShort(todayMs)} studied today`;
     lucide.createIcons();
   } else {
     badge.style.display = 'none';
-    const remaining = goalMs - todayMs;
-    sub.textContent = `${fmtMsShort(todayMs)} of ${fmtMsShort(goalMs)} — ${fmtMsShort(remaining)} to go`;
+    sub.textContent = `${fmtMsShort(todayMs)} of ${fmtMsShort(goalMs)} — ${fmtMsShort(goalMs - todayMs)} to go`;
   }
 }
 
 function renderVolumeChart() {
   const nowMs = Date.now();
   const today = todayVan();
-  const labels = [];
-  const data = [];
   const DOW = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const labels = [];
+  const days = [];
 
   for (let i = 6; i >= 0; i--) {
     const ds = vanDateMinus(today, i);
     const [y, m, d] = ds.split('-').map(Number);
     labels.push(DOW[new Date(Date.UTC(y, m - 1, d, 12)).getDay()]);
-    const ms = dayTotalMs(ds, appData.sessions, nowMs);
-    data.push(parseFloat((ms / 3600000).toFixed(2)));
+    days.push(ds);
   }
 
-  const goalH = (appData.settings.daily_goal_min || 180) / 60;
-  const colors = data.map(h => h >= goalH ? '#6ee7b7' : h > 0 ? 'rgba(107,227,164,0.45)' : 'rgba(255,255,255,0.07)');
-
+  const subjects = appData.subjects || [];
   const ctx = document.getElementById('volumeChart');
   if (!ctx || !window.Chart) return;
 
-  if (volumeChart) {
-    volumeChart.data.labels = labels;
-    volumeChart.data.datasets[0].data = data;
-    volumeChart.data.datasets[0].backgroundColor = colors;
-    volumeChart.update();
-    return;
+  if (volumeChart) { volumeChart.destroy(); volumeChart = null; }
+
+  // Build datasets: one per subject + one for unassigned
+  const datasets = [];
+  const hasSubjects = subjects.length > 0;
+
+  if (hasSubjects) {
+    // Per-subject datasets
+    for (const subj of subjects) {
+      const data = days.map(ds => {
+        const bySubj = dayTotalBySubject(ds, appData.sessions, nowMs);
+        return parseFloat(((bySubj[subj.id] || 0) / 3600000).toFixed(2));
+      });
+      if (data.some(v => v > 0)) {
+        datasets.push({
+          label: subj.name,
+          data,
+          backgroundColor: hexToRgba(subj.color, 0.85),
+          borderRadius: 5,
+          borderSkipped: false,
+          stack: 'stack'
+        });
+      }
+    }
+    // Unassigned dataset
+    const unassignedData = days.map(ds => {
+      const bySubj = dayTotalBySubject(ds, appData.sessions, nowMs);
+      return parseFloat(((bySubj['null'] || 0) / 3600000).toFixed(2));
+    });
+    if (unassignedData.some(v => v > 0)) {
+      datasets.push({
+        label: 'Unassigned',
+        data: unassignedData,
+        backgroundColor: hexToRgba(UNASSIGNED_HEX, 0.65),
+        borderRadius: 5,
+        borderSkipped: false,
+        stack: 'stack'
+      });
+    }
+  } else {
+    // No subjects: single bar with goal-based coloring
+    const goalH = (appData.settings.daily_goal_min || 180) / 60;
+    const data = days.map(ds => parseFloat((dayTotalMs(ds, appData.sessions, nowMs) / 3600000).toFixed(2)));
+    const colors = data.map(h => h >= goalH ? '#6ee7b7' : h > 0 ? 'rgba(107,227,164,0.45)' : 'rgba(255,255,255,0.07)');
+    datasets.push({ data, backgroundColor: colors, borderRadius: 5, borderSkipped: false, stack: 'stack' });
   }
+
+  const isStacked = hasSubjects && datasets.length > 1;
 
   volumeChart = new Chart(ctx, {
     type: 'bar',
-    data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 5, borderSkipped: false }] },
+    data: { labels, datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
       animation: { duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 700 },
       plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: c => c.parsed.y.toFixed(1) + 'h' } }
+        legend: { display: isStacked, labels: { color: 'rgba(255,255,255,0.5)', font: { size: 10 }, boxWidth: 10, padding: 8 } },
+        tooltip: { callbacks: { label: c => `${c.dataset.label ? c.dataset.label + ': ' : ''}${c.parsed.y.toFixed(1)}h` } }
       },
       scales: {
-        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10 } } },
-        y: { min: 0, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10 }, callback: v => v + 'h' } }
+        x: { stacked: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10 } } },
+        y: { stacked: true, min: 0, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10 }, callback: v => v + 'h' } }
       }
     }
   });
@@ -1087,23 +1561,19 @@ function renderHeatmap() {
   const nowMs = Date.now();
   const today = todayVan();
   const goalMs = (appData.settings.daily_goal_min || 180) * 60000;
+  const subjects = appData.subjects || [];
 
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   document.getElementById('heatmapMonthLabel').textContent = `${MONTHS[heatmapMonth]} ${heatmapYear}`;
 
   const grid = document.getElementById('heatmapGrid');
   const DOWS = ['Mo','Tu','We','Th','Fr','Sa','Su'];
-
-  // Day of week header
   let html = DOWS.map(d => `<div class="heatmap-dow">${d}</div>`).join('');
 
-  // First day of month
   const firstDay = new Date(heatmapYear, heatmapMonth, 1);
-  // getDay(): 0=Sun, 1=Mon...6=Sat. We want Mon-based: Mon=0..Sun=6
-  const startDow = (firstDay.getDay() + 6) % 7; // Mon-based offset
+  const startDow = (firstDay.getDay() + 6) % 7;
   const daysInMonth = new Date(heatmapYear, heatmapMonth + 1, 0).getDate();
 
-  // Empty cells before first day
   for (let i = 0; i < startDow; i++) html += '<div class="heatmap-cell empty"></div>';
 
   for (let day = 1; day <= daysInMonth; day++) {
@@ -1112,21 +1582,147 @@ function renderHeatmap() {
     const ms = dayTotalMs(ds, appData.sessions, nowMs);
     const isToday = ds === today;
     const pct = goalMs > 0 ? Math.min(1, ms / goalMs) : 0;
+    const alpha = ms > 0 ? (0.18 + pct * 0.72) : 0;
 
-    // Color: scale green intensity from 0 to 1
-    let bg = 'rgba(255,255,255,0.04)';
-    if (ms > 0) {
-      const alpha = 0.18 + pct * 0.72;
-      bg = `rgba(107,231,180,${alpha.toFixed(2)})`;
+    let bandsHtml = '';
+    let bgStyle = '';
+
+    if (ms > 0 && subjects.length > 0) {
+      const bySubj = dayTotalBySubject(ds, appData.sessions, nowMs);
+      const subjEntries = [];
+
+      for (const subj of subjects) {
+        const subjMs = bySubj[subj.id] || 0;
+        if (subjMs > 0) subjEntries.push({ color: subj.color, ms: subjMs });
+      }
+      const unassignedMs = bySubj['null'] || 0;
+      if (unassignedMs > 0) subjEntries.push({ color: UNASSIGNED_HEX, ms: unassignedMs });
+
+      if (subjEntries.length > 0) {
+        const totalMs2 = subjEntries.reduce((s, e) => s + e.ms, 0);
+        const barsHtml = subjEntries.map(e =>
+          `<div style="flex:${e.ms};background:${hexToRgba(e.color, alpha)}"></div>`
+        ).join('');
+        bandsHtml = `<div class="heatmap-bands">${barsHtml}</div>`;
+      } else {
+        bgStyle = `background:${hexToRgba(UNASSIGNED_HEX, alpha)}`;
+      }
+    } else if (ms > 0) {
+      bgStyle = `background:${hexToRgba(UNASSIGNED_HEX, alpha)}`;
+    } else {
+      bgStyle = 'background:rgba(255,255,255,0.04)';
     }
 
-    html += `<div class="heatmap-cell${isToday ? ' today' : ''}" style="background:${bg}">
-      <div class="heatmap-day-num">${day}</div>
-      ${ms > 0 ? `<div class="heatmap-day-time">${fmtMsHeatmap(ms)}</div>` : ''}
+    const timeLabel = ms > 0 ? `<div class="heatmap-day-time">${fmtMsHeatmap(ms)}</div>` : '';
+
+    html += `<div class="heatmap-cell${isToday ? ' today' : ''}" style="${bgStyle}" data-date="${ds}" data-ms="${ms}">
+      ${bandsHtml}
+      <div class="heatmap-cell-inner">
+        <div class="heatmap-day-num">${day}</div>
+        ${timeLabel}
+      </div>
     </div>`;
   }
 
   grid.innerHTML = html;
+
+  // Bind popover
+  grid.querySelectorAll('.heatmap-cell[data-date]').forEach(cell => {
+    cell.addEventListener('click', e => showHeatmapPopover(e, cell));
+  });
+}
+
+function showHeatmapPopover(e, cell) {
+  const popover = document.getElementById('heatmapPopover');
+  const ds = cell.dataset.date;
+  const ms = parseInt(cell.dataset.ms || '0', 10);
+  const nowMs = Date.now();
+  const subjects = appData.subjects || [];
+
+  const dateLabel = new Date(ds + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  if (ms <= 0) {
+    popover.classList.remove('show');
+    return;
+  }
+
+  let rows = '';
+  const bySubj = dayTotalBySubject(ds, appData.sessions, nowMs);
+
+  for (const subj of subjects) {
+    const subjMs = bySubj[subj.id] || 0;
+    if (subjMs > 0) {
+      rows += `<div class="popover-row"><span class="chip-dot" style="background:${subj.color}"></span>${escHtml(subj.name)}<strong style="margin-left:auto">${fmtMsShort(subjMs)}</strong></div>`;
+    }
+  }
+  const unMs = bySubj['null'] || 0;
+  if (unMs > 0) {
+    rows += `<div class="popover-row"><span class="chip-dot" style="background:${UNASSIGNED_HEX}"></span>Unassigned<strong style="margin-left:auto">${fmtMsShort(unMs)}</strong></div>`;
+  }
+  if (!rows) rows = `<div class="popover-row">${fmtMsShort(ms)}</div>`;
+
+  popover.innerHTML = `<div class="popover-date">${dateLabel}</div>${rows}`;
+  popover.classList.add('show');
+
+  // Position
+  const rect = cell.getBoundingClientRect();
+  const pw = 160;
+  let left = rect.left + rect.width / 2 - pw / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+  let top = rect.top - popover.offsetHeight - 8;
+  if (top < 0) top = rect.bottom + 8;
+  popover.style.left = left + 'px';
+  popover.style.top = top + 'px';
+  popover.style.width = pw + 'px';
+
+  e.stopPropagation();
+}
+
+function renderSubjectStats() {
+  const section = document.getElementById('subjectStatsSection');
+  const subjects = appData.subjects || [];
+  if (!subjects.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+
+  const nowMs = Date.now();
+  const today = todayVan();
+
+  const html = subjects.map(subj => {
+    const totalMs = subjectTotalMs(subj.id, appData.sessions, nowMs);
+    const totalH = totalMs / 3600000;
+    const level = levelFromHours(totalH);
+    const nextLevelH = levelHoursNeeded(level + 1);
+    const currLevelH = levelHoursNeeded(level);
+    const range = nextLevelH - currLevelH;
+    const pct = range > 0 ? Math.min(100, ((totalH - currLevelH) / range) * 100) : 100;
+
+    let weekMs = 0;
+    for (let i = 0; i < 7; i++) {
+      const ds = vanDateMinus(today, i);
+      const bySubj = dayTotalBySubject(ds, appData.sessions, nowMs);
+      weekMs += bySubj[subj.id] || 0;
+    }
+
+    const remaining = Math.max(0, nextLevelH - totalH);
+
+    return `<div class="subj-stat-card">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="width:10px;height:10px;border-radius:50%;background:${subj.color};flex-shrink:0"></span>
+        <span style="font-weight:600;font-size:14px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(subj.name)}</span>
+        <span class="level-badge">L${level}</span>
+      </div>
+      <div style="display:flex;gap:16px">
+        <div class="stat-mini"><div class="stat-mini-label">Total</div><div class="stat-mini-val">${fmtMsShort(totalMs)}</div></div>
+        <div class="stat-mini"><div class="stat-mini-label">This week</div><div class="stat-mini-val">${fmtMsShort(weekMs)}</div></div>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" style="width:${pct.toFixed(1)}%;background:${subj.color}"></div>
+      </div>
+      <div style="font-size:10px;color:var(--text-tertiary)">${remaining > 0 ? fmtMsShort(remaining * 3600000) + ' to L' + (level+1) : 'Max level in sight'}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('subjectStatsList').innerHTML = html;
 }
 
 function renderSessions() {
@@ -1150,17 +1746,20 @@ function renderSessions() {
     const ms = sessionElapsedMs(s, nowMs);
     const startISO = s.segments[0]?.start;
     const dateLabel = startISO ? new Date(startISO).toLocaleDateString('en-US', {
-      timeZone: 'America/Vancouver',
-      month: 'short', day: 'numeric', year: 'numeric'
+      timeZone: 'America/Vancouver', month: 'short', day: 'numeric', year: 'numeric'
     }) : 'Unknown';
     const timeLabel = startISO ? new Date(startISO).toLocaleTimeString('en-US', {
       timeZone: 'America/Vancouver', hour: 'numeric', minute: '2-digit'
     }) : '';
-    return `
-    <div class="session-row" data-id="${s.id}">
+    const subj = findSubject(s.subject_id);
+    const dotHtml = subj ? `<span class="session-subj-dot" style="background:${subj.color}"></span>` : '';
+    const subjLabel = subj ? `<span style="font-size:11px;color:var(--text-tertiary);margin-top:1px">${escHtml(subj.name)}</span>` : '';
+
+    return `<div class="session-row" data-id="${s.id}">
       <div class="session-row-left">
         <div class="session-date">${dateLabel}${timeLabel ? ' · ' + timeLabel : ''}</div>
-        <div class="session-duration">${fmtMsShort(ms)}</div>
+        <div class="session-duration">${dotHtml}${fmtMsShort(ms)}</div>
+        ${subjLabel}
       </div>
       <div class="session-actions">
         <button class="session-act-btn edit-btn" data-id="${s.id}" aria-label="Edit session"><i data-lucide="pencil"></i></button>
@@ -1202,20 +1801,18 @@ function stopTick() {
 
 // ── Timer actions ─────────────────────────────────────────────────────────────
 async function doStart() {
-  // Only one running/paused session at a time
-  const existing = getActiveSession();
-  if (existing) return;
+  if (getActiveSession()) return;
 
   const newSession = {
     id: uid(),
     status: 'running',
+    subject_id: selectedSubjectId || null,
     segments: [{ start: new Date().toISOString(), end: null }]
   };
 
   const result = await cloudUpdate(data => {
-    // Guard: another device may have started one
     const alreadyActive = data.sessions.find(s => s.status === 'running' || s.status === 'paused');
-    if (alreadyActive) return data; // don't add a second one
+    if (alreadyActive) return data;
     return { ...data, sessions: [...data.sessions, newSession] };
   });
 
@@ -1227,20 +1824,18 @@ async function doStart() {
 }
 
 async function doPause() {
-  const result = await cloudUpdate(data => {
-    return {
-      ...data,
-      sessions: data.sessions.map(s => {
-        if (s.status !== 'running') return s;
-        const segs = s.segments.map((seg, i) =>
-          i === s.segments.length - 1 && !seg.end
-            ? { ...seg, end: new Date().toISOString() }
-            : seg
-        );
-        return { ...s, status: 'paused', segments: segs };
-      })
-    };
-  });
+  const result = await cloudUpdate(data => ({
+    ...data,
+    sessions: data.sessions.map(s => {
+      if (s.status !== 'running') return s;
+      const segs = s.segments.map((seg, i) =>
+        i === s.segments.length - 1 && !seg.end
+          ? { ...seg, end: new Date().toISOString() }
+          : seg
+      );
+      return { ...s, status: 'paused', segments: segs };
+    })
+  }));
   if (result) { appData = result; stopTick(); renderAll(); }
 }
 
@@ -1262,7 +1857,6 @@ async function doFinish(adjustedEndISO) {
   const nowMs = Date.now();
   const elapsedMs = sessionElapsedMs(active, nowMs);
 
-  // '__keep__' means: user accepted the 8h+ session as-is
   if (!adjustedEndISO && elapsedMs > 8 * 3600000) {
     const endInput = document.getElementById('longSessionEnd');
     const localNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
@@ -1274,24 +1868,30 @@ async function doFinish(adjustedEndISO) {
 
   const endTime = (adjustedEndISO && adjustedEndISO !== '__keep__') ? adjustedEndISO : new Date().toISOString();
 
+  // Capture pre-finish subject levels for level-up check
+  const preLevels = {};
+  for (const subj of (appData.subjects || [])) {
+    preLevels[subj.id] = levelFromHours(subjectTotalMs(subj.id, appData.sessions, nowMs) / 3600000);
+  }
+
   const result = await cloudUpdate(data => ({
     ...data,
     sessions: data.sessions.map(s => {
       if (s.status !== 'running' && s.status !== 'paused') return s;
       const segs = s.segments.map((seg, i) =>
-        i === s.segments.length - 1 && !seg.end
-          ? { ...seg, end: endTime }
-          : seg
+        i === s.segments.length - 1 && !seg.end ? { ...seg, end: endTime } : seg
       );
       return { ...s, status: 'done', segments: segs };
     })
   }));
+
   if (result) {
     appData = result;
     stopTick();
     releaseWakeLock();
     closeModal('lockinOverlay');
     renderAll();
+    await checkLevelUps(preLevels);
   }
 }
 
@@ -1305,6 +1905,199 @@ async function doDiscard() {
     stopTick();
     releaseWakeLock();
     closeModal('lockinOverlay');
+    renderAll();
+  }
+}
+
+// ── Subject mid-session change ─────────────────────────────────────────────────
+async function changeSessionSubject(newSubjectId) {
+  const result = await cloudUpdate(data => ({
+    ...data,
+    sessions: data.sessions.map(s =>
+      (s.status === 'running' || s.status === 'paused')
+        ? { ...s, subject_id: newSubjectId || null }
+        : s
+    )
+  }));
+  if (result) {
+    appData = result;
+    selectedSubjectId = newSubjectId || null;
+    renderTimer();
+  }
+}
+
+// ── Level-up toast ────────────────────────────────────────────────────────────
+async function checkLevelUps(preLevels) {
+  const nowMs = Date.now();
+  const toShow = [];
+
+  for (const subj of (appData.subjects || [])) {
+    const postLevel = levelFromHours(subjectTotalMs(subj.id, appData.sessions, nowMs) / 3600000);
+    const preLevel = preLevels[subj.id] || 1;
+    for (let lvl = preLevel + 1; lvl <= postLevel; lvl++) {
+      const key = `${subj.id}_L${lvl}`;
+      if (!(appData.shownLevelUps || []).includes(key)) {
+        toShow.push({ subject: subj, level: lvl, key });
+      }
+    }
+  }
+
+  if (!toShow.length) return;
+
+  await cloudUpdate(data => ({
+    ...data,
+    shownLevelUps: [...new Set([...(data.shownLevelUps || []), ...toShow.map(t => t.key)])]
+  }));
+
+  for (const item of toShow) {
+    await showLevelUpToast(item.subject.name, item.level, item.subject.color);
+  }
+}
+
+function showLevelUpToast(name, level, color) {
+  return new Promise(resolve => {
+    const toast = document.getElementById('levelUpToast');
+    toast.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></span><strong>${escHtml(name)}</strong>&nbsp;reached Level ${level}!`;
+    toast.classList.add('show');
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(resolve, 300);
+    }, 3000);
+  });
+}
+
+// ── Subject manager ───────────────────────────────────────────────────────────
+function openSubjectManager() {
+  renderSubjectManagerList();
+  buildColorPickerEl(document.getElementById('newSubjectColorPicker'), newSubjectColor, color => { newSubjectColor = color; });
+  openModal('subjectMgrModal');
+}
+
+function renderSubjectManagerList() {
+  const listEl = document.getElementById('subjectMgrList');
+  const subjects = appData.subjects || [];
+
+  if (!subjects.length) {
+    listEl.innerHTML = '<div style="font-size:13px;color:var(--text-tertiary);padding:4px 0 8px">No subjects yet. Add one below.</div>';
+    return;
+  }
+
+  listEl.innerHTML = subjects.map(subj => `
+    <div class="subj-list-row">
+      <span style="width:12px;height:12px;border-radius:50%;background:${subj.color};flex-shrink:0"></span>
+      <span style="flex:1;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(subj.name)}</span>
+      <button class="session-act-btn subj-edit-btn" data-id="${subj.id}" aria-label="Edit subject"><i data-lucide="pencil"></i></button>
+      <button class="session-act-btn del subj-del-btn" data-id="${subj.id}" aria-label="Delete subject"><i data-lucide="trash-2"></i></button>
+    </div>`).join('');
+
+  listEl.querySelectorAll('.subj-edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => openEditSubject(btn.dataset.id));
+  });
+  listEl.querySelectorAll('.subj-del-btn').forEach(btn => {
+    btn.addEventListener('click', () => openDeleteSubjectConfirm(btn.dataset.id));
+  });
+  lucide.createIcons();
+}
+
+function buildColorPickerEl(container, currentColor, onChange) {
+  const swatches = SUBJECT_COLORS.map(c => {
+    const sel = c === currentColor ? ' selected' : '';
+    return `<div class="color-swatch${sel}" data-color="${c}" style="background:${c}"></div>`;
+  }).join('');
+
+  const customHex = SUBJECT_COLORS.includes(currentColor) ? SUBJECT_COLORS[0] : currentColor;
+
+  container.innerHTML = swatches + `<div class="custom-color-wrap" title="Custom color"><input type="color" value="${customHex}" id="${container.id}_custom"></div>`;
+
+  container.querySelectorAll('.color-swatch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      container.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+      sw.classList.add('selected');
+      onChange(sw.dataset.color);
+    });
+  });
+
+  const customInput = document.getElementById(`${container.id}_custom`);
+  if (customInput) {
+    customInput.addEventListener('input', () => {
+      container.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+      onChange(customInput.value);
+    });
+  }
+}
+
+async function addSubject() {
+  const name = document.getElementById('newSubjectName').value.trim();
+  if (!name) return;
+
+  const newSubj = { id: uid(), name, color: newSubjectColor };
+
+  const result = await cloudUpdate(data => ({
+    ...data,
+    subjects: mergeById(data.subjects, [newSubj])
+  }));
+
+  if (result) {
+    appData = result;
+    document.getElementById('newSubjectName').value = '';
+    renderSubjectManagerList();
+    renderAll();
+  }
+}
+
+function openEditSubject(id) {
+  const subj = findSubject(id);
+  if (!subj) return;
+  editingSubjectId = id;
+  editingSubjectColor = subj.color;
+  document.getElementById('editSubjectName').value = subj.name;
+  buildColorPickerEl(document.getElementById('editSubjectColorPicker'), subj.color, color => { editingSubjectColor = color; });
+  closeModal('subjectMgrModal');
+  openModal('editSubjectModal');
+}
+
+async function saveEditSubject() {
+  const name = document.getElementById('editSubjectName').value.trim();
+  if (!name || !editingSubjectId) return;
+
+  const result = await cloudUpdate(data => ({
+    ...data,
+    subjects: (data.subjects || []).map(s =>
+      s.id === editingSubjectId ? { ...s, name, color: editingSubjectColor } : s
+    )
+  }));
+
+  if (result) {
+    appData = result;
+    editingSubjectId = null;
+    closeModal('editSubjectModal');
+    renderAll();
+  }
+}
+
+function openDeleteSubjectConfirm(id) {
+  pendingDeleteSubjectId = id;
+  closeModal('subjectMgrModal');
+  openModal('deleteSubjectModal');
+}
+
+async function confirmDeleteSubject() {
+  if (!pendingDeleteSubjectId) return;
+  const id = pendingDeleteSubjectId;
+  pendingDeleteSubjectId = null;
+
+  const result = await cloudUpdate(data => ({
+    ...data,
+    subjects: (data.subjects || []).filter(s => s.id !== id),
+    sessions: (data.sessions || []).map(s =>
+      s.subject_id === id ? { ...s, subject_id: null } : s
+    )
+  }));
+
+  if (result) {
+    appData = result;
+    if (selectedSubjectId === id) selectedSubjectId = null;
+    closeModal('deleteSubjectModal');
     renderAll();
   }
 }
@@ -1324,9 +2117,7 @@ function openLockin() {
   const overlay = document.getElementById('lockinOverlay');
   overlay.classList.add('open');
   const active = getActiveSession();
-  if (active) {
-    document.getElementById('liTimer').textContent = fmtMs(sessionElapsedMs(active, Date.now()));
-  }
+  if (active) document.getElementById('liTimer').textContent = fmtMs(sessionElapsedMs(active, Date.now()));
   requestWakeLock();
   lucide.createIcons();
 }
@@ -1345,16 +2136,26 @@ function closeModal(id) {
   document.getElementById(id).classList.remove('open');
 }
 
-// ── Add/edit session ──────────────────────────────────────────────────────────
+// ── Manual session ────────────────────────────────────────────────────────────
+function populateSubjectSelect(selectEl, currentSubjectId) {
+  const subjects = appData.subjects || [];
+  let opts = '<option value="">Unassigned</option>';
+  for (const subj of subjects) {
+    const sel = subj.id === currentSubjectId ? ' selected' : '';
+    opts += `<option value="${subj.id}"${sel}>${escHtml(subj.name)}</option>`;
+  }
+  selectEl.innerHTML = opts;
+}
+
 function openAddManual() {
   pendingEditId = null;
   document.getElementById('manualModalTitle').textContent = 'Add session';
   const van = vanNow();
   const pad = n => String(n).padStart(2,'0');
-  document.getElementById('manualDate').value =
-    `${van.getFullYear()}-${pad(van.getMonth()+1)}-${pad(van.getDate())}`;
+  document.getElementById('manualDate').value = `${van.getFullYear()}-${pad(van.getMonth()+1)}-${pad(van.getDate())}`;
   document.getElementById('manualStart').value = '';
   document.getElementById('manualEnd').value = '';
+  populateSubjectSelect(document.getElementById('manualSubject'), null);
   openModal('manualModal');
 }
 
@@ -1379,6 +2180,7 @@ function openEditSession(id) {
   document.getElementById('manualDate').value = fmt(startD);
   document.getElementById('manualStart').value = fmtTime(startD);
   document.getElementById('manualEnd').value = fmtTime(endD);
+  populateSubjectSelect(document.getElementById('manualSubject'), session.subject_id || null);
   openModal('manualModal');
 }
 
@@ -1390,28 +2192,28 @@ async function saveManualSession() {
 
   const startISO = new Date(`${dateVal}T${startVal}:00`).toISOString();
   let endDate = new Date(`${dateVal}T${endVal}:00`);
-  // If end < start, it's next day
   if (endDate <= new Date(startISO)) endDate.setDate(endDate.getDate() + 1);
   const endISO = endDate.toISOString();
+
+  const subjVal = document.getElementById('manualSubject').value || null;
 
   const result = await cloudUpdate(data => {
     if (pendingEditId) {
       return {
         ...data,
         sessions: data.sessions.map(s => s.id === pendingEditId
-          ? { ...s, segments: [{ start: startISO, end: endISO }] }
+          ? { ...s, segments: [{ start: startISO, end: endISO }], subject_id: subjVal }
           : s
         )
       };
     } else {
-      const newSession = {
-        id: uid(),
-        status: 'done',
-        segments: [{ start: startISO, end: endISO }]
+      return {
+        ...data,
+        sessions: [...data.sessions, { id: uid(), status: 'done', subject_id: subjVal, segments: [{ start: startISO, end: endISO }] }]
       };
-      return { ...data, sessions: [...data.sessions, newSession] };
     }
   });
+
   if (result) { appData = result; closeModal('manualModal'); renderAll(); }
 }
 
@@ -1434,10 +2236,8 @@ async function confirmDelete() {
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 function openSettings() {
-  document.getElementById('settingsGoalHours').value =
-    ((appData.settings.daily_goal_min || 180) / 60).toFixed(1);
-  document.getElementById('settingsStreakMin').value =
-    appData.settings.streak_min_min || 60;
+  document.getElementById('settingsGoalHours').value = ((appData.settings.daily_goal_min || 180) / 60).toFixed(1);
+  document.getElementById('settingsStreakMin').value = appData.settings.streak_min_min || 60;
   openModal('settingsModal');
 }
 
@@ -1451,11 +2251,13 @@ async function saveSettings() {
   if (result) { appData = result; closeModal('settingsModal'); renderAll(); }
 }
 
-// ── Sync / refresh ────────────────────────────────────────────────────────────
+// ── Sync ──────────────────────────────────────────────────────────────────────
 async function syncFromCloud() {
   const data = await cloudRead();
   if (!data) return;
   appData = data;
+  // Keep selectedSubjectId in sync: clear it if that subject was deleted
+  if (selectedSubjectId && !findSubject(selectedSubjectId)) selectedSubjectId = null;
   renderAll();
   const active = getActiveSession();
   if (active && active.status === 'running') startTick();
@@ -1467,14 +2269,14 @@ async function boot() {
   lucide.createIcons();
   await syncFromCloud();
 
-  // Periodic sync
   setInterval(syncFromCloud, 30000);
-
-  // Visibility / focus sync
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) syncFromCloud();
-  });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) syncFromCloud(); });
   window.addEventListener('focus', syncFromCloud);
+
+  // Close heatmap popover on outside click
+  document.addEventListener('click', () => {
+    document.getElementById('heatmapPopover').classList.remove('show');
+  });
 
   // Heatmap nav
   document.getElementById('heatmapPrev').addEventListener('click', () => {
@@ -1493,7 +2295,21 @@ async function boot() {
   document.getElementById('settingsCancelBtn').addEventListener('click', () => closeModal('settingsModal'));
   document.getElementById('settingsSaveBtn').addEventListener('click', saveSettings);
 
-  // Add manual session
+  // Subject manager
+  document.getElementById('subjectMgrOpenBtn').addEventListener('click', openSubjectManager);
+  document.getElementById('subjectMgrCloseBtn').addEventListener('click', () => closeModal('subjectMgrModal'));
+  document.getElementById('addSubjectBtn').addEventListener('click', addSubject);
+  document.getElementById('newSubjectName').addEventListener('keydown', e => { if (e.key === 'Enter') addSubject(); });
+
+  // Edit subject
+  document.getElementById('editSubjectCancelBtn').addEventListener('click', () => { editingSubjectId = null; closeModal('editSubjectModal'); });
+  document.getElementById('editSubjectSaveBtn').addEventListener('click', saveEditSubject);
+
+  // Delete subject
+  document.getElementById('deleteSubjectCancelBtn').addEventListener('click', () => closeModal('deleteSubjectModal'));
+  document.getElementById('deleteSubjectConfirmBtn').addEventListener('click', confirmDeleteSubject);
+
+  // Manual session
   document.getElementById('addManualBtn').addEventListener('click', openAddManual);
   document.getElementById('addManualBtn2').addEventListener('click', openAddManual);
   document.getElementById('manualCancelBtn').addEventListener('click', () => closeModal('manualModal'));
@@ -1506,9 +2322,9 @@ async function boot() {
     await doDiscard();
   });
 
-  // Delete
+  // Delete session
   document.getElementById('deleteCancelBtn').addEventListener('click', () => closeModal('deleteModal'));
-  document.getElementById('deleteConfirmBtn').addEventListener('click', () => confirmDelete());
+  document.getElementById('deleteConfirmBtn').addEventListener('click', confirmDelete);
 
   // Long session modal
   document.getElementById('longSessionKeepBtn').addEventListener('click', async () => {
@@ -1518,18 +2334,14 @@ async function boot() {
   document.getElementById('longSessionSaveBtn').addEventListener('click', async () => {
     const val = document.getElementById('longSessionEnd').value;
     if (!val) return;
-    const endISO = new Date(val).toISOString();
     closeModal('longSessionModal');
-    await doFinish(endISO);
+    await doFinish(new Date(val).toISOString());
   });
 
   // Lock In overlay
   document.getElementById('lockinModeBtn').addEventListener('click', openLockin);
   document.getElementById('liExitBtn').addEventListener('click', closeLockin);
-  document.getElementById('liFinishBtn').addEventListener('click', async () => {
-    closeLockin();
-    await doFinish();
-  });
+  document.getElementById('liFinishBtn').addEventListener('click', async () => { closeLockin(); await doFinish(); });
   document.getElementById('liPauseBtn').addEventListener('click', async () => {
     const active = getActiveSession();
     if (!active) return;
@@ -1538,15 +2350,13 @@ async function boot() {
     const liPause = document.getElementById('liPauseBtn');
     const newActive = getActiveSession();
     if (liPause && newActive) {
-      liPause.innerHTML = newActive.status === 'running'
-        ? '<i data-lucide="pause"></i> Pause'
-        : '<i data-lucide="play"></i> Resume';
+      liPause.innerHTML = newActive.status === 'running' ? '<i data-lucide="pause"></i> Pause' : '<i data-lucide="play"></i> Resume';
       lucide.createIcons();
     }
   });
 
   // Close modals on backdrop click
-  ['settingsModal','manualModal','discardModal','longSessionModal','deleteModal'].forEach(id => {
+  ['settingsModal','manualModal','discardModal','longSessionModal','deleteModal','subjectMgrModal','editSubjectModal','deleteSubjectModal'].forEach(id => {
     document.getElementById(id).addEventListener('click', e => {
       if (e.target === e.currentTarget) closeModal(id);
     });
