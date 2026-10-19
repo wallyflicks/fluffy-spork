@@ -986,7 +986,7 @@ main {
     <div id="subjectMgrList"></div>
     <div id="subjectAddForm" style="border-top:1px solid rgba(255,255,255,0.07);padding-top:16px;display:flex;flex-direction:column;gap:12px">
       <div class="modal-label">New subject</div>
-      <input type="text" class="modal-input" id="newSubjectName" placeholder="Subject name" maxlength="40">
+      <input type="text" class="modal-input" id="newSubjectName" placeholder="Subject name" maxlength="24">
       <div class="color-swatches-row" id="newSubjectColorPicker"></div>
       <button class="btn btn-primary" id="addSubjectBtn">Add Subject</button>
     </div>
@@ -999,7 +999,7 @@ main {
     <div class="modal-title">Edit Subject</div>
     <div class="modal-field">
       <div class="modal-label">Name</div>
-      <input type="text" class="modal-input" id="editSubjectName" maxlength="40">
+      <input type="text" class="modal-input" id="editSubjectName" maxlength="24">
     </div>
     <div class="modal-field">
       <div class="modal-label">Color</div>
@@ -2030,6 +2030,15 @@ async function addSubject() {
   const name = document.getElementById('newSubjectName').value.trim();
   if (!name) return;
 
+  const nameLower = name.toLowerCase();
+  const duplicate = (appData.subjects || []).some(s => s.name.toLowerCase() === nameLower);
+  if (duplicate) {
+    const input = document.getElementById('newSubjectName');
+    input.style.borderColor = 'var(--danger)';
+    setTimeout(() => { input.style.borderColor = ''; }, 1500);
+    return;
+  }
+
   const newSubj = { id: uid(), name, color: newSubjectColor };
 
   const result = await cloudUpdate(data => ({
@@ -2060,6 +2069,15 @@ async function saveEditSubject() {
   const name = document.getElementById('editSubjectName').value.trim();
   if (!name || !editingSubjectId) return;
 
+  const nameLower = name.toLowerCase();
+  const duplicate = (appData.subjects || []).some(s => s.id !== editingSubjectId && s.name.toLowerCase() === nameLower);
+  if (duplicate) {
+    const input = document.getElementById('editSubjectName');
+    input.style.borderColor = 'var(--danger)';
+    setTimeout(() => { input.style.borderColor = ''; }, 1500);
+    return;
+  }
+
   const result = await cloudUpdate(data => ({
     ...data,
     subjects: (data.subjects || []).map(s =>
@@ -2071,6 +2089,7 @@ async function saveEditSubject() {
     appData = result;
     editingSubjectId = null;
     closeModal('editSubjectModal');
+    openSubjectManager();
     renderAll();
   }
 }
@@ -2099,6 +2118,7 @@ async function confirmDeleteSubject() {
     if (selectedSubjectId === id) selectedSubjectId = null;
     closeModal('deleteSubjectModal');
     renderAll();
+    openSubjectManager();
   }
 }
 
@@ -2301,12 +2321,19 @@ async function boot() {
   document.getElementById('addSubjectBtn').addEventListener('click', addSubject);
   document.getElementById('newSubjectName').addEventListener('keydown', e => { if (e.key === 'Enter') addSubject(); });
 
-  // Edit subject
-  document.getElementById('editSubjectCancelBtn').addEventListener('click', () => { editingSubjectId = null; closeModal('editSubjectModal'); });
+  // Edit subject — cancel returns to manager
+  document.getElementById('editSubjectCancelBtn').addEventListener('click', () => {
+    editingSubjectId = null;
+    closeModal('editSubjectModal');
+    openSubjectManager();
+  });
   document.getElementById('editSubjectSaveBtn').addEventListener('click', saveEditSubject);
 
-  // Delete subject
-  document.getElementById('deleteSubjectCancelBtn').addEventListener('click', () => closeModal('deleteSubjectModal'));
+  // Delete subject — cancel returns to manager
+  document.getElementById('deleteSubjectCancelBtn').addEventListener('click', () => {
+    closeModal('deleteSubjectModal');
+    openSubjectManager();
+  });
   document.getElementById('deleteSubjectConfirmBtn').addEventListener('click', confirmDeleteSubject);
 
   // Manual session
