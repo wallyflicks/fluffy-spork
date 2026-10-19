@@ -1,0 +1,1566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0b">
+<title>Lock In — Dashboard</title>
+<link rel="manifest" href="/manifest.json">
+<script src="/notifications.js" defer></script>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #050506;
+  --text-primary: #FAFAFA;
+  --text-secondary: #B8B6B0;
+  --text-tertiary: #76746E;
+  --success: #6BE3A4;
+  --warning: #F2C063;
+  --danger: #FF6B6B;
+  --card: rgba(255,255,255,0.04);
+  --card-border: rgba(255,255,255,0.06);
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--sans);
+  overflow-x: hidden;
+}
+
+body {
+  padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 110px);
+  display: flex;
+  justify-content: center;
+}
+
+main {
+  width: 100%;
+  max-width: 540px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── Page header ── */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0 8px;
+}
+
+.page-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px; height: 34px;
+  background: rgba(255,255,255,0.07);
+  border: none;
+  border-radius: 9px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.icon-btn:hover { background: rgba(255,255,255,0.12); }
+
+/* ── Card ── */
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid var(--card-border);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Section title ── */
+.section-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-title::before {
+  content: "";
+  display: block;
+  width: 18px; height: 1px;
+  background: var(--text-tertiary);
+  opacity: 0.6;
+}
+
+/* ── Timer display ── */
+.timer-display {
+  text-align: center;
+  font-size: 64px;
+  font-weight: 700;
+  font-family: var(--mono);
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--text-primary);
+  transition: color 0.3s;
+}
+.timer-display.running { color: var(--success); }
+
+.timer-status {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  height: 18px;
+}
+
+/* ── Timer controls ── */
+.timer-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.btn:active { opacity: 0.75; }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.btn-primary { background: var(--success); color: #0a0a0b; }
+.btn-secondary { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+.btn-danger { background: rgba(255,107,107,0.15); color: var(--danger); border: 1px solid rgba(255,107,107,0.3); }
+.btn-ghost { background: none; color: var(--text-secondary); font-size: 13px; padding: 8px 14px; }
+.btn-sm { padding: 7px 14px; font-size: 13px; }
+.btn-icon { padding: 8px 12px; }
+
+/* ── Secondary actions row ── */
+.timer-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* ── Stats grid ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.stat-cell {
+  background: rgba(255,255,255,0.03);
+  border-radius: 10px;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: var(--mono);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+/* ── Progress bar ── */
+.goal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.goal-reached { color: var(--success); font-weight: 600; font-size: 12px; display: flex; align-items: center; gap: 5px; }
+
+.progress-bar-wrap {
+  background: rgba(255,255,255,0.07);
+  border-radius: 100px;
+  height: 6px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 100px;
+  background: var(--success);
+  transition: width 0.5s ease;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* ── Chart ── */
+.chart-wrap {
+  position: relative;
+  height: 130px;
+}
+
+/* ── Heatmap ── */
+.heatmap-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.heatmap-month-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.heatmap-dow {
+  text-align: center;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: 4px 2px;
+}
+
+.heatmap-cell {
+  border-radius: 7px;
+  padding: 5px 3px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  justify-content: center;
+  border: 1px solid transparent;
+  transition: background 0.2s;
+}
+
+.heatmap-cell.empty { background: transparent; }
+
+.heatmap-cell.today {
+  border-color: rgba(255,255,255,0.3);
+}
+
+.heatmap-day-num {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
+.heatmap-day-time {
+  font-size: 9px;
+  font-weight: 600;
+  font-family: var(--mono);
+  color: rgba(255,255,255,0.45);
+  line-height: 1;
+}
+
+/* ── Sessions list ── */
+.sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.session-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 10px;
+  gap: 10px;
+}
+
+.session-row-left {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.session-date {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.session-duration {
+  font-size: 15px;
+  font-weight: 700;
+  font-family: var(--mono);
+  letter-spacing: -0.02em;
+}
+
+.session-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.session-act-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255,255,255,0.06);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.session-act-btn:hover { background: rgba(255,255,255,0.12); }
+.session-act-btn.del:hover { background: rgba(255,107,107,0.2); color: var(--danger); }
+
+.empty-state {
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  padding: 16px 0;
+}
+
+/* ── Modals ── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 0 env(safe-area-inset-bottom, 0px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.modal-backdrop.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.modal {
+  background: #1a1a1d;
+  border-radius: 20px 20px 0 0;
+  padding: 24px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  transform: translateY(20px);
+  transition: transform 0.2s;
+}
+
+.modal-backdrop.open .modal {
+  transform: translateY(0);
+}
+
+.modal-title {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.modal-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.modal-input {
+  width: 100%;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 15px;
+  color: var(--text-primary);
+  font-family: var(--sans);
+  outline: none;
+}
+.modal-input:focus { border-color: var(--success); }
+
+.modal-row {
+  display: flex;
+  gap: 10px;
+}
+.modal-row > * { flex: 1; }
+
+.modal-btns {
+  display: flex;
+  gap: 10px;
+}
+.modal-btns > * { flex: 1; }
+
+/* ── Fullscreen lock-in overlay ── */
+#lockinOverlay {
+  position: fixed;
+  inset: 0;
+  background: #030305;
+  z-index: 5000;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  padding: 40px 24px;
+}
+
+#lockinOverlay.open { display: flex; }
+
+.li-timer {
+  font-size: clamp(64px, 18vw, 96px);
+  font-weight: 700;
+  font-family: var(--mono);
+  letter-spacing: -0.04em;
+  color: var(--success);
+  line-height: 1;
+}
+
+.li-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.25);
+}
+
+.li-btn-row {
+  display: flex;
+  gap: 12px;
+}
+
+/* ── Tabbar ── */
+.tabbar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: rgba(10,10,11,0.85);
+  backdrop-filter: blur(20px) saturate(1.4);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  z-index: 1000;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.tabbar-inner {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 8px 4px;
+  max-width: 540px;
+  margin: 0 auto;
+}
+
+.tabbar-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  color: rgba(255,255,255,0.4);
+  text-decoration: none;
+  transition: color 0.15s, background 0.15s;
+}
+.tabbar-link svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tabbar-link.active { background: #ffffff; color: #0a0a0a; }
+.tabbar-link:hover:not(.active) { color: rgba(255,255,255,0.65); }
+</style>
+</head>
+<body>
+<main>
+  <div class="page-header">
+    <h1 class="page-title">Lock In</h1>
+    <button class="icon-btn" id="settingsBtn" aria-label="Settings"><i data-lucide="settings-2"></i></button>
+  </div>
+
+  <!-- Timer card -->
+  <div class="card" id="timerCard">
+    <div class="timer-display" id="timerDisplay">0:00:00</div>
+    <div class="timer-status" id="timerStatus"></div>
+    <div class="timer-controls" id="timerControls">
+      <button class="btn btn-primary" id="startBtn"><i data-lucide="play"></i> Start</button>
+    </div>
+    <div class="timer-actions-row" id="timerActionsRow" style="display:none">
+      <button class="btn btn-ghost btn-sm" id="lockinModeBtn"><i data-lucide="maximize-2"></i> Lock In</button>
+      <button class="btn btn-ghost btn-sm" id="addManualBtn"><i data-lucide="plus"></i> Add session</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div>
+    <div class="section-title" style="margin-bottom:12px">Stats</div>
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-cell"><div class="stat-label">Today</div><div class="stat-value" id="statToday">0h</div></div>
+      <div class="stat-cell"><div class="stat-label">This week</div><div class="stat-value" id="statWeek">0h</div></div>
+      <div class="stat-cell"><div class="stat-label">Streak</div><div class="stat-value" id="statStreak">0</div></div>
+      <div class="stat-cell"><div class="stat-label">Longest</div><div class="stat-value" id="statLongest">0</div></div>
+      <div class="stat-cell"><div class="stat-label">Total</div><div class="stat-value" id="statTotal">0h</div></div>
+      <div class="stat-cell"><div class="stat-label">Sessions</div><div class="stat-value" id="statSessions">0</div></div>
+    </div>
+  </div>
+
+  <!-- Daily goal -->
+  <div class="card" id="goalCard">
+    <div class="goal-row">
+      <span id="goalLabel">Daily goal: 3h 0m</span>
+      <span id="goalReachedBadge" class="goal-reached" style="display:none"><i data-lucide="check-circle-2"></i> Goal reached</span>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="goalBar" style="width:0%"></div>
+    </div>
+    <div style="font-size:12px; color:var(--text-tertiary)" id="goalSubLabel"></div>
+  </div>
+
+  <!-- Volume chart -->
+  <div class="card">
+    <div class="section-title">Study volume — last 7 days</div>
+    <div class="chart-wrap">
+      <canvas id="volumeChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Heatmap -->
+  <div class="card">
+    <div class="heatmap-nav">
+      <button class="icon-btn" id="heatmapPrev" aria-label="Previous month"><i data-lucide="chevron-left"></i></button>
+      <div class="heatmap-month-label" id="heatmapMonthLabel"></div>
+      <button class="icon-btn" id="heatmapNext" aria-label="Next month"><i data-lucide="chevron-right"></i></button>
+    </div>
+    <div class="heatmap-grid" id="heatmapGrid"></div>
+  </div>
+
+  <!-- Recent sessions -->
+  <div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="section-title">Recent sessions</div>
+      <button class="btn btn-ghost btn-sm" id="addManualBtn2"><i data-lucide="plus"></i> Add</button>
+    </div>
+    <div class="sessions-list" id="sessionsList"></div>
+  </div>
+</main>
+
+<!-- ── Settings modal ── -->
+<div class="modal-backdrop" id="settingsModal" role="dialog" aria-modal="true" aria-label="Settings">
+  <div class="modal">
+    <div class="modal-title">Settings</div>
+    <div class="modal-field">
+      <div class="modal-label">Daily goal (hours)</div>
+      <input type="number" class="modal-input" id="settingsGoalHours" min="0.5" max="24" step="0.5" value="3">
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">Streak minimum (minutes)</div>
+      <input type="number" class="modal-input" id="settingsStreakMin" min="1" max="480" step="5" value="60">
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" id="settingsCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="settingsSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add / edit session modal ── -->
+<div class="modal-backdrop" id="manualModal" role="dialog" aria-modal="true" aria-label="Add session">
+  <div class="modal">
+    <div class="modal-title" id="manualModalTitle">Add session</div>
+    <div class="modal-field">
+      <div class="modal-label">Date</div>
+      <input type="date" class="modal-input" id="manualDate">
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <div class="modal-label">Start time</div>
+        <input type="time" class="modal-input" id="manualStart">
+      </div>
+      <div class="modal-field">
+        <div class="modal-label">End time</div>
+        <input type="time" class="modal-input" id="manualEnd">
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" id="manualCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="manualSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Confirm discard modal ── -->
+<div class="modal-backdrop" id="discardModal" role="dialog" aria-modal="true" aria-label="Discard session">
+  <div class="modal">
+    <div class="modal-title">Discard this session?</div>
+    <p style="font-size:14px;color:var(--text-secondary)">This session will be permanently deleted and not counted.</p>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" id="discardCancelBtn">Keep it</button>
+      <button class="btn btn-danger" id="discardConfirmBtn">Discard</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Adjust end-time modal (8h+) ── -->
+<div class="modal-backdrop" id="longSessionModal" role="dialog" aria-modal="true" aria-label="Adjust session end time">
+  <div class="modal">
+    <div class="modal-title">Session over 8 hours</div>
+    <p style="font-size:14px;color:var(--text-secondary)">Did you forget to stop the timer? Adjust the end time below.</p>
+    <div class="modal-field">
+      <div class="modal-label">Actual end time</div>
+      <input type="datetime-local" class="modal-input" id="longSessionEnd">
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" id="longSessionKeepBtn">Keep as-is</button>
+      <button class="btn btn-primary" id="longSessionSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Delete confirm modal ── -->
+<div class="modal-backdrop" id="deleteModal" role="dialog" aria-modal="true" aria-label="Delete session">
+  <div class="modal">
+    <div class="modal-title">Delete this session?</div>
+    <p style="font-size:14px;color:var(--text-secondary)">This cannot be undone.</p>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" id="deleteCancelBtn">Cancel</button>
+      <button class="btn btn-danger" id="deleteConfirmBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Fullscreen lock-in overlay ── -->
+<div id="lockinOverlay">
+  <div class="li-label">LOCK IN</div>
+  <div class="li-timer" id="liTimer">0:00:00</div>
+  <div class="li-btn-row">
+    <button class="btn btn-secondary" id="liPauseBtn"><i data-lucide="pause"></i> Pause</button>
+    <button class="btn btn-primary" id="liFinishBtn"><i data-lucide="check"></i> Finish</button>
+  </div>
+  <button class="btn btn-ghost" id="liExitBtn"><i data-lucide="minimize-2"></i> Exit fullscreen</button>
+</div>
+
+<nav class="tabbar" aria-label="Bottom navigation">
+<div class="tabbar-inner">
+  <a href="index.html"    class="tabbar-link" aria-label="Main"><i data-lucide="home"></i></a>
+  <a href="health.html"   class="tabbar-link" aria-label="Health"><i data-lucide="heart"></i></a>
+  <a href="gym.html"      class="tabbar-link" aria-label="Gym"><i data-lucide="dumbbell"></i></a>
+  <a href="finance.html"  class="tabbar-link" aria-label="Finance"><i data-lucide="dollar-sign"></i></a>
+  <a href="journal.html"  class="tabbar-link" aria-label="Journal"><i data-lucide="book-open"></i></a>
+  <a href="study.html"    class="tabbar-link active" aria-current="page" aria-label="Study"><i data-lucide="brain"></i></a>
+  <a href="content.html"  class="tabbar-link" aria-label="Content"><i data-lucide="video"></i></a>
+  <a href="calendar.html" class="tabbar-link" aria-label="Calendar"><i data-lucide="calendar"></i></a>
+  <a href="news.html"     class="tabbar-link" aria-label="News"><i data-lucide="newspaper"></i></a>
+</div>
+</nav>
+
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
+const SB_HEADERS = {
+  'Content-Type': 'application/json',
+  'apikey': SUPABASE_KEY,
+  'Authorization': 'Bearer ' + SUPABASE_KEY,
+};
+const DEFAULT_SETTINGS = { daily_goal_min: 180, streak_min_min: 60 };
+
+// ── Vancouver timezone helpers ────────────────────────────────────────────────
+function vanNow() {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
+}
+
+function vanDateStr(d) {
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
+}
+
+function vanMidnightUTC(dateStr) {
+  // Return the UTC ms for midnight Vancouver time on the given YYYY-MM-DD.
+  // Vancouver is UTC-7 (PDT, roughly Mar-Nov) or UTC-8 (PST, roughly Nov-Mar).
+  const [y, m, d] = dateStr.split('-').map(Number);
+  for (const h of [7, 8, 9, 6, 10]) {
+    const candidate = new Date(Date.UTC(y, m - 1, d, h, 0, 0));
+    const local = new Date(candidate.toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
+    if (local.getFullYear() === y && local.getMonth() === m - 1 &&
+        local.getDate() === d && local.getHours() === 0 && local.getMinutes() === 0) {
+      return candidate.getTime();
+    }
+  }
+  return Date.UTC(y, m - 1, d, 8, 0, 0); // fallback PST
+}
+
+function vanDayBounds(dateStr) {
+  // Return [startMs, endMs) for a Vancouver calendar day.
+  // End = start of the NEXT Vancouver midnight, so DST transitions split correctly.
+  const startMs = vanMidnightUTC(dateStr);
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const nextDay = new Date(Date.UTC(y, m - 1, d + 1, 8, 0, 0)); // rough next UTC-8 midnight
+  const nextStr = nextDay.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
+  const endMs = vanMidnightUTC(nextStr);
+  return [startMs, endMs];
+}
+
+function todayVan() {
+  return vanDateStr(vanNow());
+}
+
+// ── Cloud helpers ─────────────────────────────────────────────────────────────
+async function cloudRead() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/app_state?key=eq.study&select=data`,
+      { headers: SB_HEADERS }
+    );
+    if (!res.ok) return null;
+    const rows = await res.json();
+    const d = rows[0]?.data;
+    if (!d) return { sessions: [], settings: { ...DEFAULT_SETTINGS } };
+    return {
+      sessions: Array.isArray(d.sessions) ? d.sessions : [],
+      settings: { ...DEFAULT_SETTINGS, ...(d.settings || {}) }
+    };
+  } catch { return null; }
+}
+
+async function cloudWrite(data) {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/app_state?on_conflict=key`, {
+      method: 'POST',
+      headers: { ...SB_HEADERS, 'Prefer': 'resolution=merge-duplicates' },
+      body: JSON.stringify({ key: 'study', data, updated_at: new Date().toISOString() })
+    });
+  } catch {}
+}
+
+// Fetch latest, apply transform, write back. Returns final state or null on failure.
+async function cloudUpdate(fn) {
+  const current = await cloudRead();
+  if (!current) return null;
+  const updated = fn(current);
+  await cloudWrite(updated);
+  return updated;
+}
+
+// ── Session time calculations ─────────────────────────────────────────────────
+function segmentElapsedMs(seg, nowMs) {
+  const start = new Date(seg.start).getTime();
+  const end = seg.end ? new Date(seg.end).getTime() : nowMs;
+  return Math.max(0, end - start);
+}
+
+function sessionElapsedMs(session, nowMs) {
+  return session.segments.reduce((sum, seg) => sum + segmentElapsedMs(seg, nowMs), 0);
+}
+
+// Overlap between segment and a [dayStartMs, dayEndMs) window
+function segmentDayOverlapMs(seg, dayStartMs, dayEndMs, nowMs) {
+  const start = new Date(seg.start).getTime();
+  const end = seg.end ? new Date(seg.end).getTime() : nowMs;
+  const lo = Math.max(start, dayStartMs);
+  const hi = Math.min(end, dayEndMs);
+  return Math.max(0, hi - lo);
+}
+
+function dayTotalMs(dateStr, sessions, nowMs) {
+  const [dayStart, dayEnd] = vanDayBounds(dateStr);
+  let total = 0;
+  for (const s of sessions) {
+    for (const seg of s.segments) {
+      total += segmentDayOverlapMs(seg, dayStart, dayEnd, nowMs);
+    }
+  }
+  return total;
+}
+
+function fmtMs(ms) {
+  if (ms < 0) ms = 0;
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function fmtMsShort(ms) {
+  if (ms < 0) ms = 0;
+  const totalMin = Math.floor(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h`;
+  return `${m}m`;
+}
+
+function fmtMsHeatmap(ms) {
+  if (ms <= 0) return '';
+  const totalMin = Math.floor(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${h}:${String(m).padStart(2,'0')}`;
+}
+
+// ── Streak calculation ────────────────────────────────────────────────────────
+function vanDateMinus(dateStr, days) {
+  // Return a YYYY-MM-DD string that is `days` calendar days before dateStr, in Vancouver.
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const utcNoon = new Date(Date.UTC(y, m - 1, d - days, 12, 0, 0));
+  return vanDateStr(utcNoon);
+}
+
+function computeStreak(sessions, settings) {
+  const minMs = (settings.streak_min_min || 60) * 60000;
+  const today = todayVan();
+  const nowMs = Date.now();
+
+  // Build daily totals for the past 400 days using UTC-noon iteration (DST-safe)
+  const dailyMap = {};
+  for (let i = 0; i < 400; i++) {
+    const ds = vanDateMinus(today, i);
+    dailyMap[ds] = dayTotalMs(ds, sessions, nowMs);
+  }
+
+  // Current streak: consecutive qualifying days ending today or yesterday
+  let streak = 0;
+  const todayTotal = dailyMap[today] || 0;
+  const anchor = todayTotal >= minMs ? today : vanDateMinus(today, 1);
+  const anchorTotal = dailyMap[anchor] || 0;
+  if (anchorTotal >= minMs) {
+    let i = 0;
+    while (true) {
+      const ds = vanDateMinus(anchor, i);
+      if ((dailyMap[ds] || 0) >= minMs) { streak++; i++; }
+      else break;
+    }
+  }
+
+  // Longest streak
+  const sortedDays = Object.keys(dailyMap).sort();
+  let longest = 0, cur = 0;
+  for (const ds of sortedDays) {
+    if ((dailyMap[ds] || 0) >= minMs) { cur++; longest = Math.max(longest, cur); }
+    else cur = 0;
+  }
+
+  return { streak, longest };
+}
+
+// ── App state ─────────────────────────────────────────────────────────────────
+let appData = { sessions: [], settings: { ...DEFAULT_SETTINGS } };
+let tickInterval = null;
+let heatmapYear = vanNow().getFullYear();
+let heatmapMonth = vanNow().getMonth(); // 0-based
+let pendingDeleteId = null;
+let pendingEditId = null;
+let volumeChart = null;
+let wakeLock = null;
+
+function getActiveSession() {
+  return appData.sessions.find(s => s.status === 'running' || s.status === 'paused') || null;
+}
+
+function uid() {
+  return 's_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderAll() {
+  renderTimer();
+  renderStats();
+  renderGoal();
+  renderHeatmap();
+  renderSessions();
+  renderVolumeChart();
+}
+
+function renderTimer() {
+  const active = getActiveSession();
+  const display = document.getElementById('timerDisplay');
+  const status = document.getElementById('timerStatus');
+  const controls = document.getElementById('timerControls');
+  const actionsRow = document.getElementById('timerActionsRow');
+
+  const nowMs = Date.now();
+
+  if (!active) {
+    display.textContent = '0:00:00';
+    display.className = 'timer-display';
+    status.textContent = '';
+    controls.innerHTML = `<button class="btn btn-primary" id="startBtn"><i data-lucide="play"></i> Start</button>`;
+    actionsRow.style.display = 'none';
+    document.getElementById('startBtn').addEventListener('click', doStart);
+  } else {
+    const elapsed = sessionElapsedMs(active, nowMs);
+    display.textContent = fmtMs(elapsed);
+    display.className = 'timer-display' + (active.status === 'running' ? ' running' : '');
+    status.textContent = active.status === 'running' ? 'Running' : 'Paused';
+    actionsRow.style.display = '';
+
+    if (active.status === 'running') {
+      controls.innerHTML = `
+        <button class="btn btn-secondary" id="pauseBtn"><i data-lucide="pause"></i> Pause</button>
+        <button class="btn btn-primary" id="finishBtn"><i data-lucide="check"></i> Finish</button>
+        <button class="btn btn-danger btn-icon" id="discardBtn" title="Discard"><i data-lucide="x"></i></button>`;
+      document.getElementById('pauseBtn').addEventListener('click', doPause);
+      document.getElementById('finishBtn').addEventListener('click', doFinish);
+      document.getElementById('discardBtn').addEventListener('click', () => openModal('discardModal'));
+    } else {
+      controls.innerHTML = `
+        <button class="btn btn-secondary" id="resumeBtn"><i data-lucide="play"></i> Resume</button>
+        <button class="btn btn-primary" id="finishBtn"><i data-lucide="check"></i> Finish</button>
+        <button class="btn btn-danger btn-icon" id="discardBtn" title="Discard"><i data-lucide="x"></i></button>`;
+      document.getElementById('resumeBtn').addEventListener('click', doResume);
+      document.getElementById('finishBtn').addEventListener('click', doFinish);
+      document.getElementById('discardBtn').addEventListener('click', () => openModal('discardModal'));
+    }
+
+    // Sync lock-in overlay too
+    const li = document.getElementById('liTimer');
+    if (li) li.textContent = fmtMs(elapsed);
+    const liPause = document.getElementById('liPauseBtn');
+    if (liPause) liPause.innerHTML = active.status === 'running'
+      ? '<i data-lucide="pause"></i> Pause'
+      : '<i data-lucide="play"></i> Resume';
+  }
+
+  lucide.createIcons();
+}
+
+function renderStats() {
+  const nowMs = Date.now();
+  const today = todayVan();
+
+  const todayMs = dayTotalMs(today, appData.sessions, nowMs);
+
+  // Week total (DST-safe iteration via UTC-noon)
+  let weekMs = 0;
+  for (let i = 0; i < 7; i++) {
+    weekMs += dayTotalMs(vanDateMinus(today, i), appData.sessions, nowMs);
+  }
+
+  // Streak
+  const { streak, longest } = computeStreak(appData.sessions, appData.settings);
+
+  // Total
+  let totalMs = 0;
+  for (const s of appData.sessions) {
+    if (s.status === 'done') totalMs += sessionElapsedMs(s, nowMs);
+  }
+  // Include active session
+  const active = getActiveSession();
+  if (active) totalMs += sessionElapsedMs(active, nowMs);
+
+  const doneCount = appData.sessions.filter(s => s.status === 'done').length;
+
+  document.getElementById('statToday').textContent = fmtMsShort(todayMs);
+  document.getElementById('statWeek').textContent = fmtMsShort(weekMs);
+  document.getElementById('statStreak').textContent = streak + ' d';
+  document.getElementById('statLongest').textContent = longest + ' d';
+  document.getElementById('statTotal').textContent = fmtMsShort(totalMs);
+  document.getElementById('statSessions').textContent = doneCount + (active ? '+1' : '');
+}
+
+function renderGoal() {
+  const nowMs = Date.now();
+  const today = todayVan();
+  const todayMs = dayTotalMs(today, appData.sessions, nowMs);
+  const goalMs = (appData.settings.daily_goal_min || 180) * 60000;
+  const pct = Math.min(100, (todayMs / goalMs) * 100);
+
+  document.getElementById('goalLabel').textContent =
+    `Daily goal: ${fmtMsShort(goalMs)}`;
+  document.getElementById('goalBar').style.width = pct + '%';
+
+  const badge = document.getElementById('goalReachedBadge');
+  const sub = document.getElementById('goalSubLabel');
+
+  if (todayMs >= goalMs) {
+    badge.style.display = '';
+    sub.textContent = `${fmtMsShort(todayMs)} studied today`;
+    lucide.createIcons();
+  } else {
+    badge.style.display = 'none';
+    const remaining = goalMs - todayMs;
+    sub.textContent = `${fmtMsShort(todayMs)} of ${fmtMsShort(goalMs)} — ${fmtMsShort(remaining)} to go`;
+  }
+}
+
+function renderVolumeChart() {
+  const nowMs = Date.now();
+  const today = todayVan();
+  const labels = [];
+  const data = [];
+  const DOW = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+  for (let i = 6; i >= 0; i--) {
+    const ds = vanDateMinus(today, i);
+    const [y, m, d] = ds.split('-').map(Number);
+    labels.push(DOW[new Date(Date.UTC(y, m - 1, d, 12)).getDay()]);
+    const ms = dayTotalMs(ds, appData.sessions, nowMs);
+    data.push(parseFloat((ms / 3600000).toFixed(2)));
+  }
+
+  const goalH = (appData.settings.daily_goal_min || 180) / 60;
+  const colors = data.map(h => h >= goalH ? '#6ee7b7' : h > 0 ? 'rgba(107,227,164,0.45)' : 'rgba(255,255,255,0.07)');
+
+  const ctx = document.getElementById('volumeChart');
+  if (!ctx || !window.Chart) return;
+
+  if (volumeChart) {
+    volumeChart.data.labels = labels;
+    volumeChart.data.datasets[0].data = data;
+    volumeChart.data.datasets[0].backgroundColor = colors;
+    volumeChart.update();
+    return;
+  }
+
+  volumeChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 5, borderSkipped: false }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 700 },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => c.parsed.y.toFixed(1) + 'h' } }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10 } } },
+        y: { min: 0, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10 }, callback: v => v + 'h' } }
+      }
+    }
+  });
+}
+
+function renderHeatmap() {
+  const nowMs = Date.now();
+  const today = todayVan();
+  const goalMs = (appData.settings.daily_goal_min || 180) * 60000;
+
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('heatmapMonthLabel').textContent = `${MONTHS[heatmapMonth]} ${heatmapYear}`;
+
+  const grid = document.getElementById('heatmapGrid');
+  const DOWS = ['Mo','Tu','We','Th','Fr','Sa','Su'];
+
+  // Day of week header
+  let html = DOWS.map(d => `<div class="heatmap-dow">${d}</div>`).join('');
+
+  // First day of month
+  const firstDay = new Date(heatmapYear, heatmapMonth, 1);
+  // getDay(): 0=Sun, 1=Mon...6=Sat. We want Mon-based: Mon=0..Sun=6
+  const startDow = (firstDay.getDay() + 6) % 7; // Mon-based offset
+  const daysInMonth = new Date(heatmapYear, heatmapMonth + 1, 0).getDate();
+
+  // Empty cells before first day
+  for (let i = 0; i < startDow; i++) html += '<div class="heatmap-cell empty"></div>';
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const d = new Date(heatmapYear, heatmapMonth, day);
+    const ds = vanDateStr(d);
+    const ms = dayTotalMs(ds, appData.sessions, nowMs);
+    const isToday = ds === today;
+    const pct = goalMs > 0 ? Math.min(1, ms / goalMs) : 0;
+
+    // Color: scale green intensity from 0 to 1
+    let bg = 'rgba(255,255,255,0.04)';
+    if (ms > 0) {
+      const alpha = 0.18 + pct * 0.72;
+      bg = `rgba(107,231,180,${alpha.toFixed(2)})`;
+    }
+
+    html += `<div class="heatmap-cell${isToday ? ' today' : ''}" style="background:${bg}">
+      <div class="heatmap-day-num">${day}</div>
+      ${ms > 0 ? `<div class="heatmap-day-time">${fmtMsHeatmap(ms)}</div>` : ''}
+    </div>`;
+  }
+
+  grid.innerHTML = html;
+}
+
+function renderSessions() {
+  const list = document.getElementById('sessionsList');
+  const done = [...appData.sessions]
+    .filter(s => s.status === 'done')
+    .sort((a, b) => {
+      const aEnd = a.segments.length ? new Date(a.segments[a.segments.length-1].end || a.segments[0].start).getTime() : 0;
+      const bEnd = b.segments.length ? new Date(b.segments[b.segments.length-1].end || b.segments[0].start).getTime() : 0;
+      return bEnd - aEnd;
+    })
+    .slice(0, 30);
+
+  if (!done.length) {
+    list.innerHTML = '<div class="empty-state">No sessions yet. Press Start to begin.</div>';
+    return;
+  }
+
+  const nowMs = Date.now();
+  list.innerHTML = done.map(s => {
+    const ms = sessionElapsedMs(s, nowMs);
+    const startISO = s.segments[0]?.start;
+    const dateLabel = startISO ? new Date(startISO).toLocaleDateString('en-US', {
+      timeZone: 'America/Vancouver',
+      month: 'short', day: 'numeric', year: 'numeric'
+    }) : 'Unknown';
+    const timeLabel = startISO ? new Date(startISO).toLocaleTimeString('en-US', {
+      timeZone: 'America/Vancouver', hour: 'numeric', minute: '2-digit'
+    }) : '';
+    return `
+    <div class="session-row" data-id="${s.id}">
+      <div class="session-row-left">
+        <div class="session-date">${dateLabel}${timeLabel ? ' · ' + timeLabel : ''}</div>
+        <div class="session-duration">${fmtMsShort(ms)}</div>
+      </div>
+      <div class="session-actions">
+        <button class="session-act-btn edit-btn" data-id="${s.id}" aria-label="Edit session"><i data-lucide="pencil"></i></button>
+        <button class="session-act-btn del del-btn" data-id="${s.id}" aria-label="Delete session"><i data-lucide="trash-2"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+
+  list.querySelectorAll('.edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => openEditSession(btn.dataset.id));
+  });
+  list.querySelectorAll('.del-btn').forEach(btn => {
+    btn.addEventListener('click', () => openDeleteSession(btn.dataset.id));
+  });
+  lucide.createIcons();
+}
+
+// ── Tick ──────────────────────────────────────────────────────────────────────
+function startTick() {
+  if (tickInterval) return;
+  tickInterval = setInterval(() => {
+    const active = getActiveSession();
+    if (!active || active.status !== 'running') { stopTick(); return; }
+    const nowMs = Date.now();
+    const elapsed = sessionElapsedMs(active, nowMs);
+    const display = document.getElementById('timerDisplay');
+    if (display) display.textContent = fmtMs(elapsed);
+    const li = document.getElementById('liTimer');
+    if (li) li.textContent = fmtMs(elapsed);
+    renderStats();
+    renderGoal();
+  }, 1000);
+}
+
+function stopTick() {
+  clearInterval(tickInterval);
+  tickInterval = null;
+}
+
+// ── Timer actions ─────────────────────────────────────────────────────────────
+async function doStart() {
+  // Only one running/paused session at a time
+  const existing = getActiveSession();
+  if (existing) return;
+
+  const newSession = {
+    id: uid(),
+    status: 'running',
+    segments: [{ start: new Date().toISOString(), end: null }]
+  };
+
+  const result = await cloudUpdate(data => {
+    // Guard: another device may have started one
+    const alreadyActive = data.sessions.find(s => s.status === 'running' || s.status === 'paused');
+    if (alreadyActive) return data; // don't add a second one
+    return { ...data, sessions: [...data.sessions, newSession] };
+  });
+
+  if (result) {
+    appData = result;
+    renderAll();
+    startTick();
+  }
+}
+
+async function doPause() {
+  const result = await cloudUpdate(data => {
+    return {
+      ...data,
+      sessions: data.sessions.map(s => {
+        if (s.status !== 'running') return s;
+        const segs = s.segments.map((seg, i) =>
+          i === s.segments.length - 1 && !seg.end
+            ? { ...seg, end: new Date().toISOString() }
+            : seg
+        );
+        return { ...s, status: 'paused', segments: segs };
+      })
+    };
+  });
+  if (result) { appData = result; stopTick(); renderAll(); }
+}
+
+async function doResume() {
+  const result = await cloudUpdate(data => ({
+    ...data,
+    sessions: data.sessions.map(s =>
+      s.status === 'paused'
+        ? { ...s, status: 'running', segments: [...s.segments, { start: new Date().toISOString(), end: null }] }
+        : s
+    )
+  }));
+  if (result) { appData = result; renderAll(); startTick(); }
+}
+
+async function doFinish(adjustedEndISO) {
+  const active = getActiveSession();
+  if (!active) return;
+  const nowMs = Date.now();
+  const elapsedMs = sessionElapsedMs(active, nowMs);
+
+  // '__keep__' means: user accepted the 8h+ session as-is
+  if (!adjustedEndISO && elapsedMs > 8 * 3600000) {
+    const endInput = document.getElementById('longSessionEnd');
+    const localNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
+    const pad = n => String(n).padStart(2,'0');
+    endInput.value = `${localNow.getFullYear()}-${pad(localNow.getMonth()+1)}-${pad(localNow.getDate())}T${pad(localNow.getHours())}:${pad(localNow.getMinutes())}`;
+    openModal('longSessionModal');
+    return;
+  }
+
+  const endTime = (adjustedEndISO && adjustedEndISO !== '__keep__') ? adjustedEndISO : new Date().toISOString();
+
+  const result = await cloudUpdate(data => ({
+    ...data,
+    sessions: data.sessions.map(s => {
+      if (s.status !== 'running' && s.status !== 'paused') return s;
+      const segs = s.segments.map((seg, i) =>
+        i === s.segments.length - 1 && !seg.end
+          ? { ...seg, end: endTime }
+          : seg
+      );
+      return { ...s, status: 'done', segments: segs };
+    })
+  }));
+  if (result) {
+    appData = result;
+    stopTick();
+    releaseWakeLock();
+    closeModal('lockinOverlay');
+    renderAll();
+  }
+}
+
+async function doDiscard() {
+  const result = await cloudUpdate(data => ({
+    ...data,
+    sessions: data.sessions.filter(s => s.status !== 'running' && s.status !== 'paused')
+  }));
+  if (result) {
+    appData = result;
+    stopTick();
+    releaseWakeLock();
+    closeModal('lockinOverlay');
+    renderAll();
+  }
+}
+
+// ── Lock In (fullscreen) ──────────────────────────────────────────────────────
+async function requestWakeLock() {
+  if ('wakeLock' in navigator) {
+    try { wakeLock = await navigator.wakeLock.request('screen'); } catch {}
+  }
+}
+
+function releaseWakeLock() {
+  if (wakeLock) { try { wakeLock.release(); } catch {} wakeLock = null; }
+}
+
+function openLockin() {
+  const overlay = document.getElementById('lockinOverlay');
+  overlay.classList.add('open');
+  const active = getActiveSession();
+  if (active) {
+    document.getElementById('liTimer').textContent = fmtMs(sessionElapsedMs(active, Date.now()));
+  }
+  requestWakeLock();
+  lucide.createIcons();
+}
+
+function closeLockin() {
+  document.getElementById('lockinOverlay').classList.remove('open');
+  releaseWakeLock();
+}
+
+// ── Modal helpers ─────────────────────────────────────────────────────────────
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ── Add/edit session ──────────────────────────────────────────────────────────
+function openAddManual() {
+  pendingEditId = null;
+  document.getElementById('manualModalTitle').textContent = 'Add session';
+  const van = vanNow();
+  const pad = n => String(n).padStart(2,'0');
+  document.getElementById('manualDate').value =
+    `${van.getFullYear()}-${pad(van.getMonth()+1)}-${pad(van.getDate())}`;
+  document.getElementById('manualStart').value = '';
+  document.getElementById('manualEnd').value = '';
+  openModal('manualModal');
+}
+
+function openEditSession(id) {
+  pendingEditId = id;
+  const session = appData.sessions.find(s => s.id === id);
+  if (!session || !session.segments.length) return;
+  document.getElementById('manualModalTitle').textContent = 'Edit session';
+  const firstSeg = session.segments[0];
+  const lastSeg = session.segments[session.segments.length - 1];
+  const startD = new Date(firstSeg.start);
+  const endD = lastSeg.end ? new Date(lastSeg.end) : new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const fmt = d => {
+    const v = new Date(d.toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
+    return `${v.getFullYear()}-${pad(v.getMonth()+1)}-${pad(v.getDate())}`;
+  };
+  const fmtTime = d => {
+    const v = new Date(d.toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
+    return `${pad(v.getHours())}:${pad(v.getMinutes())}`;
+  };
+  document.getElementById('manualDate').value = fmt(startD);
+  document.getElementById('manualStart').value = fmtTime(startD);
+  document.getElementById('manualEnd').value = fmtTime(endD);
+  openModal('manualModal');
+}
+
+async function saveManualSession() {
+  const dateVal = document.getElementById('manualDate').value;
+  const startVal = document.getElementById('manualStart').value;
+  const endVal = document.getElementById('manualEnd').value;
+  if (!dateVal || !startVal || !endVal) return;
+
+  const startISO = new Date(`${dateVal}T${startVal}:00`).toISOString();
+  let endDate = new Date(`${dateVal}T${endVal}:00`);
+  // If end < start, it's next day
+  if (endDate <= new Date(startISO)) endDate.setDate(endDate.getDate() + 1);
+  const endISO = endDate.toISOString();
+
+  const result = await cloudUpdate(data => {
+    if (pendingEditId) {
+      return {
+        ...data,
+        sessions: data.sessions.map(s => s.id === pendingEditId
+          ? { ...s, segments: [{ start: startISO, end: endISO }] }
+          : s
+        )
+      };
+    } else {
+      const newSession = {
+        id: uid(),
+        status: 'done',
+        segments: [{ start: startISO, end: endISO }]
+      };
+      return { ...data, sessions: [...data.sessions, newSession] };
+    }
+  });
+  if (result) { appData = result; closeModal('manualModal'); renderAll(); }
+}
+
+// ── Delete session ────────────────────────────────────────────────────────────
+function openDeleteSession(id) {
+  pendingDeleteId = id;
+  openModal('deleteModal');
+}
+
+async function confirmDelete() {
+  if (!pendingDeleteId) return;
+  const id = pendingDeleteId;
+  pendingDeleteId = null;
+  const result = await cloudUpdate(data => ({
+    ...data,
+    sessions: data.sessions.filter(s => s.id !== id)
+  }));
+  if (result) { appData = result; closeModal('deleteModal'); renderAll(); }
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+function openSettings() {
+  document.getElementById('settingsGoalHours').value =
+    ((appData.settings.daily_goal_min || 180) / 60).toFixed(1);
+  document.getElementById('settingsStreakMin').value =
+    appData.settings.streak_min_min || 60;
+  openModal('settingsModal');
+}
+
+async function saveSettings() {
+  const goalHours = parseFloat(document.getElementById('settingsGoalHours').value) || 3;
+  const streakMin = parseInt(document.getElementById('settingsStreakMin').value, 10) || 60;
+  const result = await cloudUpdate(data => ({
+    ...data,
+    settings: { daily_goal_min: Math.round(goalHours * 60), streak_min_min: streakMin }
+  }));
+  if (result) { appData = result; closeModal('settingsModal'); renderAll(); }
+}
+
+// ── Sync / refresh ────────────────────────────────────────────────────────────
+async function syncFromCloud() {
+  const data = await cloudRead();
+  if (!data) return;
+  appData = data;
+  renderAll();
+  const active = getActiveSession();
+  if (active && active.status === 'running') startTick();
+  else stopTick();
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+async function boot() {
+  lucide.createIcons();
+  await syncFromCloud();
+
+  // Periodic sync
+  setInterval(syncFromCloud, 30000);
+
+  // Visibility / focus sync
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) syncFromCloud();
+  });
+  window.addEventListener('focus', syncFromCloud);
+
+  // Heatmap nav
+  document.getElementById('heatmapPrev').addEventListener('click', () => {
+    heatmapMonth--;
+    if (heatmapMonth < 0) { heatmapMonth = 11; heatmapYear--; }
+    renderHeatmap();
+  });
+  document.getElementById('heatmapNext').addEventListener('click', () => {
+    heatmapMonth++;
+    if (heatmapMonth > 11) { heatmapMonth = 0; heatmapYear++; }
+    renderHeatmap();
+  });
+
+  // Settings
+  document.getElementById('settingsBtn').addEventListener('click', openSettings);
+  document.getElementById('settingsCancelBtn').addEventListener('click', () => closeModal('settingsModal'));
+  document.getElementById('settingsSaveBtn').addEventListener('click', saveSettings);
+
+  // Add manual session
+  document.getElementById('addManualBtn').addEventListener('click', openAddManual);
+  document.getElementById('addManualBtn2').addEventListener('click', openAddManual);
+  document.getElementById('manualCancelBtn').addEventListener('click', () => closeModal('manualModal'));
+  document.getElementById('manualSaveBtn').addEventListener('click', saveManualSession);
+
+  // Discard
+  document.getElementById('discardCancelBtn').addEventListener('click', () => closeModal('discardModal'));
+  document.getElementById('discardConfirmBtn').addEventListener('click', async () => {
+    closeModal('discardModal');
+    await doDiscard();
+  });
+
+  // Delete
+  document.getElementById('deleteCancelBtn').addEventListener('click', () => closeModal('deleteModal'));
+  document.getElementById('deleteConfirmBtn').addEventListener('click', () => confirmDelete());
+
+  // Long session modal
+  document.getElementById('longSessionKeepBtn').addEventListener('click', async () => {
+    closeModal('longSessionModal');
+    await doFinish('__keep__');
+  });
+  document.getElementById('longSessionSaveBtn').addEventListener('click', async () => {
+    const val = document.getElementById('longSessionEnd').value;
+    if (!val) return;
+    const endISO = new Date(val).toISOString();
+    closeModal('longSessionModal');
+    await doFinish(endISO);
+  });
+
+  // Lock In overlay
+  document.getElementById('lockinModeBtn').addEventListener('click', openLockin);
+  document.getElementById('liExitBtn').addEventListener('click', closeLockin);
+  document.getElementById('liFinishBtn').addEventListener('click', async () => {
+    closeLockin();
+    await doFinish();
+  });
+  document.getElementById('liPauseBtn').addEventListener('click', async () => {
+    const active = getActiveSession();
+    if (!active) return;
+    if (active.status === 'running') await doPause();
+    else await doResume();
+    const liPause = document.getElementById('liPauseBtn');
+    const newActive = getActiveSession();
+    if (liPause && newActive) {
+      liPause.innerHTML = newActive.status === 'running'
+        ? '<i data-lucide="pause"></i> Pause'
+        : '<i data-lucide="play"></i> Resume';
+      lucide.createIcons();
+    }
+  });
+
+  // Close modals on backdrop click
+  ['settingsModal','manualModal','discardModal','longSessionModal','deleteModal'].forEach(id => {
+    document.getElementById(id).addEventListener('click', e => {
+      if (e.target === e.currentTarget) closeModal(id);
+    });
+  });
+
+  // Wake lock re-acquire after page visibility
+  document.addEventListener('visibilitychange', async () => {
+    if (!document.hidden && document.getElementById('lockinOverlay').classList.contains('open')) {
+      await requestWakeLock();
+    }
+  });
+}
+
+boot();
+</script>
+</body>
+</html>

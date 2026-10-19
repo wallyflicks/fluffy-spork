@@ -1050,6 +1050,32 @@
     .ql-modal-btn.primary { background: var(--success); color: #000; border-color: transparent; }
     .ql-modal-btn.primary:hover { background: #5fd4a6; }
 
+    /* ─── Study home card ──────────────────────────────────────────────────── */
+    .study-card-link { color: inherit; text-decoration: none; }
+    .study-card-link:hover { opacity: 0.75; }
+    .study-home-card { gap: 12px; }
+    .study-home-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .study-home-time {
+      font-size: 28px; font-weight: 700; font-family: var(--mono);
+      letter-spacing: -0.04em; line-height: 1;
+    }
+    .study-home-time.running { color: var(--success); }
+    .study-home-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 3px; }
+    .study-home-controls { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+    .study-home-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+      padding: 7px 14px; border-radius: 9px; border: none;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      background: rgba(255,255,255,0.1); color: var(--text-primary);
+      transition: opacity 0.15s;
+    }
+    .study-home-btn:active { opacity: 0.7; }
+    .study-home-btn.primary { background: var(--success); color: #0a0a0b; }
+    .study-home-progress-wrap { background: rgba(255,255,255,0.07); border-radius: 100px; height: 5px; overflow: hidden; }
+    .study-home-progress-fill { height: 100%; border-radius: 100px; background: var(--success); transition: width 0.5s ease; }
+    .study-home-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+    .study-home-streak { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-secondary); }
+
   </style>
 </head>
 <body>
@@ -1098,6 +1124,13 @@
         <p class="score-quote-author" id="scoreQuoteAuthor"></p>
       </div>
     </section>
+
+    <div class="section">
+      <div class="section-title"><a href="study.html" class="study-card-link">Study</a></div>
+      <section class="gm-card study-home-card" id="studyHomeCard">
+        <!-- populated by studyHomeRender() -->
+      </section>
+    </div>
 
     <div class="section">
       <div class="section-title">Quick Log</div>
@@ -2718,6 +2751,7 @@
     <a href="gym.html"      class="tabbar-link" aria-label="Gym"><i data-lucide="dumbbell"></i></a>
     <a href="finance.html"  class="tabbar-link" aria-label="Finance"><i data-lucide="dollar-sign"></i></a>
     <a href="journal.html"  class="tabbar-link" aria-label="Journal"><i data-lucide="book-open"></i></a>
+    <a href="study.html"    class="tabbar-link" aria-label="Study"><i data-lucide="brain"></i></a>
     <a href="content.html"  class="tabbar-link" aria-label="Content"><i data-lucide="video"></i></a>
     <a href="calendar.html" class="tabbar-link" aria-label="Calendar"><i data-lucide="calendar"></i></a>
     <a href="news.html"     class="tabbar-link" aria-label="News"><i data-lucide="newspaper"></i></a>
@@ -2881,6 +2915,299 @@
   } else {
     qlInit();
   }
+})();
+</script>
+
+<script>
+// ── Study home card ───────────────────────────────────────────────────────────
+(function () {
+  'use strict';
+
+  const SH_URL = 'https://qznrmfrqbbkkbvvrxteu.supabase.co';
+  const SH_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bnJtZnJxYmJra2J2dnJ4dGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MTUxMjIsImV4cCI6MjA5NDI5MTEyMn0.VPma99T8m9WqvGk4xArAwtXsAXuz6LgQps27LEefyd0';
+  const SH_HEADERS = {
+    'Content-Type': 'application/json',
+    'apikey': SH_KEY,
+    'Authorization': 'Bearer ' + SH_KEY,
+  };
+  const DEFAULT_SETTINGS = { daily_goal_min: 180, streak_min_min: 60 };
+
+  let shData = { sessions: [], settings: { ...DEFAULT_SETTINGS } };
+  let shTick = null;
+
+  function shVanNow() {
+    return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
+  }
+  function shVanDateStr(d) {
+    return d.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
+  }
+  function shTodayVan() { return shVanDateStr(shVanNow()); }
+
+  function shMidnightUTC(dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    for (const h of [7, 8, 9, 6, 10]) {
+      const c = new Date(Date.UTC(y, m - 1, d, h, 0, 0));
+      const loc = new Date(c.toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
+      if (loc.getFullYear() === y && loc.getMonth() === m - 1 &&
+          loc.getDate() === d && loc.getHours() === 0 && loc.getMinutes() === 0)
+        return c.getTime();
+    }
+    return Date.UTC(y, m - 1, d, 8, 0, 0);
+  }
+  function shVanDayBounds(dateStr) {
+    const startMs = shMidnightUTC(dateStr);
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const nextDay = new Date(Date.UTC(y, m - 1, d + 1, 8, 0, 0));
+    const nextStr = nextDay.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
+    return [startMs, shMidnightUTC(nextStr)];
+  }
+
+  function shSegElapsed(seg, nowMs) {
+    const s = new Date(seg.start).getTime();
+    const e = seg.end ? new Date(seg.end).getTime() : nowMs;
+    return Math.max(0, e - s);
+  }
+
+  function shSessionElapsed(session, nowMs) {
+    return session.segments.reduce((sum, seg) => sum + shSegElapsed(seg, nowMs), 0);
+  }
+
+  function shDayTotal(dateStr, sessions, nowMs) {
+    const [dayStart, dayEnd] = shVanDayBounds(dateStr);
+    let total = 0;
+    for (const s of sessions) {
+      for (const seg of s.segments) {
+        const start = new Date(seg.start).getTime();
+        const end = seg.end ? new Date(seg.end).getTime() : nowMs;
+        total += Math.max(0, Math.min(end, dayEnd) - Math.max(start, dayStart));
+      }
+    }
+    return total;
+  }
+
+  function shFmtMs(ms) {
+    const totalSec = Math.floor(Math.max(0, ms) / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    return `${m}:${String(s).padStart(2,'0')}`;
+  }
+
+  function shFmtMsShort(ms) {
+    const totalMin = Math.floor(Math.max(0, ms) / 60000);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    if (h > 0 && m > 0) return `${h}h ${m}m`;
+    if (h > 0) return `${h}h`;
+    return `${m}m`;
+  }
+
+  function shDateMinus(dateStr, days) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const utcNoon = new Date(Date.UTC(y, m - 1, d - days, 12, 0, 0));
+    return shVanDateStr(utcNoon);
+  }
+
+  function shStreak(sessions, settings) {
+    const minMs = (settings.streak_min_min || 60) * 60000;
+    const today = shTodayVan();
+    const nowMs = Date.now();
+    const todayTotal = shDayTotal(today, sessions, nowMs);
+    const anchor = todayTotal >= minMs ? today : shDateMinus(today, 1);
+    const anchorTotal = shDayTotal(anchor, sessions, nowMs);
+    if (anchorTotal < minMs) return 0;
+    let streak = 0, i = 0;
+    while (true) {
+      const ds = shDateMinus(anchor, i);
+      if (shDayTotal(ds, sessions, nowMs) >= minMs) { streak++; i++; }
+      else break;
+    }
+    return streak;
+  }
+
+  function shGetActive() {
+    return shData.sessions.find(s => s.status === 'running' || s.status === 'paused') || null;
+  }
+
+  async function shRead() {
+    try {
+      const res = await fetch(`${SH_URL}/rest/v1/app_state?key=eq.study&select=data`, { headers: SH_HEADERS });
+      if (!res.ok) return null;
+      const rows = await res.json();
+      const d = rows[0]?.data;
+      if (!d) return { sessions: [], settings: { ...DEFAULT_SETTINGS } };
+      return {
+        sessions: Array.isArray(d.sessions) ? d.sessions : [],
+        settings: { ...DEFAULT_SETTINGS, ...(d.settings || {}) }
+      };
+    } catch { return null; }
+  }
+
+  async function shWrite(data) {
+    try {
+      await fetch(`${SH_URL}/rest/v1/app_state?on_conflict=key`, {
+        method: 'POST',
+        headers: { ...SH_HEADERS, 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify({ key: 'study', data, updated_at: new Date().toISOString() })
+      });
+    } catch {}
+  }
+
+  async function shCloudUpdate(fn) {
+    const current = await shRead();
+    if (!current) return null;
+    const updated = fn(current);
+    await shWrite(updated);
+    return updated;
+  }
+
+  function shRender() {
+    const card = document.getElementById('studyHomeCard');
+    if (!card) return;
+    const nowMs = Date.now();
+    const today = shTodayVan();
+    const active = shGetActive();
+    const todayMs = shDayTotal(today, shData.sessions, nowMs);
+    const goalMs = (shData.settings.daily_goal_min || 180) * 60000;
+    const pct = Math.min(100, (todayMs / goalMs) * 100);
+    const streak = shStreak(shData.sessions, shData.settings);
+
+    let timerDisplay, timerClass, statusText;
+    if (active) {
+      const elapsed = shSessionElapsed(active, nowMs);
+      timerDisplay = shFmtMs(elapsed);
+      timerClass = active.status === 'running' ? ' running' : '';
+      statusText = active.status === 'running' ? 'Running' : 'Paused';
+    } else {
+      timerDisplay = shFmtMsShort(todayMs) || '0m';
+      timerClass = '';
+      statusText = `${shFmtMsShort(todayMs)} today`;
+    }
+
+    let controlsHtml;
+    if (!active) {
+      controlsHtml = `<button class="study-home-btn primary" id="shStartBtn"><i data-lucide="play"></i> Start</button>`;
+    } else if (active.status === 'running') {
+      controlsHtml = `
+        <button class="study-home-btn" id="shPauseBtn"><i data-lucide="pause"></i> Pause</button>
+        <button class="study-home-btn primary" id="shFinishBtn"><i data-lucide="check"></i> Finish</button>`;
+    } else {
+      controlsHtml = `
+        <button class="study-home-btn" id="shResumeBtn"><i data-lucide="play"></i> Resume</button>
+        <button class="study-home-btn primary" id="shFinishBtn"><i data-lucide="check"></i> Finish</button>`;
+    }
+
+    card.innerHTML = `
+      <div class="study-home-top">
+        <div>
+          <div class="study-home-time${timerClass}">${timerDisplay}</div>
+          <div class="study-home-meta">${statusText}</div>
+        </div>
+        <div class="study-home-controls">${controlsHtml}</div>
+      </div>
+      <div>
+        <div class="study-home-progress-wrap">
+          <div class="study-home-progress-fill" style="width:${pct}%"></div>
+        </div>
+      </div>
+      <div class="study-home-row">
+        <span>${shFmtMsShort(todayMs)} of ${shFmtMsShort(goalMs)} goal</span>
+        <span class="study-home-streak"><i data-lucide="flame"></i> ${streak}d streak</span>
+      </div>`;
+
+    lucide.createIcons();
+
+    // Wire buttons
+    const startBtn = document.getElementById('shStartBtn');
+    if (startBtn) startBtn.addEventListener('click', shDoStart);
+    const pauseBtn = document.getElementById('shPauseBtn');
+    if (pauseBtn) pauseBtn.addEventListener('click', shDoPause);
+    const resumeBtn = document.getElementById('shResumeBtn');
+    if (resumeBtn) resumeBtn.addEventListener('click', shDoResume);
+    const finishBtn = document.getElementById('shFinishBtn');
+    if (finishBtn) finishBtn.addEventListener('click', shDoFinish);
+  }
+
+  function shStartTick() {
+    if (shTick) return;
+    shTick = setInterval(() => {
+      const active = shGetActive();
+      if (!active || active.status !== 'running') { clearInterval(shTick); shTick = null; return; }
+      shRender();
+    }, 1000);
+  }
+
+  function shStopTick() { clearInterval(shTick); shTick = null; }
+
+  function shUid() { return 's_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  async function shDoStart() {
+    const result = await shCloudUpdate(data => {
+      if (data.sessions.find(s => s.status === 'running' || s.status === 'paused')) return data;
+      return { ...data, sessions: [...data.sessions, {
+        id: shUid(), status: 'running',
+        segments: [{ start: new Date().toISOString(), end: null }]
+      }]};
+    });
+    if (result) { shData = result; shRender(); shStartTick(); }
+  }
+
+  async function shDoPause() {
+    const result = await shCloudUpdate(data => ({
+      ...data,
+      sessions: data.sessions.map(s => {
+        if (s.status !== 'running') return s;
+        const segs = s.segments.map((seg, i) =>
+          i === s.segments.length - 1 && !seg.end ? { ...seg, end: new Date().toISOString() } : seg
+        );
+        return { ...s, status: 'paused', segments: segs };
+      })
+    }));
+    if (result) { shData = result; shStopTick(); shRender(); }
+  }
+
+  async function shDoResume() {
+    const result = await shCloudUpdate(data => ({
+      ...data,
+      sessions: data.sessions.map(s =>
+        s.status === 'paused'
+          ? { ...s, status: 'running', segments: [...s.segments, { start: new Date().toISOString(), end: null }] }
+          : s
+      )
+    }));
+    if (result) { shData = result; shRender(); shStartTick(); }
+  }
+
+  async function shDoFinish() {
+    const result = await shCloudUpdate(data => ({
+      ...data,
+      sessions: data.sessions.map(s => {
+        if (s.status !== 'running' && s.status !== 'paused') return s;
+        const segs = s.segments.map((seg, i) =>
+          i === s.segments.length - 1 && !seg.end ? { ...seg, end: new Date().toISOString() } : seg
+        );
+        return { ...s, status: 'done', segments: segs };
+      })
+    }));
+    if (result) { shData = result; shStopTick(); shRender(); }
+  }
+
+  async function shSync() {
+    const data = await shRead();
+    if (!data) return;
+    shData = data;
+    shRender();
+    const active = shGetActive();
+    if (active && active.status === 'running') shStartTick();
+    else shStopTick();
+  }
+
+  // Boot
+  shSync();
+  setInterval(shSync, 30000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) shSync(); });
+  window.addEventListener('focus', shSync);
 })();
 </script>
 
