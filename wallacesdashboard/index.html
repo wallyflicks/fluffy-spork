@@ -1303,35 +1303,15 @@
     }
 
     async function sbUpsertGoals(dayKey, goals) {
-      const checkRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/goals?day_key=eq.${encodeURIComponent(dayKey)}&select=id&limit=1`,
-        { headers: SB_HEADERS }
-      );
-      if (!checkRes.ok) {
-        const errBody = await checkRes.text();
-        console.error('Supabase check error:', checkRes.status, errBody);
-        throw new Error('check failed ' + checkRes.status);
-      }
-      const existing = await checkRes.json();
       const payload = JSON.stringify({ day_key: dayKey, goals_json: JSON.stringify(goals), updated_at: new Date().toISOString() });
-      let res;
-      if (existing.length > 0) {
-        res = await fetch(`${SUPABASE_URL}/rest/v1/goals?day_key=eq.${encodeURIComponent(dayKey)}`,
-          { method: 'PATCH', headers: SB_HEADERS, body: payload });
-      } else {
-        res = await fetch(`${SUPABASE_URL}/rest/v1/goals`,
-          { method: 'POST', headers: SB_HEADERS, body: payload });
-      }
-      if (!res.ok) {
-        const errBody = await res.text();
-        console.error('Supabase upsert error:', res.status, errBody);
-        throw new Error('upsert failed ' + res.status + ': ' + errBody);
-      }
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/goals?on_conflict=day_key`,
+        { method: 'POST', headers: { ...SB_HEADERS, 'Prefer': 'resolution=merge-duplicates' }, body: payload, keepalive: true });
+      if (!res.ok) throw new Error('upsert failed ' + res.status);
     }
 
     async function sbDeleteGoals(dayKey) {
       const url = `${SUPABASE_URL}/rest/v1/goals?day_key=eq.${encodeURIComponent(dayKey)}`;
-      const res = await fetch(url, { method: 'DELETE', headers: SB_HEADERS });
+      const res = await fetch(url, { method: 'DELETE', headers: SB_HEADERS, keepalive: true });
       if (!res.ok) throw new Error('delete failed ' + res.status);
     }
 
@@ -1539,6 +1519,7 @@
       const activeDay = activeKey.slice(6);
       const todayGoals = getGoalsFor(activeKey);
       const dedupe = new Set(todayGoals.map(g => g.text.trim()));
+      const processedOldKeys = [];
       keys.forEach(key => {
         const date = key.slice(6);
         if (date >= activeDay) return;
@@ -1553,6 +1534,7 @@
           }
         });
         storeDelete(key);
+        processedOldKeys.push(key);
       });
       if (todayGoals.length > 0) saveGoalsFor(activeKey, todayGoals);
       // Remove from tomorrow any tasks that already exist in today's list
@@ -1561,6 +1543,7 @@
         const cleaned = tomorrowGoals.filter(g => !dedupe.has(g.text.trim()));
         if (cleaned.length !== tomorrowGoals.length) saveGoalsFor(tomorrowKey, cleaned);
       }
+      return processedOldKeys;
     }
 
     // ─── MIDNIGHT ROLLOVER (cloud-coordinated) ────────────────────────────────
@@ -1603,8 +1586,9 @@
       // over, or added/completed tasks since this tab last loaded.
       await loadFromSupabase();
       if (cloudDate === today) return true; // another device ran it; we just refreshed
-      rolloverOldGoals();
+      const _rolledOldKeys = rolloverOldGoals();
       updateStreak();
+      await Promise.all([..._rolledOldKeys, getTodayKey()].map(k => syncKeyNow(k)));
       await saveCloudLastRollover(today);
       return true;
     }
@@ -2086,8 +2070,13 @@
       const _initCloud = await fetchCloudLastRollover();
       _cloudLastRollover = _initCloud;
       if (_initCloud !== _initToday) {
-        rolloverOldGoals();
+        const _rolledOldKeys = rolloverOldGoals();
         updateStreak();
+        // Flush all rollover-affected keys to Supabase immediately (bypass the
+        // debounce) before marking the rollover complete. If the page closes in
+        // the debounce window or Supabase is stale, a re-run would otherwise see
+        // done:false tasks and roll them over again.
+        await Promise.all([..._rolledOldKeys, getTodayKey()].map(k => syncKeyNow(k)));
         await saveCloudLastRollover(_initToday);
       }
       renderTodayHeader();
