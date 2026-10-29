@@ -1299,34 +1299,47 @@
       'Authorization': 'Bearer ' + SUPABASE_KEY,
     };
 
-    async function sbFetchGoals(dayKey) {
-      const url = `${SUPABASE_URL}/rest/v1/goals?day_key=eq.${encodeURIComponent(dayKey)}&select=goals_json,updated_at&limit=1`;
+    // Every row for a day. There can be duplicates (two inserts once raced), so
+    // callers merge all of them instead of trusting whichever comes back first.
+    async function sbFetchGoalRows(dayKey) {
+      const url = `${SUPABASE_URL}/rest/v1/goals?day_key=eq.${encodeURIComponent(dayKey)}&select=goals_json,updated_at&order=updated_at.desc`;
       const res = await fetch(url, { headers: SB_HEADERS });
       if (!res.ok) throw new Error('fetch failed ' + res.status);
       const rows = await res.json();
-      if (!rows.length) return null;
-      return { goals: JSON.parse(rows[0].goals_json), updatedAt: rows[0].updated_at };
+      return rows.map(r => {
+        let goals = [];
+        try { goals = JSON.parse(r.goals_json); } catch {}
+        return { goals: Array.isArray(goals) ? goals : [], updatedAt: r.updated_at };
+      });
     }
 
-    async function sbUpsertGoals(dayKey, goals) {
+    async function sbFetchGoals(dayKey) {
+      const rows = await sbFetchGoalRows(dayKey);
+      if (!rows.length) return null;
+      return { goals: rows.reduce((acc, r) => mergeGoals(acc, r.goals), []), updatedAt: rows[0].updatedAt };
+    }
+
+    // Optimistic write: the PATCH only lands if the row's updated_at is still the
+    // one we read, so an older revision can never replace a newer one. Returns
+    // false on a conflict; the caller re-reads, re-merges and tries again.
+    async function sbWriteGoals(dayKey, goals, seenUpdatedAt) {
       const now = new Date().toISOString();
       const goalsStr = JSON.stringify(goals);
-      // PATCH the existing row first (avoids needing a unique constraint on day_key)
-      const patchRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/goals?day_key=eq.${encodeURIComponent(dayKey)}`,
-        { method: 'PATCH', headers: { ...SB_HEADERS, 'Prefer': 'return=representation' },
-          body: JSON.stringify({ goals_json: goalsStr, updated_at: now }), keepalive: true }
-      );
-      if (!patchRes.ok) throw new Error('patch failed ' + patchRes.status);
-      const updated = await patchRes.json();
-      if (updated.length === 0) {
-        // No row exists yet — INSERT
-        const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/goals`,
-          { method: 'POST', headers: SB_HEADERS,
-            body: JSON.stringify({ day_key: dayKey, goals_json: goalsStr, updated_at: now }), keepalive: true }
+      if (seenUpdatedAt) {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/goals?day_key=eq.${encodeURIComponent(dayKey)}&updated_at=eq.${encodeURIComponent(seenUpdatedAt)}`,
+          { method: 'PATCH', headers: { ...SB_HEADERS, 'Prefer': 'return=representation' },
+            body: JSON.stringify({ goals_json: goalsStr, updated_at: now }), keepalive: true }
         );
-        if (!insertRes.ok) throw new Error('insert failed ' + insertRes.status);
+        if (!res.ok) throw new Error('patch failed ' + res.status);
+        return (await res.json()).length > 0;
       }
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/goals`,
+        { method: 'POST', headers: SB_HEADERS,
+          body: JSON.stringify({ day_key: dayKey, goals_json: goalsStr, updated_at: now }), keepalive: true }
+      );
+      if (!res.ok) throw new Error('insert failed ' + res.status);
+      return true;
     }
 
     async function sbDeleteGoals(dayKey) {
@@ -1340,8 +1353,193 @@
       const res = await fetch(url, { headers: SB_HEADERS });
       if (!res.ok) throw new Error('listkeys failed ' + res.status);
       const rows = await res.json();
-      return rows.map(r => 'goals:' + r.day_key);
+      return [...new Set(rows.map(r => 'goals:' + r.day_key))];
     }
+
+    // ─── TOMBSTONES ───────────────────────────────────────────────────────────
+    // X deletes a task forever. Each delete writes its own app_state row
+    // (goal_tomb_<id>), so two devices deleting at once can't overwrite each
+    // other, and the set only ever grows. Every read, merge, rollover and the
+    // History drawer drop tasks that match a tombstone.
+    const APP_VERSION = 2; // bump with sw.js; Supabase app_state.min_app_version locks out older clients
+    const TOMB_LOCAL_KEY = 'goal_tombstones';
+    const TOMB_SYNCED_KEY = 'goal_tombstones_synced_at';
+    const OUTBOX_KEY = 'goal_outbox';
+    const TOMB_FETCH_WINDOW_MS = 120 * 86400000;
+    const DEVICE_ID = (() => {
+      let d = null;
+      try { d = localStorage.getItem('device_id'); } catch {}
+      if (!d) { d = 'd_' + Math.random().toString(36).slice(2, 10); try { localStorage.setItem('device_id', d); } catch {} }
+      return d;
+    })();
+
+    function normText(s) { return String(s || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+
+    let tombs = {};
+    try { tombs = JSON.parse(localStorage.getItem(TOMB_LOCAL_KEY) || '{}') || {}; } catch {}
+
+    function addTombs(list) {
+      let changed = false;
+      list.forEach(t => { if (t && t.id && !tombs[t.id]) { tombs[t.id] = t; changed = true; } });
+      if (changed) { try { localStorage.setItem(TOMB_LOCAL_KEY, JSON.stringify(tombs)); } catch {} }
+      return changed;
+    }
+
+    // Blocked by id; or by text when the task is not newer than the delete (the
+    // same task can carry a different id on another device). A task created after
+    // the delete is never blocked, so the same text can be added again later.
+    function isTombstoned(task) {
+      if (!task) return true;
+      if (task.id && tombs[task.id]) return true;
+      const n = normText(task.text), born = Number(task.createdAt) || 0;
+      for (const id in tombs) {
+        const t = tombs[id];
+        if (!t.idOnly && t.text === n && born <= t.deleted_at) return true;
+      }
+      return false;
+    }
+
+    async function refreshTombs() {
+      const last = Number(localStorage.getItem(TOMB_SYNCED_KEY) || 0);
+      // 24h overlap so a tombstone stamped by a device with a slow clock is never skipped
+      const since = new Date(Math.max(last - 86400000, Date.now() - TOMB_FETCH_WINDOW_MS)).toISOString();
+      const started = Date.now();
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/app_state?key=like.goal_tomb_%25&updated_at=gte.${encodeURIComponent(since)}&select=data`,
+        { headers: SB_HEADERS }
+      );
+      if (!res.ok) throw new Error('tombstones fetch failed ' + res.status);
+      const rows = await res.json();
+      addTombs(rows.map(r => r.data));
+      try { localStorage.setItem(TOMB_SYNCED_KEY, String(started)); } catch {}
+    }
+
+    // ─── MERGE ────────────────────────────────────────────────────────────────
+    // Union by id, minus tombstones. When both sides hold the same task, each
+    // field takes whichever side edited that field more recently.
+    const MERGE_FIELDS = ['text', 'done', 'recurring', 'queued'];
+    function fieldTs(t, f) { return (t.fu && t.fu[f]) || t.updatedAt || 0; }
+    function touch(task, ...fields) {
+      const now = Date.now();
+      task.updatedAt = now;
+      task.fu = { ...(task.fu || {}) };
+      fields.forEach(f => { task.fu[f] = now; });
+      return task;
+    }
+    function legacyId(text) {
+      let h = 5381;
+      const s = normText(text);
+      for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+      return 'tx_' + h.toString(36);
+    }
+    function mergeTask(a, b) {
+      const out = { ...a, fu: { ...(a.fu || {}) } };
+      MERGE_FIELDS.forEach(f => {
+        if (fieldTs(b, f) <= fieldTs(a, f)) return;
+        out[f] = b[f];
+        out.fu[f] = fieldTs(b, f);
+        if (f === 'done') out.doneAt = b.doneAt;
+        if (f === 'text') out.createdAt = b.createdAt;
+      });
+      out.updatedAt = Math.max(a.updatedAt || 0, b.updatedAt || 0);
+      return out;
+    }
+    function mergeGoals(primary, other) {
+      const out = [], pos = {}, textPos = {};
+      [primary || [], other || []].forEach(list => list.forEach(raw => {
+        if (!raw || typeof raw.text !== 'string') return;
+        // Tasks written by old code have no id: derive one from the text so every
+        // device derives the same id instead of minting its own.
+        const t = raw.id ? raw : { ...raw, id: legacyId(raw.text) };
+        if (isTombstoned(t)) return;
+        // Same text under a different id is the same task minted twice on two
+        // devices: fold it into the first copy instead of showing a duplicate.
+        const n = normText(t.text);
+        const at = pos[t.id] !== undefined ? pos[t.id] : textPos[n];
+        if (at === undefined) { pos[t.id] = textPos[n] = out.length; out.push({ ...t }); }
+        else { pos[t.id] = at; out[at] = mergeTask(out[at], { ...t, id: out[at].id }); }
+      }));
+      return out;
+    }
+
+    // ─── STALE-CODE LOCK ──────────────────────────────────────────────────────
+    let codeLocked = false;
+    async function versionOk() {
+      if (codeLocked) return false;
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?key=eq.min_app_version&select=data`, { headers: SB_HEADERS });
+        if (res.ok) {
+          const rows = await res.json();
+          if (rows.length && Number(rows[0].data) > APP_VERSION) lockStaleCode();
+        }
+      } catch {}
+      return !codeLocked;
+    }
+    function lockStaleCode() {
+      if (codeLocked) return;
+      codeLocked = true;
+      refreshSyncLabel();
+      if (!document.getElementById('updateBanner')) {
+        const bar = document.createElement('button');
+        bar.id = 'updateBanner';
+        bar.type = 'button';
+        bar.textContent = 'Update available, tap to refresh';
+        bar.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:9999;background:#fff;color:#000;border:none;border-radius:999px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.3)';
+        bar.addEventListener('click', () => location.reload());
+        document.body.appendChild(bar);
+      }
+      try {
+        if (navigator.serviceWorker) navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => {});
+      } catch {}
+      // One automatic reload per session; after that the banner is the way out.
+      try {
+        if (!sessionStorage.getItem('staleCodeReloaded')) {
+          sessionStorage.setItem('staleCodeReloaded', '1');
+          setTimeout(() => location.reload(), 1500);
+        }
+      } catch {}
+    }
+
+    // ─── OUTBOX ───────────────────────────────────────────────────────────────
+    // Pending tombstones and lists with local edits not yet in the cloud.
+    // Survives reloads; replayed on load, on reconnect and every minute.
+    // Tombstones always go first, so a queued delete can't be overwritten.
+    function getOutbox() {
+      try {
+        const o = JSON.parse(localStorage.getItem(OUTBOX_KEY) || 'null');
+        if (o && Array.isArray(o.tombs) && Array.isArray(o.keys)) return o;
+      } catch {}
+      return { tombs: [], keys: [] };
+    }
+    function saveOutbox(o) {
+      try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(o)); } catch {}
+      refreshSyncLabel();
+    }
+    function outboxPending() { const o = getOutbox(); return o.tombs.length + o.keys.length; }
+    function markDirty(key) { const o = getOutbox(); if (!o.keys.includes(key)) { o.keys.push(key); saveOutbox(o); } }
+    function clearDirty(key) { const o = getOutbox(); if (o.keys.includes(key)) { o.keys = o.keys.filter(k => k !== key); saveOutbox(o); } }
+    function refreshSyncLabel() {
+      if (codeLocked) setSyncState('err', 'not synced — update needed');
+      else if (outboxPending()) setSyncState('err', 'not synced');
+      else setSyncState('ok', 'synced');
+    }
+
+    async function flushTombOutbox() {
+      const pending = getOutbox().tombs;
+      if (!pending.length) return;
+      if (!(await versionOk())) throw new Error('app version below min_app_version');
+      for (const t of pending) await sbUpsertAppState('goal_tomb_' + t.id, t);
+      const o = getOutbox();
+      o.tombs = o.tombs.filter(x => !pending.some(p => p.id === x.id));
+      saveOutbox(o);
+    }
+
+    async function flushOutbox() {
+      try { await flushTombOutbox(); } catch { refreshSyncLabel(); return false; }
+      const results = await Promise.all(getOutbox().keys.map(k => pushKey(k)));
+      return results.every(Boolean);
+    }
+    window.addEventListener('online', () => { flushOutbox(); });
 
     // ─── APP_STATE HELPERS ────────────────────────────────────────────────────
     async function sbUpsertAppState(key, data) {
@@ -1385,95 +1583,125 @@
 
     // ─── IN-MEMORY CACHE + SYNC ───────────────────────────────────────────────
     // We keep goals in memory (fast UI) and sync to Supabase in the background.
+    // Every write reads the cloud copy first and merges (pushKey); nothing ever
+    // uploads a whole list from local state alone.
     const memCache = {}; // key -> array
     let syncTimers = {}; // key -> timeout id
     let syncReady = false;
+    const localRev = {}; // key -> local edit counter, so a push can tell if edits landed mid-flight
+    const pushChains = {}; // key -> promise; pushes for one key run one at a time
+    const RETRY_MS = [600, 2000, 5000];
 
     async function loadFromSupabase() {
       setSyncState('syncing', 'syncing…');
-      const keysToRepair = [];
       try {
+        // An outdated client still reads the lists, but never writes (syncReady stays false).
+        const writable = await versionOk();
+        if (writable) await flushTombOutbox(); // a queued delete reaches the cloud before any list sync
+        await refreshTombs();
+        const dirty = getOutbox().keys;
         const keys = await sbListKeys();
         for (const key of keys) {
-          const dayKey = key.slice(6);
-          const remote = await sbFetchGoals(dayKey);
-          if (!remote) continue;
-          // If this device has a local edit newer than what made it to the cloud
-          // (e.g. a task was checked off right before the tab closed, so the
-          // debounced/immediate sync never got to finish), trust the newer local
-          // copy instead of letting the stale cloud version overwrite it — then
-          // repair the cloud copy once syncReady flips on below.
-          const localTs = Number(localStorage.getItem(key + ':ts') || 0);
-          const remoteTs = remote.updatedAt ? Date.parse(remote.updatedAt) : 0;
-          let localGoals = null;
-          try { localGoals = JSON.parse(localStorage.getItem(key) || 'null'); } catch {}
-          // Stale-writer guard: local wins only when it has data AND is newer.
-          // An empty local copy never overwrites a non-empty cloud copy — that's
-          // how a cleared-localStorage device destroys another device's work.
-          if (Array.isArray(localGoals) && localGoals.length > 0 && localTs > remoteTs) {
-            memCache[key] = localGoals;
-            keysToRepair.push(key);
-          } else {
-            memCache[key] = remote.goals;
-          }
+          const rows = await sbFetchGoalRows(key.slice(6));
+          const cloud = rows.reduce((acc, r) => mergeGoals(acc, r.goals), []);
+          // The cloud is the truth unless this device holds edits that never made it up.
+          let local = null;
+          try { local = JSON.parse(localStorage.getItem(key) || 'null'); } catch {}
+          memCache[key] = dirty.includes(key) && Array.isArray(local) ? mergeGoals(local, cloud) : cloud;
+          try { localStorage.setItem(key, JSON.stringify(memCache[key])); } catch {}
         }
-        syncReady = true;
-        setSyncState('ok', 'synced');
-        keysToRepair.forEach(key => syncKeyNow(key));
+        // Lists the cloud no longer has (rolled over or deleted elsewhere) are
+        // dropped locally unless they hold unsynced edits — a leftover copy of an
+        // old day must never be fed back into a rollover.
+        storeListKeys('goals:').forEach(k => {
+          if (keys.includes(k) || dirty.includes(k)) return;
+          delete memCache[k];
+          try { localStorage.removeItem(k); localStorage.removeItem(k + ':ts'); } catch {}
+        });
+        syncReady = writable;
+        refreshSyncLabel();
+        if (writable) await Promise.all(dirty.map(k => pushKey(k)));
       } catch (err) {
         console.error('Supabase load failed:', err.message, err);
-        setSyncState('err', 'offline — local only');
-        // fall back to localStorage
+        // fall back to localStorage (tombstones still applied)
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
-          if (k && k.startsWith('goals:')) {
-            try { memCache[k] = JSON.parse(localStorage.getItem(k)) || []; } catch {}
+          if (k && k.startsWith('goals:') && !k.endsWith(':ts')) {
+            try { memCache[k] = mergeGoals(JSON.parse(localStorage.getItem(k)) || [], []); } catch {}
           }
         }
         syncReady = false;
+        if (codeLocked) refreshSyncLabel();
+        else setSyncState('err', 'offline — not synced');
       }
     }
 
     function scheduleSyncKey(key) {
-      if (!syncReady) return;
       clearTimeout(syncTimers[key]);
-      syncTimers[key] = setTimeout(async () => {
-        setSyncState('syncing', 'saving…');
-        try {
-          const goals = memCache[key];
-          // Empty-write guard: never delete today's key — upsert [] so the row
-          // survives and the rollover doesn't re-run on the next load.
-          if (key !== getTodayKey() && (!goals || !goals.length)) {
-            await sbDeleteGoals(key.slice(6));
-          } else {
-            if (!goals || !goals.length) console.warn('[EmptyWriteGuard] empty debounced sync for', key);
-            await sbUpsertGoals(key.slice(6), goals || []);
-          }
-          setSyncState('ok', 'synced');
-        } catch (err) {
-          console.error('Supabase sync error:', err.message, err);
-          setSyncState('err', 'sync failed');
-        }
-      }, SYNC_DEBOUNCE_MS);
+      syncTimers[key] = setTimeout(() => { syncTimers[key] = null; pushKey(key); }, SYNC_DEBOUNCE_MS);
     }
 
-    async function syncKeyNow(key) {
-      if (!syncReady) return;
+    function syncKeyNow(key) {
       clearTimeout(syncTimers[key]);
-      setSyncState('syncing', 'saving…');
-      try {
-        const goals = memCache[key];
-        if (key !== getTodayKey() && (!goals || !goals.length)) {
-          await sbDeleteGoals(key.slice(6));
-        } else {
-          if (!goals || !goals.length) console.warn('[EmptyWriteGuard] empty immediate sync for', key);
-          await sbUpsertGoals(key.slice(6), goals || []);
-        }
-        setSyncState('ok', 'synced');
-      } catch (err) {
-        console.error('Supabase sync error:', err.message, err);
-        setSyncState('err', 'sync failed');
+      syncTimers[key] = null;
+      return pushKey(key);
+    }
+
+    // Read the cloud copy, merge it with ours (union by id, minus tombstones),
+    // write it back only if nobody wrote in between, retry with backoff.
+    // Resolves true once the cloud has this device's edits; false leaves the
+    // key in the outbox for the next replay.
+    function pushKey(key) {
+      const run = (pushChains[key] || Promise.resolve()).then(() => pushKeyOnce(key));
+      pushChains[key] = run.catch(() => {});
+      return run;
+    }
+
+    async function pushKeyOnce(key) {
+      if (!getOutbox().keys.includes(key)) return true;
+      const day = key.slice(6);
+      // Past days are only ever written by the rollover. A tab left open from
+      // yesterday must not rewrite them — that is how deleted tasks came back.
+      if (day < getActiveDateString()) {
+        try { await flushTombOutbox(); } catch {}
+        clearDirty(key);
+        return true;
       }
+      setSyncState('syncing', 'saving…');
+      let failures = 0, rounds = 0;
+      while (failures <= RETRY_MS.length && rounds < 10) {
+        rounds++;
+        try {
+          if (!(await versionOk())) { refreshSyncLabel(); return false; }
+          await flushTombOutbox();
+          await refreshTombs();
+          const rev = localRev[key] || 0;
+          const rows = await sbFetchGoalRows(day);
+          const cloud = rows.reduce((acc, r) => mergeGoals(acc, r.goals), []);
+          const merged = mergeGoals(memCache[key] || [], cloud);
+          if (!(await sbWriteGoals(day, merged, rows.length ? rows[0].updatedAt : null))) continue; // conflict
+          applyMerged(key, merged);
+          if ((localRev[key] || 0) !== rev) continue; // edited while we were writing: go again
+          clearDirty(key);
+          refreshSyncLabel();
+          return true;
+        } catch (err) {
+          console.error('Supabase sync error:', err.message, err);
+          if (failures < RETRY_MS.length) await new Promise(r => setTimeout(r, RETRY_MS[failures]));
+          failures++;
+        }
+      }
+      refreshSyncLabel();
+      return false;
+    }
+
+    // Fold a merged cloud copy into memory without marking the key dirty again.
+    function applyMerged(key, merged) {
+      const next = mergeGoals(memCache[key] || [], merged);
+      const changed = JSON.stringify(next) !== JSON.stringify(memCache[key] || []);
+      memCache[key] = next;
+      try { localStorage.setItem(key, JSON.stringify(next)); } catch {}
+      if (changed) window.dispatchEvent(new CustomEvent('goals-changed'));
     }
 
     // ─── STORAGE LAYER ────────────────────────────────────────────────────────
@@ -1490,20 +1718,19 @@
       // always mirror to localStorage as offline backup
       try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
       if (key.startsWith('goals:')) {
-        // Stamp when this key last changed locally, so a future load can tell
-        // a newer local edit apart from a stale cloud copy (see loadFromSupabase).
-        try { localStorage.setItem(key + ':ts', String(Date.now())); } catch {}
+        localRev[key] = (localRev[key] || 0) + 1;
+        markDirty(key);
         scheduleSyncKey(key);
         window.dispatchEvent(new CustomEvent('goals-changed'));
       }
     }
 
+    // Local removal only (used by the rollover, which deletes the cloud row itself).
     function storeDelete(key) {
       delete memCache[key];
-      try { localStorage.removeItem(key); } catch {}
+      try { localStorage.removeItem(key); localStorage.removeItem(key + ':ts'); } catch {}
       if (key.startsWith('goals:')) {
-        try { localStorage.removeItem(key + ':ts'); } catch {}
-        scheduleSyncKey(key);
+        clearDirty(key);
         window.dispatchEvent(new CustomEvent('goals-changed'));
       }
     }
@@ -1569,8 +1796,14 @@
     function getTodayKey() { return `goals:${getActiveDateString()}`; }
     function getTomorrowKey() { return `goals:${getTomorrowDateString()}`; }
 
+    // Created once, client-side, and never regenerated (not by load, not by rollover).
     function goalUid() {
-      return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+      return Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
+    }
+
+    function newGoal(text, extra) {
+      const now = Date.now();
+      return { id: goalUid(), text, done: false, queued: false, recurring: false, createdAt: now, updatedAt: now, ...extra };
     }
 
     function getGoalsFor(key) {
@@ -1580,103 +1813,155 @@
 
     function saveGoalsFor(key, goals) { storeSet(key, goals); }
 
+    // X = gone forever, on every day and every device. The UI updates at once;
+    // the tombstone is queued in the outbox and pushed (awaited, retried) ahead
+    // of the list itself. reason 'moved'/'cleared' tombstones match by id only.
+    function tombstoneGoals(tasks, reason) {
+      const now = Date.now();
+      const list = tasks.map(t => ({ id: t.id, text: normText(t.text), label: t.text, deleted_at: now,
+        device: DEVICE_ID, reason, ...(reason === 'deleted' ? {} : { idOnly: true }) }));
+      addTombs(list);
+      const o = getOutbox();
+      list.forEach(t => { if (!o.tombs.some(x => x.id === t.id)) o.tombs.push(t); });
+      saveOutbox(o);
+    }
+
+    function deleteGoal(key, id) {
+      const goals = getGoalsFor(key);
+      const task = goals.find(g => g.id === id);
+      if (!task) return Promise.resolve(false);
+      tombstoneGoals([task], 'deleted');
+      saveGoalsFor(key, goals.filter(g => g.id !== id));
+      loadLists();
+      return syncKeyNow(key);
+    }
+
     function getStreak() { return storeGet('goal_streak_v1') || { count: 0, lastProcessedDate: null }; }
     function setStreak(value) { storeSet('goal_streak_v1', value); }
 
-    function rolloverOldGoals() {
-      const activeKey = getTodayKey();
-      const tomorrowKey = getTomorrowKey();
-      const keys = storeListKeys('goals:').sort();
-      const activeDay = activeKey.slice(6);
-      const todayGoals = getGoalsFor(activeKey);
-      // Ensure today's existing tasks have IDs
-      todayGoals.forEach(g => { if (!g.id) g.id = goalUid(); });
-      const dedupe = new Set(todayGoals.map(g => g.text.trim()));
-      const processedOldKeys = [];
+    // Builds today's list only from the live lists (already merged and
+    // tombstone-filtered) of days not yet rolled over. Ids and createdAt carry
+    // forward unchanged, so a delete made on any day keeps matching. A day older
+    // than the cloud's lastRollover was consumed by an earlier rollover; a copy of
+    // it showing up again is a stale rewrite and is set aside, never carried.
+    function rolloverOldGoals(watermark) {
+      const activeDay = getTodayKey().slice(6);
+      const todayGoals = mergeGoals(getGoalsFor(getTodayKey()), []);
+      const seenText = new Set(todayGoals.map(g => normText(g.text)));
+      const processedOldKeys = [], staleOldKeys = [];
       const toArchive = []; // snapshot of each old day before deletion
-      keys.forEach(key => {
+      storeListKeys('goals:').filter(k => !k.endsWith(':ts')).sort().forEach(key => {
         const date = key.slice(6);
         if (date >= activeDay) return;
-        const goals = getGoalsFor(key);
-        // Snapshot the full day (including done tasks) before we delete it
+        if (watermark && date < watermark) { staleOldKeys.push(key); return; }
+        const goals = mergeGoals(getGoalsFor(key), []);
         if (goals.length) toArchive.push({ dayKey: date, goals: goals.map(g => ({ ...g })) });
-        const toRollover = goals
-          .filter(g => !g.done || g.recurring)
-          .map(g => ({ id: goalUid(), text: g.text, done: false, queued: false, recurring: g.recurring || false }));
-        toRollover.forEach(g => {
-          if (!dedupe.has(g.text.trim())) {
-            todayGoals.push(g);
-            dedupe.add(g.text.trim());
-          }
+        goals.filter(g => !g.done || g.recurring).forEach(g => {
+          const n = normText(g.text);
+          if (seenText.has(n) || todayGoals.some(t => t.id === g.id)) return;
+          seenText.add(n);
+          const carried = { ...g, done: false, doneAt: null, queued: false, recurring: !!g.recurring };
+          if (g.done) touch(carried, 'done');
+          todayGoals.push(carried);
         });
-        storeDelete(key);
         processedOldKeys.push(key);
       });
-      if (todayGoals.length > 0) saveGoalsFor(activeKey, todayGoals);
-      // Remove from tomorrow any tasks that already exist in today's list
-      const tomorrowGoals = getGoalsFor(tomorrowKey);
-      if (tomorrowGoals.length > 0) {
-        const cleaned = tomorrowGoals.filter(g => !dedupe.has(g.text.trim()));
-        if (cleaned.length !== tomorrowGoals.length) saveGoalsFor(tomorrowKey, cleaned);
-      }
-      return { processedOldKeys, toArchive };
+      return { todayGoals, processedOldKeys, staleOldKeys, toArchive };
     }
 
     // ─── MIDNIGHT ROLLOVER (cloud-coordinated) ────────────────────────────────
     // _cloudLastRollover is the Vancouver date string we last confirmed in Supabase.
-    // It is null until fetched, and is updated whenever we run or confirm a rollover.
+    // It doubles as the "processed" mark: every day before it has been rolled over.
     let _cloudLastRollover = null;
 
+    // Returns the date string, or null when the row doesn't exist. Throws when
+    // the cloud can't be reached — guessing "never rolled over" would treat
+    // every old day as unprocessed.
     async function fetchCloudLastRollover() {
-      try {
-        const res = await fetch(
-          `${SUPABASE_URL}/rest/v1/app_state?key=eq.lastRollover&select=data`,
-          { headers: SB_HEADERS }
-        );
-        if (!res.ok) return null;
-        const rows = await res.json();
-        return (rows.length && rows[0].data) ? String(rows[0].data) : null;
-      } catch { return null; }
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/app_state?key=eq.lastRollover&select=data`,
+        { headers: SB_HEADERS }
+      );
+      if (!res.ok) throw new Error('lastRollover fetch failed ' + res.status);
+      const rows = await res.json();
+      return (rows.length && rows[0].data) ? String(rows[0].data) : null;
     }
 
     async function saveCloudLastRollover(dateStr) {
-      _cloudLastRollover = dateStr;
       try {
-        await fetch(`${SUPABASE_URL}/rest/v1/app_state?on_conflict=key`, {
-          method: 'POST',
-          headers: { ...SB_HEADERS, 'Prefer': 'resolution=merge-duplicates' },
-          body: JSON.stringify({ key: 'lastRollover', data: dateStr, updated_at: new Date().toISOString() })
-        });
-      } catch {}
+        await sbUpsertAppState('lastRollover', dateStr);
+        _cloudLastRollover = dateStr;
+        return true;
+      } catch { return false; }
     }
 
-    // Returns true if goal data was modified and loadLists() should be called.
+    async function performRollover(today, via) {
+      const watermark = _cloudLastRollover;
+      // Pre-rollover snapshot, for manual recovery only (the app never reads it)
+      const snap = {};
+      storeListKeys('goals:').filter(k => !k.endsWith(':ts')).forEach(k => { snap[k.slice(6)] = getGoalsFor(k); });
+      try { await sbUpsertAppState('todo_backup_' + today, snap); } catch {}
+      updateStreak(); // before the old days are removed
+      const { todayGoals, processedOldKeys, staleOldKeys, toArchive } = rolloverOldGoals(watermark);
+      saveGoalsFor(getTodayKey(), todayGoals);
+      const pushed = await syncKeyNow(getTodayKey());
+      // Verify every carried task landed in the cloud before marking the day done.
+      let verified = false;
+      if (pushed) {
+        try {
+          const c = await sbFetchGoals(today);
+          const ids = new Set((c ? c.goals : []).map(g => g.id));
+          verified = !!c && todayGoals.every(g => ids.has(g.id) || isTombstoned(g));
+        } catch {}
+      }
+      if (verified) verified = await saveCloudLastRollover(today);
+      const logEntry = { date: today, carried: todayGoals.length, verified, via,
+        rolled: processedOldKeys.map(k => k.slice(6)), staleIgnored: staleOldKeys.map(k => k.slice(6)) };
+      if (!verified) {
+        console.error('[rollover] sync verification failed — lastRollover NOT saved; will retry');
+        appendRolloverLog(logEntry).catch(() => {});
+        return false;
+      }
+      // Only now archive the consumed days and remove them.
+      for (const { dayKey, goals } of toArchive) { try { await sbArchiveGoals(dayKey, goals); } catch {} }
+      for (const key of staleOldKeys) {
+        const g = getGoalsFor(key);
+        if (g.length) { try { await sbUpsertAppState('goals_stale_' + key.slice(6), g); } catch {} }
+      }
+      for (const key of [...processedOldKeys, ...staleOldKeys]) {
+        storeDelete(key);
+        try { await sbDeleteGoals(key.slice(6)); } catch {}
+      }
+      appendRolloverLog(logEntry).catch(() => {});
+      return true;
+    }
+
+    let _rolloverInFlight = null;
+    function runRolloverIfNeeded(via) {
+      if (_rolloverInFlight) return _rolloverInFlight;
+      _rolloverInFlight = (async () => {
+        const today = getActiveDateString();
+        if (_cloudLastRollover === today || !syncReady) return false;
+        let cloudDate;
+        try { cloudDate = await fetchCloudLastRollover(); } catch { return false; }
+        _cloudLastRollover = cloudDate;
+        if (cloudDate === today) return true; // another device ran it
+        return performRollover(today, via);
+      })().finally(() => { _rolloverInFlight = null; });
+      return _rolloverInFlight;
+    }
+
+    // Returns true if goal data may have changed and loadLists() should be called.
     // For the open-tab case it re-fetches from Supabase first so another
     // device's rollover (or task changes) land before we decide what to do.
     async function midnightRolloverCheck() {
-      const today = getActiveDateString();
-      if (_cloudLastRollover === today) return false; // fast path — already handled
-      const cloudDate = await fetchCloudLastRollover();
-      _cloudLastRollover = cloudDate;
-      await loadFromSupabase();
-      if (cloudDate === today) return true; // another device ran it; we just refreshed
-      const { processedOldKeys: _rolledOldKeys, toArchive } = rolloverOldGoals();
-      updateStreak();
-      await Promise.all([..._rolledOldKeys, getTodayKey()].map(k => syncKeyNow(k)));
-      // Archive old days non-blocking
-      toArchive.forEach(({ dayKey, goals }) => { if (goals.length) sbArchiveGoals(dayKey, goals).catch(() => {}); });
-      // Verify today's data landed before marking rollover done
-      const _expectedCount = getGoalsFor(getTodayKey()).length;
-      let _verified = false;
-      for (let _i = 0; _i < 3 && !_verified; _i++) {
-        const _c = await sbFetchGoals(today);
-        if (_c && _c.goals.length >= _expectedCount) { _verified = true; break; }
-        if (_i < 2) await syncKeyNow(getTodayKey());
+      if (_cloudLastRollover === getActiveDateString()) {
+        await versionOk();
+        if (outboxPending()) await flushOutbox();
+        return false;
       }
-      _cloudLastRollover = today;
-      if (_verified) await saveCloudLastRollover(today);
-      else console.error('[rollover] sync verification failed — will retry next check');
-      appendRolloverLog({ date: today, carried: _expectedCount, verified: _verified, via: 'midnightCheck' }).catch(() => {});
+      await loadFromSupabase();
+      await runRolloverIfNeeded('midnightCheck');
       return true;
     }
 
@@ -1851,9 +2136,10 @@
         recurBtn.setAttribute('aria-label', goal.recurring ? 'Mark as one-off' : 'Mark as recurring');
         recurBtn.addEventListener('click', () => {
           const goals = getGoalsFor(key);
-          const item = goals[index];
+          const item = goals.find(g => g.id === goal.id);
           if (!item) return;
           item.recurring = !item.recurring;
+          touch(item, 'recurring');
           saveGoalsFor(key, goals);
           syncKeyNow(key);
           loadLists();
@@ -1869,10 +2155,11 @@
 
       checkbox.addEventListener('click', () => {
         const goals = getGoalsFor(key);
-        const item = goals[index];
+        const item = goals.find(g => g.id === goal.id);
         if (!item) return;
         item.done = !item.done;
         item.doneAt = item.done ? Date.now() : null;
+        touch(item, 'done');
         saveGoalsFor(key, goals);
         // Sync immediately (not debounced) — completing a task is a single discrete
         // action, and if the tab/PWA closes right after, a debounced sync would never
@@ -1881,19 +2168,21 @@
         loadLists();
       });
 
-      deleteBtn.addEventListener('click', () => {
-        const goals = getGoalsFor(key);
-        goals.splice(index, 1);
-        saveGoalsFor(key, goals);
-        syncKeyNow(key);
-        loadLists();
-      });
+      // Same delete-forever path for Today and Plan Tomorrow.
+      deleteBtn.addEventListener('click', () => deleteGoal(key, goal.id));
 
       function commitEdit(newText) {
         const trimmed = newText.trim();
         if (!trimmed) { loadLists(); return; }
         const goals = getGoalsFor(key);
-        if (goals[index]) { goals[index].text = trimmed; saveGoalsFor(key, goals); loadLists(); }
+        const item = goals.find(g => g.id === goal.id);
+        if (item) {
+          item.text = trimmed;
+          item.createdAt = Date.now(); // edited text counts as new for text-matched tombstones
+          touch(item, 'text');
+          saveGoalsFor(key, goals);
+          loadLists();
+        }
       }
 
       text.addEventListener('dblclick', () => {
@@ -2039,12 +2328,14 @@
       setTimeout(() => { el.textContent = ''; el.style.color = ''; }, 3500);
     }
 
-    function makeAddHandlers(inputEl, addBtn, key, reload) {
+    // keyFn, not a key: a tab left open past midnight must add to the new day.
+    function makeAddHandlers(inputEl, addBtn, keyFn, reload) {
       const doAdd = () => {
         const text = inputEl.value.trim();
         if (!text) return;
+        const key = keyFn();
         const goals = getGoalsFor(key);
-        goals.push({ id: goalUid(), text, done: false, queued: false });
+        goals.push(newGoal(text));
         saveGoalsFor(key, goals);
         inputEl.value = '';
         reload();
@@ -2062,7 +2353,9 @@
       if (!confirm('Move all unchecked goals to tomorrow?')) return;
       const keep = todayGoals.filter(g => g.done);
       const moving = todayGoals.filter(g => !g.done && !dedupe.has(g.text.trim()));
-      moving.forEach(g => { dedupe.add(g.text.trim()); tomorrowGoals.push({ text: g.text, done: false, queued: false }); });
+      moving.forEach(g => { dedupe.add(g.text.trim()); tomorrowGoals.push(newGoal(g.text, { recurring: !!g.recurring })); });
+      // Removing from today must be recorded, or a merge would put them back.
+      tombstoneGoals(todayGoals.filter(g => !g.done), 'moved');
       saveGoalsFor(todayKey, keep);
       saveGoalsFor(tomorrowKey, tomorrowGoals);
       loadLists();
@@ -2150,40 +2443,11 @@
     async function init() {
       setSyncState('syncing', 'connecting…');
       await loadFromSupabase();
-      const _initToday = getActiveDateString();
-      const _initCloud = await fetchCloudLastRollover();
-      _cloudLastRollover = _initCloud;
-      if (_initCloud !== _initToday) {
-        // Pre-rollover snapshot: save current state before mutating anything
-        const _snap = {};
-        storeListKeys('goals:').forEach(k => { _snap[k.slice(6)] = getGoalsFor(k); });
-        sbUpsertAppState('todo_backup_' + _initToday, _snap).catch(() => {});
-        const { processedOldKeys: _rolledOldKeys, toArchive } = rolloverOldGoals();
-        updateStreak();
-        await Promise.all([..._rolledOldKeys, getTodayKey()].map(k => syncKeyNow(k)));
-        // Archive old days (fire-and-forget)
-        toArchive.forEach(({ dayKey, goals }) => { if (goals.length) sbArchiveGoals(dayKey, goals).catch(() => {}); });
-        // Verify the carry-over landed in Supabase before marking the rollover done.
-        // If the sync failed, don't set lastRollover so the next load can retry.
-        const _expectedCount = getGoalsFor(getTodayKey()).length;
-        let _verified = false;
-        for (let _i = 0; _i < 3 && !_verified; _i++) {
-          const _c = await sbFetchGoals(_initToday);
-          if (_c && _c.goals.length >= _expectedCount) { _verified = true; break; }
-          if (_i < 2) await syncKeyNow(getTodayKey());
-        }
-        _cloudLastRollover = _initToday;
-        if (_verified) {
-          await saveCloudLastRollover(_initToday);
-        } else {
-          console.error('[rollover] sync verification failed — lastRollover NOT saved; will retry on next load');
-        }
-        appendRolloverLog({ date: _initToday, carried: _expectedCount, verified: _verified, via: 'init' }).catch(() => {});
-      }
+      await runRolloverIfNeeded('init');
       renderTodayHeader();
       renderTomorrowCount();
-      makeAddHandlers(goalInput, goalAddBtn, getTodayKey(), loadLists);
-      makeAddHandlers(tomorrowInput, tomorrowAddBtn, getTomorrowKey(), loadLists);
+      makeAddHandlers(goalInput, goalAddBtn, getTodayKey, loadLists);
+      makeAddHandlers(tomorrowInput, tomorrowAddBtn, getTomorrowKey, loadLists);
       loadLists();
 
       // Clear completed button
@@ -2191,6 +2455,7 @@
       if (clearBtn) {
         clearBtn.addEventListener('click', () => {
           const goals = getGoalsFor(getTodayKey());
+          tombstoneGoals(goals.filter(g => g.done), 'cleared');
           saveGoalsFor(getTodayKey(), goals.filter(g => !g.done));
           syncKeyNow(getTodayKey());
           loadLists();
@@ -2212,16 +2477,26 @@
           historyBtn.textContent = '⏱ Hide History';
           historyContent.textContent = 'Loading…';
           const archives = await sbLoadRecentArchives();
-          const days = Object.keys(archives).sort().reverse().slice(0, 7);
-          if (!days.length) { historyContent.textContent = 'No history yet.'; return; }
+          try { await refreshTombs(); } catch {}
+          // Deleted tasks (last 7 days) are listed as deleted, never as live ones.
+          const weekAgo = Date.now() - 7 * 86400000;
+          const deleted = Object.values(tombs)
+            .filter(t => t.reason === 'deleted' && t.deleted_at > weekAgo)
+            .sort((a, b) => b.deleted_at - a.deleted_at)
+            .map(t => ({ text: t.label || t.text, deleted: true }));
+          const groups = [];
+          if (deleted.length) groups.push({ title: 'Deleted', tasks: deleted });
+          Object.keys(archives).sort().reverse().slice(0, 7).forEach(dk => {
+            groups.push({ title: formatDateString(dk), tasks: (archives[dk] || []).map(t => ({ ...t, deleted: isTombstoned(t) })) });
+          });
+          if (!groups.length) { historyContent.textContent = 'No history yet.'; return; }
           historyContent.innerHTML = '';
-          days.forEach(dk => {
-            const tasks = archives[dk] || [];
+          groups.forEach(({ title, tasks }) => {
             const dayEl = document.createElement('div');
             dayEl.style.cssText = 'margin-bottom:12px';
             const label = document.createElement('div');
             label.style.cssText = 'color:var(--text-tertiary);font-size:11px;margin-bottom:4px;letter-spacing:0.04em';
-            label.textContent = formatDateString(dk);
+            label.textContent = title;
             dayEl.appendChild(label);
             if (!tasks.length) {
               const empty = document.createElement('div');
@@ -2233,28 +2508,32 @@
               const row = document.createElement('div');
               row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:3px 0';
               const status = document.createElement('span');
-              status.style.cssText = 'color:' + (t.done ? 'var(--success)' : 'var(--text-tertiary)') + ';font-size:10px;flex-shrink:0';
-              status.textContent = t.done ? '✓' : '○';
+              status.style.cssText = 'color:' + (t.done && !t.deleted ? 'var(--success)' : 'var(--text-tertiary)') + ';font-size:10px;flex-shrink:0';
+              status.textContent = t.deleted ? '×' : t.done ? '✓' : '○';
+              status.title = t.deleted ? 'deleted' : '';
               const txt = document.createElement('span');
-              txt.style.cssText = 'flex:1;font-size:12px;' + (t.done ? 'text-decoration:line-through;color:var(--text-tertiary)' : '');
-              txt.textContent = t.text;
+              txt.style.cssText = 'flex:1;font-size:12px;' + (t.done || t.deleted ? 'text-decoration:line-through;color:var(--text-tertiary)' : '');
+              txt.textContent = t.text + (t.deleted ? ' (deleted)' : '');
               const restoreBtn = document.createElement('button');
               restoreBtn.type = 'button';
               restoreBtn.style.cssText = 'background:none;border:1px solid var(--card-border);color:var(--text-tertiary);font-size:10px;padding:2px 6px;border-radius:4px;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent';
               restoreBtn.textContent = 'Restore';
+              // Restore = a brand-new task (new id, created now) in today's list.
+              // It never un-deletes the old one, so no stale copy can ride along.
               restoreBtn.addEventListener('click', () => {
                 const todayGoals = getGoalsFor(getTodayKey());
-                if (todayGoals.some(g => g.text.trim() === t.text.trim())) {
+                if (todayGoals.some(g => normText(g.text) === normText(t.text))) {
                   restoreBtn.textContent = 'Already here';
                   setTimeout(() => { restoreBtn.textContent = 'Restore'; }, 2000);
                   return;
                 }
-                todayGoals.push({ id: goalUid(), text: t.text, done: false, queued: false });
+                todayGoals.push(newGoal(t.text));
                 saveGoalsFor(getTodayKey(), todayGoals);
-                syncKeyNow(getTodayKey());
+                const pushed = syncKeyNow(getTodayKey());
                 loadLists();
                 restoreBtn.textContent = 'Restored ✓';
                 restoreBtn.disabled = true;
+                return pushed;
               });
               row.appendChild(status);
               row.appendChild(txt);
