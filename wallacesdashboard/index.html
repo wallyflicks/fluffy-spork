@@ -1175,6 +1175,12 @@
             Clear completed
           </button>
         </div>
+        <div style="padding-top:6px">
+          <button type="button" id="historyBtn" style="background:none;border:none;color:var(--text-tertiary);font-size:11px;cursor:pointer;padding:4px 0;letter-spacing:0.04em;-webkit-tap-highlight-color:transparent">⏱ History</button>
+        </div>
+        <div id="historyDrawer" style="display:none;margin-top:8px;border-top:1px solid var(--card-border);padding-top:10px">
+          <div id="historyContent" style="font-size:12px;color:var(--text-secondary)">Loading…</div>
+        </div>
       </section>
 
       <section class="gm-card gm-card-tomorrow" id="tomorrowCard">
@@ -1303,10 +1309,24 @@
     }
 
     async function sbUpsertGoals(dayKey, goals) {
-      const payload = JSON.stringify({ day_key: dayKey, goals_json: JSON.stringify(goals), updated_at: new Date().toISOString() });
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/goals?on_conflict=day_key`,
-        { method: 'POST', headers: { ...SB_HEADERS, 'Prefer': 'resolution=merge-duplicates' }, body: payload, keepalive: true });
-      if (!res.ok) throw new Error('upsert failed ' + res.status);
+      const now = new Date().toISOString();
+      const goalsStr = JSON.stringify(goals);
+      // PATCH the existing row first (avoids needing a unique constraint on day_key)
+      const patchRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/goals?day_key=eq.${encodeURIComponent(dayKey)}`,
+        { method: 'PATCH', headers: { ...SB_HEADERS, 'Prefer': 'return=representation' },
+          body: JSON.stringify({ goals_json: goalsStr, updated_at: now }), keepalive: true }
+      );
+      if (!patchRes.ok) throw new Error('patch failed ' + patchRes.status);
+      const updated = await patchRes.json();
+      if (updated.length === 0) {
+        // No row exists yet — INSERT
+        const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/goals`,
+          { method: 'POST', headers: SB_HEADERS,
+            body: JSON.stringify({ day_key: dayKey, goals_json: goalsStr, updated_at: now }), keepalive: true }
+        );
+        if (!insertRes.ok) throw new Error('insert failed ' + insertRes.status);
+      }
     }
 
     async function sbDeleteGoals(dayKey) {
@@ -1321,6 +1341,46 @@
       if (!res.ok) throw new Error('listkeys failed ' + res.status);
       const rows = await res.json();
       return rows.map(r => 'goals:' + r.day_key);
+    }
+
+    // ─── APP_STATE HELPERS ────────────────────────────────────────────────────
+    async function sbUpsertAppState(key, data) {
+      const payload = JSON.stringify({ key, data, updated_at: new Date().toISOString() });
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?on_conflict=key`,
+        { method: 'POST', headers: { ...SB_HEADERS, 'Prefer': 'resolution=merge-duplicates' }, body: payload, keepalive: true });
+      if (!res.ok) throw new Error('app_state upsert failed ' + res.status);
+    }
+
+    async function sbArchiveGoals(dayKey, goals) {
+      await sbUpsertAppState('goals_archive_' + dayKey, goals);
+    }
+
+    async function sbLoadRecentArchives() {
+      try {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/app_state?key=like.goals_archive_%25&select=key,data&order=key.desc&limit=14`,
+          { headers: SB_HEADERS }
+        );
+        if (!res.ok) return {};
+        const rows = await res.json();
+        const out = {};
+        for (const r of rows) {
+          const dk = r.key.replace('goals_archive_', '');
+          if (Array.isArray(r.data)) out[dk] = r.data;
+        }
+        return out;
+      } catch { return {}; }
+    }
+
+    async function appendRolloverLog(entry) {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?key=eq.rollover_log&select=data`, { headers: SB_HEADERS });
+        let log = [];
+        if (res.ok) { const rows = await res.json(); if (rows.length && Array.isArray(rows[0].data)) log = rows[0].data; }
+        log.push({ ...entry, ts: new Date().toISOString() });
+        if (log.length > 30) log = log.slice(-30);
+        await sbUpsertAppState('rollover_log', log);
+      } catch {}
     }
 
     // ─── IN-MEMORY CACHE + SYNC ───────────────────────────────────────────────
@@ -1347,7 +1407,10 @@
           const remoteTs = remote.updatedAt ? Date.parse(remote.updatedAt) : 0;
           let localGoals = null;
           try { localGoals = JSON.parse(localStorage.getItem(key) || 'null'); } catch {}
-          if (Array.isArray(localGoals) && localTs > remoteTs) {
+          // Stale-writer guard: local wins only when it has data AND is newer.
+          // An empty local copy never overwrites a non-empty cloud copy — that's
+          // how a cleared-localStorage device destroys another device's work.
+          if (Array.isArray(localGoals) && localGoals.length > 0 && localTs > remoteTs) {
             memCache[key] = localGoals;
             keysToRepair.push(key);
           } else {
@@ -1378,10 +1441,13 @@
         setSyncState('syncing', 'saving…');
         try {
           const goals = memCache[key];
-          if (!goals || !goals.length) {
+          // Empty-write guard: never delete today's key — upsert [] so the row
+          // survives and the rollover doesn't re-run on the next load.
+          if (key !== getTodayKey() && (!goals || !goals.length)) {
             await sbDeleteGoals(key.slice(6));
           } else {
-            await sbUpsertGoals(key.slice(6), goals);
+            if (!goals || !goals.length) console.warn('[EmptyWriteGuard] empty debounced sync for', key);
+            await sbUpsertGoals(key.slice(6), goals || []);
           }
           setSyncState('ok', 'synced');
         } catch (err) {
@@ -1397,10 +1463,11 @@
       setSyncState('syncing', 'saving…');
       try {
         const goals = memCache[key];
-        if (!goals || !goals.length) {
+        if (key !== getTodayKey() && (!goals || !goals.length)) {
           await sbDeleteGoals(key.slice(6));
         } else {
-          await sbUpsertGoals(key.slice(6), goals);
+          if (!goals || !goals.length) console.warn('[EmptyWriteGuard] empty immediate sync for', key);
+          await sbUpsertGoals(key.slice(6), goals || []);
         }
         setSyncState('ok', 'synced');
       } catch (err) {
@@ -1502,6 +1569,10 @@
     function getTodayKey() { return `goals:${getActiveDateString()}`; }
     function getTomorrowKey() { return `goals:${getTomorrowDateString()}`; }
 
+    function goalUid() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    }
+
     function getGoalsFor(key) {
       const stored = storeGet(key);
       return Array.isArray(stored) ? stored : [];
@@ -1518,15 +1589,20 @@
       const keys = storeListKeys('goals:').sort();
       const activeDay = activeKey.slice(6);
       const todayGoals = getGoalsFor(activeKey);
+      // Ensure today's existing tasks have IDs
+      todayGoals.forEach(g => { if (!g.id) g.id = goalUid(); });
       const dedupe = new Set(todayGoals.map(g => g.text.trim()));
       const processedOldKeys = [];
+      const toArchive = []; // snapshot of each old day before deletion
       keys.forEach(key => {
         const date = key.slice(6);
         if (date >= activeDay) return;
         const goals = getGoalsFor(key);
+        // Snapshot the full day (including done tasks) before we delete it
+        if (goals.length) toArchive.push({ dayKey: date, goals: goals.map(g => ({ ...g })) });
         const toRollover = goals
           .filter(g => !g.done || g.recurring)
-          .map(g => ({ text: g.text, done: false, queued: false, recurring: g.recurring || false }));
+          .map(g => ({ id: goalUid(), text: g.text, done: false, queued: false, recurring: g.recurring || false }));
         toRollover.forEach(g => {
           if (!dedupe.has(g.text.trim())) {
             todayGoals.push(g);
@@ -1543,7 +1619,7 @@
         const cleaned = tomorrowGoals.filter(g => !dedupe.has(g.text.trim()));
         if (cleaned.length !== tomorrowGoals.length) saveGoalsFor(tomorrowKey, cleaned);
       }
-      return processedOldKeys;
+      return { processedOldKeys, toArchive };
     }
 
     // ─── MIDNIGHT ROLLOVER (cloud-coordinated) ────────────────────────────────
@@ -1582,14 +1658,25 @@
       if (_cloudLastRollover === today) return false; // fast path — already handled
       const cloudDate = await fetchCloudLastRollover();
       _cloudLastRollover = cloudDate;
-      // Always re-sync goals from cloud: another device may have already rolled
-      // over, or added/completed tasks since this tab last loaded.
       await loadFromSupabase();
       if (cloudDate === today) return true; // another device ran it; we just refreshed
-      const _rolledOldKeys = rolloverOldGoals();
+      const { processedOldKeys: _rolledOldKeys, toArchive } = rolloverOldGoals();
       updateStreak();
       await Promise.all([..._rolledOldKeys, getTodayKey()].map(k => syncKeyNow(k)));
-      await saveCloudLastRollover(today);
+      // Archive old days non-blocking
+      toArchive.forEach(({ dayKey, goals }) => { if (goals.length) sbArchiveGoals(dayKey, goals).catch(() => {}); });
+      // Verify today's data landed before marking rollover done
+      const _expectedCount = getGoalsFor(getTodayKey()).length;
+      let _verified = false;
+      for (let _i = 0; _i < 3 && !_verified; _i++) {
+        const _c = await sbFetchGoals(today);
+        if (_c && _c.goals.length >= _expectedCount) { _verified = true; break; }
+        if (_i < 2) await syncKeyNow(getTodayKey());
+      }
+      _cloudLastRollover = today;
+      if (_verified) await saveCloudLastRollover(today);
+      else console.error('[rollover] sync verification failed — will retry next check');
+      appendRolloverLog({ date: today, carried: _expectedCount, verified: _verified, via: 'midnightCheck' }).catch(() => {});
       return true;
     }
 
@@ -1957,7 +2044,7 @@
         const text = inputEl.value.trim();
         if (!text) return;
         const goals = getGoalsFor(key);
-        goals.push({ text, done: false, queued: false });
+        goals.push({ id: goalUid(), text, done: false, queued: false });
         saveGoalsFor(key, goals);
         inputEl.value = '';
         reload();
@@ -2063,21 +2150,35 @@
     async function init() {
       setSyncState('syncing', 'connecting…');
       await loadFromSupabase();
-      // Check once against the cloud lastRollover without re-fetching goals
-      // (we just loaded them above). If another device already ran today's
-      // rollover, the cloud data we loaded is already post-rollover.
       const _initToday = getActiveDateString();
       const _initCloud = await fetchCloudLastRollover();
       _cloudLastRollover = _initCloud;
       if (_initCloud !== _initToday) {
-        const _rolledOldKeys = rolloverOldGoals();
+        // Pre-rollover snapshot: save current state before mutating anything
+        const _snap = {};
+        storeListKeys('goals:').forEach(k => { _snap[k.slice(6)] = getGoalsFor(k); });
+        sbUpsertAppState('todo_backup_' + _initToday, _snap).catch(() => {});
+        const { processedOldKeys: _rolledOldKeys, toArchive } = rolloverOldGoals();
         updateStreak();
-        // Flush all rollover-affected keys to Supabase immediately (bypass the
-        // debounce) before marking the rollover complete. If the page closes in
-        // the debounce window or Supabase is stale, a re-run would otherwise see
-        // done:false tasks and roll them over again.
         await Promise.all([..._rolledOldKeys, getTodayKey()].map(k => syncKeyNow(k)));
-        await saveCloudLastRollover(_initToday);
+        // Archive old days (fire-and-forget)
+        toArchive.forEach(({ dayKey, goals }) => { if (goals.length) sbArchiveGoals(dayKey, goals).catch(() => {}); });
+        // Verify the carry-over landed in Supabase before marking the rollover done.
+        // If the sync failed, don't set lastRollover so the next load can retry.
+        const _expectedCount = getGoalsFor(getTodayKey()).length;
+        let _verified = false;
+        for (let _i = 0; _i < 3 && !_verified; _i++) {
+          const _c = await sbFetchGoals(_initToday);
+          if (_c && _c.goals.length >= _expectedCount) { _verified = true; break; }
+          if (_i < 2) await syncKeyNow(getTodayKey());
+        }
+        _cloudLastRollover = _initToday;
+        if (_verified) {
+          await saveCloudLastRollover(_initToday);
+        } else {
+          console.error('[rollover] sync verification failed — lastRollover NOT saved; will retry on next load');
+        }
+        appendRolloverLog({ date: _initToday, carried: _expectedCount, verified: _verified, via: 'init' }).catch(() => {});
       }
       renderTodayHeader();
       renderTomorrowCount();
@@ -2085,15 +2186,86 @@
       makeAddHandlers(tomorrowInput, tomorrowAddBtn, getTomorrowKey(), loadLists);
       loadLists();
 
-      // Clear completed button — removes all done tasks from today's list
+      // Clear completed button
       const clearBtn = document.getElementById('clearCompletedBtn');
       if (clearBtn) {
         clearBtn.addEventListener('click', () => {
           const goals = getGoalsFor(getTodayKey());
           saveGoalsFor(getTodayKey(), goals.filter(g => !g.done));
+          syncKeyNow(getTodayKey());
           loadLists();
         });
       }
+
+      // History drawer
+      const historyBtn = document.getElementById('historyBtn');
+      const historyDrawer = document.getElementById('historyDrawer');
+      const historyContent = document.getElementById('historyContent');
+      if (historyBtn && historyDrawer && historyContent) {
+        historyBtn.addEventListener('click', async () => {
+          if (historyDrawer.style.display !== 'none') {
+            historyDrawer.style.display = 'none';
+            historyBtn.textContent = '⏱ History';
+            return;
+          }
+          historyDrawer.style.display = '';
+          historyBtn.textContent = '⏱ Hide History';
+          historyContent.textContent = 'Loading…';
+          const archives = await sbLoadRecentArchives();
+          const days = Object.keys(archives).sort().reverse().slice(0, 7);
+          if (!days.length) { historyContent.textContent = 'No history yet.'; return; }
+          historyContent.innerHTML = '';
+          days.forEach(dk => {
+            const tasks = archives[dk] || [];
+            const dayEl = document.createElement('div');
+            dayEl.style.cssText = 'margin-bottom:12px';
+            const label = document.createElement('div');
+            label.style.cssText = 'color:var(--text-tertiary);font-size:11px;margin-bottom:4px;letter-spacing:0.04em';
+            label.textContent = formatDateString(dk);
+            dayEl.appendChild(label);
+            if (!tasks.length) {
+              const empty = document.createElement('div');
+              empty.style.cssText = 'color:var(--text-tertiary);font-size:11px;padding-left:4px';
+              empty.textContent = 'No tasks recorded';
+              dayEl.appendChild(empty);
+            }
+            tasks.forEach(t => {
+              const row = document.createElement('div');
+              row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:3px 0';
+              const status = document.createElement('span');
+              status.style.cssText = 'color:' + (t.done ? 'var(--success)' : 'var(--text-tertiary)') + ';font-size:10px;flex-shrink:0';
+              status.textContent = t.done ? '✓' : '○';
+              const txt = document.createElement('span');
+              txt.style.cssText = 'flex:1;font-size:12px;' + (t.done ? 'text-decoration:line-through;color:var(--text-tertiary)' : '');
+              txt.textContent = t.text;
+              const restoreBtn = document.createElement('button');
+              restoreBtn.type = 'button';
+              restoreBtn.style.cssText = 'background:none;border:1px solid var(--card-border);color:var(--text-tertiary);font-size:10px;padding:2px 6px;border-radius:4px;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent';
+              restoreBtn.textContent = 'Restore';
+              restoreBtn.addEventListener('click', () => {
+                const todayGoals = getGoalsFor(getTodayKey());
+                if (todayGoals.some(g => g.text.trim() === t.text.trim())) {
+                  restoreBtn.textContent = 'Already here';
+                  setTimeout(() => { restoreBtn.textContent = 'Restore'; }, 2000);
+                  return;
+                }
+                todayGoals.push({ id: goalUid(), text: t.text, done: false, queued: false });
+                saveGoalsFor(getTodayKey(), todayGoals);
+                syncKeyNow(getTodayKey());
+                loadLists();
+                restoreBtn.textContent = 'Restored ✓';
+                restoreBtn.disabled = true;
+              });
+              row.appendChild(status);
+              row.appendChild(txt);
+              row.appendChild(restoreBtn);
+              dayEl.appendChild(row);
+            });
+            historyContent.appendChild(dayEl);
+          });
+        });
+      }
+
       loadDailyQuote();   // non-blocking
       loadDateWeather(); // non-blocking
     }
